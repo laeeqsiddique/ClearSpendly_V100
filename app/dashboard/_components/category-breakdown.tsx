@@ -23,23 +23,31 @@ import {
   IconBriefcase,
   IconUser,
   IconCar,
-  IconUtensils,
+  IconToolsKitchen2,
   IconHome,
-  IconLaptop
+  IconDeviceLaptop
 } from "@tabler/icons-react";
 
+interface TagData {
+  id: string;
+  name: string;
+  color: string;
+  value: number;
+  percentage: number;
+  categoryPercentage: number;
+  itemCount: number;
+}
+
 interface CategoryData {
+  id: string;
   name: string;
   value: number;
   percentage: number;
   color: string;
   icon: React.ReactNode;
   trend: number;
-  subcategories?: Array<{
-    name: string;
-    value: number;
-    percentage: number;
-  }>;
+  tags: TagData[];
+  tagCount: number;
 }
 
 interface ExpenseBreakdown {
@@ -52,119 +60,99 @@ interface ExpenseBreakdown {
   };
 }
 
-const COLORS = [
-  '#0088FE', '#00C49F', '#FFBB28', '#FF8042', 
-  '#8884D8', '#82CA9D', '#FFC658', '#FF7C7C'
-];
+async function fetchCategoryBreakdown(startDate?: string, endDate?: string): Promise<ExpenseBreakdown> {
+  try {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    
+    // Use tag categories API which provides more meaningful business categorization
+    const tagResponse = await fetch(`/api/dashboard/tag-breakdown?${params}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
-const CATEGORY_ICONS = {
-  'Office Supplies': <IconLaptop className="h-4 w-4" />,
-  'Travel & Transportation': <IconCar className="h-4 w-4" />,
-  'Meals & Entertainment': <IconUtensils className="h-4 w-4" />,
-  'Professional Services': <IconBriefcase className="h-4 w-4" />,
-  'Rent & Facilities': <IconHome className="h-4 w-4" />,
-  'Personal': <IconUser className="h-4 w-4" />,
-};
-
-async function fetchCategoryBreakdown(): Promise<ExpenseBreakdown> {
-  // TODO: Replace with actual API call
-  await new Promise(resolve => setTimeout(resolve, 400));
-  
-  return {
-    totalAmount: 2847.32,
-    categories: [
-      {
-        name: 'Office Supplies',
-        value: 856.40,
-        percentage: 30.1,
-        color: COLORS[0],
-        icon: CATEGORY_ICONS['Office Supplies'],
-        trend: 12.5,
-        subcategories: [
-          { name: 'Software & Subscriptions', value: 420.00, percentage: 49.1 },
-          { name: 'Hardware & Equipment', value: 289.50, percentage: 33.8 },
-          { name: 'Stationery', value: 146.90, percentage: 17.1 }
-        ]
-      },
-      {
-        name: 'Travel & Transportation',
-        value: 672.50,
-        percentage: 23.6,
-        color: COLORS[1],
-        icon: CATEGORY_ICONS['Travel & Transportation'],
-        trend: -5.2,
-        subcategories: [
-          { name: 'Flight & Hotels', value: 450.00, percentage: 66.9 },
-          { name: 'Local Transport', value: 134.25, percentage: 20.0 },
-          { name: 'Fuel & Parking', value: 88.25, percentage: 13.1 }
-        ]
-      },
-      {
-        name: 'Meals & Entertainment',
-        value: 543.80,
-        percentage: 19.1,
-        color: COLORS[2],
-        icon: CATEGORY_ICONS['Meals & Entertainment'],
-        trend: 8.7,
-        subcategories: [
-          { name: 'Client Meals', value: 298.50, percentage: 54.9 },
-          { name: 'Team Lunches', value: 156.80, percentage: 28.8 },
-          { name: 'Conference Events', value: 88.50, percentage: 16.3 }
-        ]
-      },
-      {
-        name: 'Professional Services',
-        value: 432.20,
-        percentage: 15.2,
-        color: COLORS[3],
-        icon: CATEGORY_ICONS['Professional Services'],
-        trend: 22.1,
-        subcategories: [
-          { name: 'Legal & Accounting', value: 245.00, percentage: 56.7 },
-          { name: 'Consulting', value: 123.70, percentage: 28.6 },
-          { name: 'Marketing Services', value: 63.50, percentage: 14.7 }
-        ]
-      },
-      {
-        name: 'Rent & Facilities',
-        value: 342.42,
-        percentage: 12.0,
-        color: COLORS[4],
-        icon: CATEGORY_ICONS['Rent & Facilities'],
-        trend: 0.0,
-        subcategories: [
-          { name: 'Office Rent', value: 200.00, percentage: 58.4 },
-          { name: 'Utilities', value: 89.42, percentage: 26.1 },
-          { name: 'Cleaning & Maintenance', value: 53.00, percentage: 15.5 }
-        ]
-      }
-    ],
-    monthlyComparison: {
-      currentMonth: 2847.32,
-      previousMonth: 2621.80,
-      change: 8.6
+    if (!tagResponse.ok) {
+      throw new Error(`Tag categories API error: ${tagResponse.status}`);
     }
-  };
+
+    const tagResult = await tagResponse.json();
+    if (!tagResult.success) {
+      throw new Error(tagResult.error || 'Failed to fetch tag categories');
+    }
+
+    // Transform tag categories to match our interface
+    const categoriesWithIcons = tagResult.data.categories.map((cat: any) => ({
+      ...cat,
+      icon: getIconForCategory(cat.name),
+    }));
+
+    return {
+      ...tagResult.data,
+      categories: categoriesWithIcons
+    };
+  } catch (error) {
+    console.error('Failed to fetch category breakdown:', error);
+    
+    // Final fallback to empty data
+    return {
+      totalAmount: 0,
+      categories: [],
+      monthlyComparison: {
+        currentMonth: 0,
+        previousMonth: 0,
+        change: 0
+      }
+    };
+  }
 }
 
-export function CategoryBreakdown() {
+function getIconForCategory(categoryName: string): React.ReactNode {
+  // Default icon mapping - you can expand this based on your tag categories
+  const iconMap: Record<string, React.ReactNode> = {
+    'Office Supplies': <IconDeviceLaptop className="h-4 w-4" />,
+    'Travel & Transportation': <IconCar className="h-4 w-4" />,
+    'Meals & Entertainment': <IconToolsKitchen2 className="h-4 w-4" />,
+    'Professional Services': <IconBriefcase className="h-4 w-4" />,
+    'Rent & Facilities': <IconHome className="h-4 w-4" />,
+    'Personal': <IconUser className="h-4 w-4" />,
+    'Non-Categorized': <IconUser className="h-4 w-4" />,
+    'Unaccounted': <IconUser className="h-4 w-4 opacity-50" />,
+    'Project': <IconBriefcase className="h-4 w-4" />,
+    'Department': <IconBriefcase className="h-4 w-4" />,
+    'Tax Status': <IconBriefcase className="h-4 w-4" />,
+    'Client': <IconUser className="h-4 w-4" />,
+    'Expense Type': <IconToolsKitchen2 className="h-4 w-4" />,
+  };
+  
+  return iconMap[categoryName] || <IconBriefcase className="h-4 w-4" />;
+}
+
+interface CategoryBreakdownProps {
+  startDate?: string;
+  endDate?: string;
+}
+
+export function CategoryBreakdown({ startDate, endDate }: CategoryBreakdownProps = {}) {
   const [data, setData] = useState<ExpenseBreakdown | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewType, setViewType] = useState<'pie' | 'bar'>('pie');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchCategoryBreakdown()
+    fetchCategoryBreakdown(startDate, endDate)
       .then(setData)
       .finally(() => setLoading(false));
-  }, []);
+  }, [startDate, endDate]);
 
   if (loading) {
     return (
-      <Card className="@container/card">
+      <Card className="@container/card bg-white/80 backdrop-blur-sm border-0 shadow-lg">
         <CardHeader>
-          <div className="h-6 bg-muted rounded w-48 animate-pulse"></div>
-          <div className="h-4 bg-muted rounded w-64 animate-pulse"></div>
+          <div className="h-6 bg-gradient-to-r from-purple-200 to-blue-200 rounded w-48 animate-pulse"></div>
+          <div className="h-4 bg-gradient-to-r from-purple-200 to-blue-200 rounded w-64 animate-pulse"></div>
         </CardHeader>
         <CardContent>
           <div className="h-80 bg-muted rounded animate-pulse"></div>
@@ -184,15 +172,43 @@ export function CategoryBreakdown() {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className="bg-background border rounded-lg p-3 shadow-lg">
+        <div className="bg-background border rounded-lg p-3 shadow-lg min-w-64">
           <div className="flex items-center gap-2 mb-2">
             {data.icon}
             <span className="font-medium">{data.name}</span>
           </div>
           <div className="space-y-1 text-sm">
-            <div>Amount: <span className="font-medium">${data.value.toLocaleString()}</span></div>
+            <div>Total Amount: <span className="font-medium">${data.value.toLocaleString()}</span></div>
             <div>Percentage: <span className="font-medium">{data.percentage}%</span></div>
-            <div className="flex items-center gap-1">
+            {data.tagCount !== undefined && <div>Tags: <span className="font-medium">{data.tagCount}</span></div>}
+            {data.id === 'unaccounted' && (
+              <div className="text-xs text-muted-foreground mt-1 p-2 bg-gray-50 rounded">
+                This includes tax, fees, and items that OCR couldn't categorize properly.
+              </div>
+            )}
+            {data.tags && data.tags.length > 0 && (
+              <div className="mt-2 pt-2 border-t">
+                <div className="text-xs font-medium text-muted-foreground mb-1">Top Tags:</div>
+                {data.tags.slice(0, 3).map((tag: TagData, index: number) => (
+                  <div key={tag.id} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1">
+                      <div 
+                        className="w-2 h-2 rounded-full" 
+                        style={{ backgroundColor: tag.color }}
+                      />
+                      <span>{tag.name}</span>
+                    </div>
+                    <span className="font-medium">${tag.value.toLocaleString()}</span>
+                  </div>
+                ))}
+                {data.tags.length > 3 && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    +{data.tags.length - 3} more tags
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="flex items-center gap-1 mt-2 pt-2 border-t">
               Trend: 
               <span className={`font-medium flex items-center gap-1 ${data.trend > 0 ? 'text-green-600' : data.trend < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
                 {data.trend > 0 ? <IconTrendingUp className="h-3 w-3" /> : data.trend < 0 ? <IconTrendingDown className="h-3 w-3" /> : null}
@@ -215,16 +231,16 @@ export function CategoryBreakdown() {
 
   return (
     <div className="grid grid-cols-1 @4xl/main:grid-cols-3 gap-4">
-      <Card className="@container/card @4xl/main:col-span-2">
+      <Card className="@container/card @4xl/main:col-span-2 bg-white/80 backdrop-blur-sm border-0 shadow-lg">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <IconChartPie className="h-5 w-5" />
-                Expense Categories
+                <IconChartPie className="h-5 w-5 text-purple-600" />
+                <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Tag Categories & Spending</span>
               </CardTitle>
               <CardDescription>
-                Spending breakdown by category for this month
+                Spending breakdown by tag categories. "Unaccounted" includes tax, fees, and OCR misses.
               </CardDescription>
             </div>
             <CardAction>
@@ -306,9 +322,9 @@ export function CategoryBreakdown() {
       </Card>
 
       <div className="space-y-4">
-        <Card>
+        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-lg">Monthly Comparison</CardTitle>
+            <CardTitle className="text-lg bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Monthly Comparison</CardTitle>
             <CardDescription>vs previous month</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -331,9 +347,9 @@ export function CategoryBreakdown() {
         </Card>
 
         {selectedCategoryData && (
-          <Card>
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
+              <CardTitle className="text-lg flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                 {selectedCategoryData.icon}
                 {selectedCategoryData.name}
               </CardTitle>
@@ -352,18 +368,35 @@ export function CategoryBreakdown() {
                   </Badge>
                 </div>
                 
-                {selectedCategoryData.subcategories && (
+                {selectedCategoryData.tags && selectedCategoryData.tags.length > 0 && (
                   <div className="space-y-2">
-                    <span className="text-sm font-medium">Breakdown:</span>
-                    {selectedCategoryData.subcategories.map((sub, index) => (
-                      <div key={index} className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">{sub.name}</span>
-                        <div className="text-right">
-                          <div className="font-medium">${sub.value.toLocaleString()}</div>
-                          <div className="text-xs text-muted-foreground">{sub.percentage}%</div>
+                    <span className="text-sm font-medium">Tag Breakdown:</span>
+                    <div className="max-h-48 overflow-y-auto space-y-2">
+                      {selectedCategoryData.tags.map((tag) => (
+                        <div key={tag.id} className="flex justify-between items-center text-sm bg-gray-50 rounded p-2">
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: tag.color }}
+                            />
+                            <span className="text-muted-foreground">{tag.name}</span>
+                            <span className="text-xs text-muted-foreground">({tag.itemCount} items)</span>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-medium">${tag.value.toLocaleString()}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {tag.categoryPercentage}% of category
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {(!selectedCategoryData.tags || selectedCategoryData.tags.length === 0) && selectedCategoryData.id !== 'untagged' && (
+                  <div className="text-center py-4 text-gray-500 bg-gray-50 rounded">
+                    <span className="text-sm">No individual tags in this category</span>
                   </div>
                 )}
               </div>
@@ -371,9 +404,9 @@ export function CategoryBreakdown() {
           </Card>
         )}
 
-        <Card>
+        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-lg">Top Categories</CardTitle>
+            <CardTitle className="text-lg bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Top Categories</CardTitle>
             <CardDescription>by spending amount</CardDescription>
           </CardHeader>
           <CardContent>

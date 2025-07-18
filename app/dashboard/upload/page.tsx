@@ -12,15 +12,10 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle,
-  DialogFooter 
-} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { TagInput } from "@/components/ui/tag-input";
+import AIChatAgent from '@/components/ai-chat-agent';
 import { 
   Receipt, 
   Upload, 
@@ -35,12 +30,15 @@ import {
   Store,
   Tag,
   Plus,
-  Trash2
+  Trash2,
+  Sparkles,
+  PenTool
 } from "lucide-react";
 import Image from "next/image";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { toast } from "sonner";
-import { getOCRProcessor } from "@/lib/ocr-processor";
+// Dynamic import of OCR processor to avoid server-side issues
+import type { ExtractedReceiptData } from "@/lib/ocr-processor";
 
 interface ExtractedLineItem {
   id: string;
@@ -48,7 +46,7 @@ interface ExtractedLineItem {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
-  category?: string;
+  tag?: string; // Single tag ID (changed from tags array)
 }
 
 interface ExtractedData {
@@ -59,7 +57,7 @@ interface ExtractedData {
   tax: number;
   lineItems: ExtractedLineItem[];
   notes: string;
-  category: string;
+  tags?: string[]; // Array of tag IDs for receipt-level tags
 }
 
 interface UploadedReceipt {
@@ -73,47 +71,34 @@ interface UploadedReceipt {
   extractedData?: ExtractedData;
 }
 
-// Smart category system with common business categories
-const CATEGORY_GROUPS = {
-  "Common": [
-    "Office Supplies",
-    "Travel & Transportation",
-    "Meals & Entertainment",
-    "Equipment & Software",
-    "Professional Services",
-  ],
-  "Operations": [
-    "Rent & Facilities",
-    "Utilities",
-    "Insurance",
-    "Maintenance & Repairs",
-    "Shipping & Delivery",
-  ],
-  "Marketing": [
-    "Marketing & Advertising",
-    "Social Media",
-    "Content Creation",
-    "Events & Promotions",
-  ],
-  "HR & Development": [
-    "Salaries & Wages",
-    "Training & Education",
-    "Employee Benefits",
-    "Recruitment",
-  ],
-  "Financial": [
-    "Banking Fees",
-    "Accounting & Legal",
-    "Taxes & Licenses",
-    "Interest & Loans",
-  ],
-  "Industry Specific": [
-    "Raw Materials",
-    "Inventory",
-    "Research & Development",
-    "Other",
-  ],
-};
+interface TagCategory {
+  id: string;
+  name: string;
+  color: string;
+  required: boolean;
+  multiple: boolean;
+}
+
+interface SelectedTag {
+  id: string;
+  name: string;
+  description?: string;
+  color: string;
+  category: {
+    id: string;
+    name: string;
+  };
+  categoryName: string;
+}
+
+// Simple debounce function
+function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T {
+  let timeout: NodeJS.Timeout;
+  return ((...args: any[]) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(null, args), wait);
+  }) as T;
+}
 
 export default function UploadPage() {
   const [uploading, setUploading] = useState(false);
@@ -123,8 +108,42 @@ export default function UploadPage() {
   const [selectedReceipt, setSelectedReceipt] = useState<UploadedReceipt | null>(null);
   const [editingData, setEditingData] = useState<ExtractedData | null>(null);
   const [saving, setSaving] = useState(false);
-  const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [ocrProgress, setOcrProgress] = useState<{[key: string]: {step: string, progress: number}}>({});
+  const [vendorSuggestions, setVendorSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [vendorInputFocused, setVendorInputFocused] = useState(false);
+  const [similarVendorWarning, setSimilarVendorWarning] = useState<any>(null);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  
+  // Tag-related state
+  const [tagCategories, setTagCategories] = useState<TagCategory[]>([]);
+  const [allTags, setAllTags] = useState<SelectedTag[]>([]);
+  const [selectedTags, setSelectedTags] = useState<SelectedTag[]>([]);
+
+  // Load tag categories on mount
+  useEffect(() => {
+    const loadTagData = async () => {
+      try {
+        // Load tag categories
+        const categoriesResponse = await fetch('/api/tags/categories');
+        if (categoriesResponse.ok) {
+          const categoriesResult = await categoriesResponse.json();
+          setTagCategories(categoriesResult.data || []);
+        }
+
+        // Load all tags
+        const tagsResponse = await fetch('/api/tags');
+        if (tagsResponse.ok) {
+          const tagsResult = await tagsResponse.json();
+          setAllTags(tagsResult.data || []);
+        }
+      } catch (error) {
+        console.error('Error loading tag data:', error);
+      }
+    };
+
+    loadTagData();
+  }, []);
 
   const handleFileUpload = async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
@@ -222,6 +241,8 @@ export default function UploadPage() {
         const isPdf = file.type === 'application/pdf';
         toast.info(isPdf ? 'Converting PDF and starting OCR processing...' : 'Starting browser-based OCR processing...');
         
+        // Dynamic import to avoid server-side issues
+        const { getOCRProcessor } = await import('@/lib/ocr-processor');
         const ocrProcessor = getOCRProcessor();
         
         if (isPdf) {
@@ -305,9 +326,9 @@ export default function UploadPage() {
         totalAmount: result.totalAmount,
         subtotal: result.subtotal,
         tax: result.tax,
-        category: result.category,
         notes: result.notes || '',
         lineItems: result.lineItems || [],
+        tags: [], // Initialize with empty tags array
       };
 
       setUploadedReceipts((prev) =>
@@ -393,12 +414,46 @@ export default function UploadPage() {
     if (receipt.extractedData) {
       setSelectedReceipt(receipt);
       setEditingData({ ...receipt.extractedData });
+      // Initialize tags from extracted data if they exist
+      setSelectedTags(receipt.extractedData.tags || []);
+      
+      // Scroll the selected receipt into view (with some delay to allow state to update)
+      setTimeout(() => {
+        const receiptElement = document.querySelector(`[data-receipt-id="${receipt.id}"]`);
+        if (receiptElement) {
+          // Calculate the visible area considering the side panel width
+          const sidePanelWidth = 512; // max-w-2xl = 512px
+          const viewportWidth = window.innerWidth;
+          const availableWidth = viewportWidth - sidePanelWidth;
+          
+          // Get the receipt's position
+          const rect = receiptElement.getBoundingClientRect();
+          const receiptCenter = rect.left + rect.width / 2;
+          
+          // If receipt is not visible in the available space, scroll it into view
+          if (receiptCenter > availableWidth) {
+            receiptElement.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center',
+              inline: 'start' 
+            });
+          } else {
+            // Just center it vertically if it's horizontally visible
+            receiptElement.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center',
+              inline: 'nearest' 
+            });
+          }
+        }
+      }, 150);
     }
   };
 
   const closeEditModal = () => {
     setSelectedReceipt(null);
     setEditingData(null);
+    setSelectedTags([]); // Reset tags when closing
   };
 
   const addLineItem = () => {
@@ -442,25 +497,99 @@ export default function UploadPage() {
     });
   };
 
+  const updateLineItemTag = (itemId: string, tagId: string | undefined) => {
+    updateLineItem(itemId, 'tag', tagId);
+  };
+
   const saveReceipt = async () => {
     if (!editingData || !selectedReceipt) return;
     
     setSaving(true);
     try {
-      // TODO: Call actual save API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Clean line items to ensure they're serializable
+      const cleanLineItems = editingData.lineItems.map(item => ({
+        description: String(item.description || ''),
+        quantity: Number(item.quantity || 1),
+        unitPrice: Number(item.unitPrice || 0),
+        totalPrice: Number(item.totalPrice || 0),
+        category: 'Other', // Default category since we're using tags instead
+        tag: item.tag || undefined // Single tag ID
+      }));
+
+      // Prepare data for saving
+      const saveData = {
+        vendor: String(editingData.vendor || ''),
+        date: String(editingData.date || ''),
+        totalAmount: Number(editingData.totalAmount || 0),
+        subtotal: Number(editingData.subtotal || 0),
+        tax: Number(editingData.tax || 0),
+        currency: 'USD',
+        category: 'Other', // Default vendor category
+        lineItems: cleanLineItems,
+        notes: String(editingData.notes || ''),
+        tags: selectedTags.map(tag => typeof tag === 'string' ? tag : tag.id) // Include selected tag IDs
+      };
+
+      console.log('Saving receipt data:', saveData);
+
+      // Call the save-receipt API
+      const response = await fetch('/api/save-receipt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...saveData,
+          imageUrl: selectedReceipt.imageUrl || 'placeholder',
+          confidence: 85, // Default confidence score
+          forceSave: false // Can be set to true to bypass similar vendor warnings
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to save receipt');
+      }
+
+      // Check if there's a similar vendor warning
+      if (result.warning === 'similar_vendors') {
+        // TODO: Show a dialog to handle similar vendors
+        console.warn('Similar vendors found:', result.similarVendors);
+        // For now, force save
+        const forceSaveResponse = await fetch('/api/save-receipt', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...saveData,
+            imageUrl: selectedReceipt.imageUrl || 'placeholder',
+            confidence: 85,
+            forceSave: true
+          }),
+        });
+        
+        const forceSaveResult = await forceSaveResponse.json();
+        if (!forceSaveResponse.ok) {
+          throw new Error(forceSaveResult.error || 'Failed to save receipt');
+        }
+      }
       
+      // Update local state to reflect the saved data
       setUploadedReceipts(prev =>
         prev.map(receipt =>
           receipt.id === selectedReceipt.id
-            ? { ...receipt, extractedData: editingData }
+            ? { ...receipt, extractedData: { ...editingData, tags: selectedTags }, saved: true }
             : receipt
         )
       );
       
       toast.success("Receipt saved successfully!");
+      setSelectedTags([]); // Reset tags after save
       closeEditModal();
     } catch (error) {
+      console.error('Save receipt error:', error);
       toast.error("Failed to save receipt");
     } finally {
       setSaving(false);
@@ -665,7 +794,14 @@ export default function UploadPage() {
                 
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {uploadedReceipts.map((receipt) => (
-                    <div key={receipt.id} className="group bg-gray-50 dark:bg-gray-900/50 rounded-2xl overflow-hidden hover:shadow-lg transition-all duration-300 border border-gray-200 dark:border-gray-700">
+                    <div 
+                      key={receipt.id} 
+                      data-receipt-id={receipt.id}
+                      className={`group bg-gray-50 dark:bg-gray-900/50 rounded-2xl overflow-hidden hover:shadow-lg transition-all duration-300 border ${
+                        selectedReceipt?.id === receipt.id 
+                          ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-lg ring-2 ring-purple-200 dark:ring-purple-800 transform scale-105' 
+                          : 'border-gray-200 dark:border-gray-700'
+                      }`}>
                       <div className="aspect-[4/3] relative bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">
                         {receipt.type.startsWith('image/') ? (
                           <Image
@@ -684,14 +820,20 @@ export default function UploadPage() {
                         )}
                         
                         {/* Modern Status Badge */}
-                        <div className="absolute top-3 left-3">
+                        <div className="absolute top-3 left-3 flex flex-col gap-2">
+                          {selectedReceipt?.id === receipt.id && (
+                            <div className="bg-purple-500 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2 shadow-lg animate-pulse">
+                              <PenTool className="h-3 w-3" />
+                              Editing
+                            </div>
+                          )}
                           {receipt.ocrStatus === 'processing' && (
                             <div className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2 shadow-lg">
                               <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
                               Processing
                             </div>
                           )}
-                          {receipt.ocrStatus === 'completed' && (
+                          {receipt.ocrStatus === 'completed' && selectedReceipt?.id !== receipt.id && (
                             <div className="bg-green-500 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2 shadow-lg">
                               <Check className="h-3 w-3" />
                               Ready
@@ -764,7 +906,7 @@ export default function UploadPage() {
                             <div className="flex items-center gap-2">
                               <Tag className="h-4 w-4 text-blue-600" />
                               <span className="text-sm text-gray-600 dark:text-gray-300">
-                                {receipt.extractedData.category}
+                                {receipt.extractedData.tags?.length ? `${receipt.extractedData.tags.length} tags` : 'No tags'}
                               </span>
                             </div>
                           </div>
@@ -800,441 +942,250 @@ export default function UploadPage() {
         </div>
       )}
 
-      {/* Modern Edit Modal */}
-      <Dialog open={!!selectedReceipt} onOpenChange={closeEditModal}>
-        <DialogContent className="max-w-5xl max-h-[92vh] flex flex-col p-0 gap-0">
-          <DialogHeader className="px-6 py-6 border-b bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-50 dark:from-violet-950/30 dark:via-purple-950/30 dark:to-indigo-950/30">
-            <DialogTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <Receipt className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">Review Receipt</h2>
-                  <p className="text-muted-foreground">Verify and adjust the extracted data</p>
-                </div>
-              </div>
-              {editingData && (
+      {/* Modern Side Panel */}
+      {selectedReceipt && (
+        <div className="fixed inset-0 z-50 flex">
+          {/* Backdrop - only covers the left side */}
+          <div className="flex-1 bg-black/20" onClick={closeEditModal} />
+          
+          {/* Side Panel */}
+          <div className="w-full max-w-2xl bg-white shadow-xl flex flex-col">
+            {/* Header */}
+            <div className="px-6 py-4 border-b bg-gray-50">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Badge variant="secondary" className="gap-2 px-3 py-1">
-                    <Calendar className="h-4 w-4" />
-                    {new Date(editingData.date).toLocaleDateString('en-US', { 
-                      month: 'short', 
-                      day: 'numeric', 
-                      year: 'numeric' 
-                    })}
-                  </Badge>
-                  <Badge className="gap-2 px-3 py-1 bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400">
-                    <DollarSign className="h-4 w-4" />
-                    ${editingData.totalAmount.toFixed(2)}
-                  </Badge>
-                </div>
-              )}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="flex-1 overflow-y-auto px-6 py-6">
-            {editingData && (
-              <div className="space-y-8">
-                {/* Modern Basic Info Section */}
-                <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg flex items-center justify-center">
-                      <Store className="h-4 w-4 text-white" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Receipt Details</h3>
+                  <Receipt className="h-5 w-5 text-purple-600" />
+                  <div>
+                    <h2 className="text-lg font-semibold">Edit Receipt</h2>
+                    <p className="text-sm text-gray-600">
+                      {editingData?.vendor || 'Unknown Vendor'} • {editingData?.date ? new Date(editingData.date).toLocaleDateString() : 'No Date'}
+                    </p>
                   </div>
-                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
-                    <div className="space-y-3">
-                      <Label htmlFor="vendor" className="text-sm font-medium">Vendor</Label>
-                      <div className="relative">
-                        <Store className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                </div>
+                <Button variant="ghost" size="sm" onClick={closeEditModal}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {editingData && (
+                <>
+                  {/* Basic Info Card */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
+                    <h3 className="font-medium text-gray-900">Receipt Details</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="vendor" className="text-sm font-medium">Vendor</Label>
                         <Input
                           id="vendor"
                           value={editingData.vendor}
                           onChange={(e) => setEditingData({...editingData, vendor: e.target.value})}
-                          className="pl-10 h-12 text-base"
-                          placeholder="Business name"
+                          className="mt-1"
                         />
                       </div>
-                    </div>
-                    <div className="space-y-3">
-                      <Label htmlFor="date" className="text-sm font-medium">Date</Label>
-                      <div className="relative">
-                        <Calendar className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <Label htmlFor="date" className="text-sm font-medium">Date</Label>
                         <Input
                           id="date"
                           type="date"
                           value={editingData.date}
                           onChange={(e) => setEditingData({...editingData, date: e.target.value})}
-                          className="pl-10 h-12 text-base"
+                          className="mt-1"
                         />
                       </div>
-                    </div>
-                    <div className="space-y-3">
-                      <Label htmlFor="total" className="text-sm font-medium">Total Amount</Label>
-                      <div className="relative">
-                        <DollarSign className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <Label htmlFor="total" className="text-sm font-medium">Total Amount</Label>
                         <Input
                           id="total"
                           type="number"
                           step="0.01"
                           value={editingData.totalAmount}
                           onChange={(e) => setEditingData({...editingData, totalAmount: parseFloat(e.target.value) || 0})}
-                          className="pl-10 h-12 text-base font-medium"
-                          placeholder="0.00"
+                          className="mt-1"
                         />
                       </div>
-                    </div>
-                  </div>
-                  
-                  {/* Category Row */}
-                  <div className="grid gap-6 md:grid-cols-1 mt-6">
-                    <div className="space-y-3">
-                      <Label htmlFor="category" className="text-sm font-medium">Primary Category</Label>
-                      <div className="relative">
-                        <Tag className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground z-10" />
-                        <Select
-                          value={editingData.category}
-                          onValueChange={(value) => setEditingData({...editingData, category: value})}
-                        >
-                          <SelectTrigger className="pl-10 h-12 text-base">
-                            <SelectValue placeholder="Select primary category" />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-[300px]">
-                            {/* Custom Categories */}
-                            {customCategories.length > 0 && (
-                              <>
-                                <SelectItem value="_custom_header" disabled className="text-xs font-semibold text-muted-foreground">
-                                  Custom Categories
-                                </SelectItem>
-                                {customCategories.map((category) => (
-                                  <SelectItem key={`custom-${category}`} value={category} className="pl-6">
-                                    {category}
-                                  </SelectItem>
-                                ))}
-                                <Separator className="my-2" />
-                              </>
-                            )}
-                            {/* Grouped Categories */}
-                            {Object.entries(CATEGORY_GROUPS).map(([group, categories]) => (
-                              <div key={group}>
-                                <SelectItem value={`_${group}_header`} disabled className="text-xs font-semibold text-muted-foreground">
-                                  {group}
-                                </SelectItem>
-                                {categories.map((category) => (
-                                  <SelectItem key={category} value={category} className="pl-6">
-                                    {category}
-                                  </SelectItem>
-                                ))}
-                              </div>
-                            ))}
-                            <Separator className="my-2" />
-                            <div className="p-2">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="w-full justify-start"
-                                onClick={() => {
-                                  const newCategory = prompt("Enter new category name:");
-                                  if (newCategory && !customCategories.includes(newCategory)) {
-                                    setCustomCategories([...customCategories, newCategory]);
-                                    setEditingData({...editingData, category: newCategory});
-                                  }
-                                }}
-                              >
-                                <Plus className="h-4 w-4 mr-2" />
-                                Add Custom Category
-                              </Button>
-                            </div>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Financial Summary */}
-                  <div className="grid gap-4 md:grid-cols-3 mt-4 pt-4 border-t">
-                    <div className="space-y-2">
-                      <Label className="text-sm">Subtotal</Label>
-                      <div className="flex items-center gap-2">
+                      <div>
+                        <Label htmlFor="tax" className="text-sm font-medium">Tax</Label>
                         <Input
-                          type="number"
-                          step="0.01"
-                          value={editingData.subtotal}
-                          onChange={(e) => setEditingData({...editingData, subtotal: parseFloat(e.target.value) || 0})}
-                          className="text-sm"
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm">Tax</Label>
-                      <div className="flex items-center gap-2">
-                        <Input
+                          id="tax"
                           type="number"
                           step="0.01"
                           value={editingData.tax}
                           onChange={(e) => setEditingData({...editingData, tax: parseFloat(e.target.value) || 0})}
-                          className="text-sm"
-                          placeholder="0.00"
+                          className="mt-1"
                         />
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm">Currency</Label>
-                      <Select value="USD" disabled>
-                        <SelectTrigger className="text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="USD">USD ($)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
                   </div>
-                </div>
 
-                {/* Modern Line Items Section */}
-                <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
-                        <FileImage className="h-4 w-4 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Line Items</h3>
-                        <p className="text-sm text-muted-foreground">{editingData.lineItems.length} items • ${editingData.lineItems.reduce((sum, item) => sum + item.totalPrice, 0).toFixed(2)} total</p>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      onClick={addLineItem}
-                      className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 shadow-lg"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Item
-                    </Button>
-                  </div>
-                
-                  {/* Modern Card-based Line Items */}
-                  <div className="space-y-4">
-                    {editingData.lineItems.length === 0 ? (
-                      <div className="text-center py-12 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-xl">
-                        <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <Plus className="h-8 w-8 text-gray-400" />
-                        </div>
-                        <p className="text-gray-500 dark:text-gray-400 font-medium">No items added yet</p>
-                        <p className="text-sm text-gray-400 dark:text-gray-500">Click "Add Item" to start adding line items</p>
-                      </div>
-                    ) : (
-                      editingData.lineItems.map((item, index) => (
-                        <div key={item.id} className="group bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 rounded-xl p-6 hover:shadow-md transition-all duration-200">
-                          <div className="flex items-start justify-between mb-4">
-                            <div className="flex-1 space-y-4">
-                              {/* Item Description */}
-                              <div className="space-y-2">
-                                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Description</Label>
-                                <Input
-                                  value={item.description}
-                                  onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
-                                  placeholder="Enter item description"
-                                  className="h-11 text-base font-medium border-gray-200 dark:border-gray-700 focus:border-purple-500 focus:ring-purple-500"
-                                />
-                              </div>
-                              
-                              {/* Category and Quantity Row - Stacked for better spacing */}
-                              <div className="space-y-4">
-                                <div className="space-y-2">
-                                  <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Category</Label>
-                                  <Select
-                                    value={item.category || ""}
-                                    onValueChange={(value) => updateLineItem(item.id, 'category', value)}
-                                  >
-                                    <SelectTrigger className="h-11 text-base border-gray-200 dark:border-gray-700 focus:border-purple-500 focus:ring-purple-500">
-                                      <SelectValue placeholder="Select category" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {/* Custom Categories */}
-                                      {customCategories.length > 0 && (
-                                        <>
-                                          <SelectItem value="_custom_header" disabled className="text-xs font-semibold text-muted-foreground">
-                                            Custom Categories
-                                          </SelectItem>
-                                          {customCategories.map((category) => (
-                                            <SelectItem key={`custom-${category}`} value={category} className="pl-6">
-                                              {category}
-                                            </SelectItem>
-                                          ))}
-                                          <Separator className="my-2" />
-                                        </>
-                                      )}
-                                      {/* Grouped Categories */}
-                                      {Object.entries(CATEGORY_GROUPS).map(([group, categories]) => (
-                                        <div key={group}>
-                                          <SelectItem value={`_${group}_header`} disabled className="text-xs font-semibold text-muted-foreground">
-                                            {group}
-                                          </SelectItem>
-                                          {categories.map((category) => (
-                                            <SelectItem key={category} value={category} className="pl-6">
-                                              {category}
-                                            </SelectItem>
-                                          ))}
-                                        </div>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                
-                                <div className="space-y-2">
-                                  <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Quantity</Label>
-                                  <Input
-                                    type="number"
-                                    value={item.quantity}
-                                    onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                                    min="0"
-                                    step="1"
-                                    className="h-11 text-base border-gray-200 dark:border-gray-700 focus:border-purple-500 focus:ring-purple-500"
-                                    placeholder="1"
-                                  />
-                                </div>
-                              </div>
-                              
-                              {/* Pricing Row - Better spacing */}
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                  <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Unit Price</Label>
-                                  <div className="relative">
-                                    <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                      type="number"
-                                      value={item.unitPrice}
-                                      onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
-                                      min="0"
-                                      step="0.01"
-                                      className="pl-10 h-11 text-base border-gray-200 dark:border-gray-700 focus:border-purple-500 focus:ring-purple-500"
-                                      placeholder="0.00"
-                                    />
-                                  </div>
-                                </div>
-                                
-                                <div className="space-y-2">
-                                  <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Total Price</Label>
-                                  <div className="flex items-center h-11 px-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
-                                    <DollarSign className="h-4 w-4 text-green-600 mr-2" />
-                                    <span className="font-semibold text-base text-green-700 dark:text-green-400">
-                                      {item.totalPrice.toFixed(2)}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
+                  {/* Tags Card */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
+                    <h3 className="font-medium text-gray-900">Tags</h3>
+                    <TagInput
+                      selectedTags={selectedTags}
+                      onTagsChange={(tags) => {
+                        // Get previous and new tag IDs
+                        const prevTagIds = selectedTags.map(tag => typeof tag === 'string' ? tag : tag.id);
+                        const newTagIds = tags.map(tag => typeof tag === 'string' ? tag : tag.id);
+                        
+                        // Find added and removed tags
+                        const addedTags = newTagIds.filter(id => !prevTagIds.includes(id));
+                        const removedTags = prevTagIds.filter(id => !newTagIds.includes(id));
+                        
+                        setSelectedTags(tags);
+                        
+                        // Also update the editing data
+                        if (editingData) {
+                          setEditingData({ ...editingData, tags });
+                          
+                          // Update line items based on header tag changes
+                          // For single tag per item, apply the first added tag to items without tags
+                          if (addedTags.length > 0) {
+                            const firstAddedTag = addedTags[0]; // Use only the first tag for line items
+                            const updatedLineItems = editingData.lineItems.map(item => {
+                              // Only update items that don't have a tag yet
+                              if (!item.tag || removedTags.includes(item.tag)) {
+                                return { ...item, tag: firstAddedTag };
+                              }
+                              return item;
+                            });
                             
-                            {/* Delete Button */}
+                            setEditingData(prev => ({ ...prev, lineItems: updatedLineItems }));
+                          } else if (removedTags.length > 0) {
+                            // Remove tags from items that have any of the removed tags
+                            const updatedLineItems = editingData.lineItems.map(item => {
+                              if (item.tag && removedTags.includes(item.tag)) {
+                                return { ...item, tag: undefined };
+                              }
+                              return item;
+                            });
+                            
+                            setEditingData(prev => ({ ...prev, lineItems: updatedLineItems }));
+                          }
+                        }
+                      }}
+                      categories={tagCategories}
+                      placeholder="Add tags to this receipt..."
+                    />
+                  </div>
+
+                  {/* Line Items Card */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium text-gray-900">Line Items</h3>
+                      <Button onClick={addLineItem} size="sm" variant="outline">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Item
+                      </Button>
+                    </div>
+                    <div className="space-y-3">
+                      {editingData.lineItems.map((item) => (
+                        <div key={item.id} className="border border-gray-200 rounded-lg p-3 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Input
+                              value={item.description}
+                              onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
+                              placeholder="Item description"
+                              className="flex-1 mr-2"
+                            />
                             <Button
-                              type="button"
-                              size="sm"
                               variant="ghost"
+                              size="sm"
                               onClick={() => removeLineItem(item.id)}
-                              className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <X className="h-4 w-4" />
                             </Button>
                           </div>
-                        </div>
-                      ))
-                    )}
-                    
-                    {/* Items Summary */}
-                    {editingData.lineItems.length > 0 && (
-                      <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
-                              <Receipt className="h-4 w-4 text-white" />
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <Label className="text-xs">Quantity</Label>
+                              <Input
+                                type="number"
+                                value={item.quantity}
+                                onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 1)}
+                                className="text-sm"
+                              />
                             </div>
                             <div>
-                              <p className="font-semibold text-green-800 dark:text-green-300">Line Items Total</p>
-                              <p className="text-sm text-green-600 dark:text-green-400">{editingData.lineItems.length} items</p>
+                              <Label className="text-xs">Unit Price</Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={item.unitPrice}
+                                onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                                className="text-sm"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">Total</Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={item.totalPrice}
+                                onChange={(e) => updateLineItem(item.id, 'totalPrice', parseFloat(e.target.value) || 0)}
+                                className="text-sm"
+                              />
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-2xl font-bold text-green-700 dark:text-green-300">
-                              ${editingData.lineItems.reduce((sum, item) => sum + item.totalPrice, 0).toFixed(2)}
-                            </p>
+                          <div>
+                            <Label className="text-xs">Tag (Choose one)</Label>
+                            <Select
+                              value={item.tag || "none"}
+                              onValueChange={(value) => updateLineItemTag(item.id, value === "none" ? undefined : value)}
+                            >
+                              <SelectTrigger className="text-sm">
+                                <SelectValue placeholder="Select a tag..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">No tag</SelectItem>
+                                {tagCategories.map((category) => (
+                                  <div key={category.id}>
+                                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                                      {category.name}
+                                    </div>
+                                    {allTags
+                                      .filter(tag => tag.category.id === category.id)
+                                      .map((tag) => (
+                                        <SelectItem key={tag.id} value={tag.id}>
+                                          <div className="flex items-center gap-2">
+                                            <div 
+                                              className="w-3 h-3 rounded-full" 
+                                              style={{ backgroundColor: tag.color || category.color }}
+                                            />
+                                            {tag.name}
+                                          </div>
+                                        </SelectItem>
+                                      ))}
+                                  </div>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Modern Notes Section */}
-                <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg flex items-center justify-center">
-                      <FileImage className="h-4 w-4 text-white" />
+                      ))}
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Additional Notes</h3>
                   </div>
-                  <Textarea
-                    id="notes"
-                    value={editingData.notes}
-                    onChange={(e) => setEditingData({...editingData, notes: e.target.value})}
-                    placeholder="Add any additional notes, special instructions, or reminders..."
-                    rows={4}
-                    className="resize-none text-base border-gray-200 dark:border-gray-700 focus:border-purple-500 focus:ring-purple-500"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter className="px-6 py-6 border-t bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900/50 dark:to-gray-800/50">
-            <div className="flex items-center justify-between w-full">
-              <div className="flex items-center gap-3">
-                {editingData && (
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${
-                      editingData.lineItems.length > 0 ? 'bg-green-500' : 'bg-yellow-500'
-                    }`}></div>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                      Extracted with {editingData.lineItems.length > 0 ? 'high' : 'moderate'} confidence
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div className="flex gap-3">
-                <Button 
-                  variant="outline" 
-                  onClick={closeEditModal}
-                  className="border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800"
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={saveReceipt} 
-                  disabled={saving}
-                  className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 shadow-lg px-6"
-                >
-                  {saving ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-2" />
-                      Save Receipt
-                    </>
-                  )}
-                </Button>
-              </div>
+                </>
+              )}
             </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t bg-gray-50 flex justify-between">
+              <Button variant="outline" onClick={closeEditModal}>
+                Cancel
+              </Button>
+              <Button onClick={saveReceipt} disabled={saving}>
+                {saving ? "Saving..." : "Save Receipt"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* AI Chat Agent */}
+      <AIChatAgent />
     </div>
   );
 }

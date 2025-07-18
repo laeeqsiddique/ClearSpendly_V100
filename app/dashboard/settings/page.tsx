@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { authClient } from "@/lib/auth-client";
 import { ExternalLink, Settings2 } from "lucide-react";
+import AIChatAgent from '@/components/ai-chat-agent';
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -554,17 +555,22 @@ function SettingsContent() {
 
 export default function SettingsPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex flex-col gap-6 p-6">
-          <div>
-            <div className="h-9 w-32 mb-2 bg-gray-200 dark:bg-gray-800 animate-pulse rounded-md" />
-            <div className="h-5 w-80 bg-gray-200 dark:bg-gray-800 animate-pulse rounded-md" />
+    <div>
+      <Suspense
+        fallback={
+          <div className="flex flex-col gap-6 p-6">
+            <div>
+              <div className="h-9 w-32 mb-2 bg-gray-200 dark:bg-gray-800 animate-pulse rounded-md" />
+              <div className="h-5 w-80 bg-gray-200 dark:bg-gray-800 animate-pulse rounded-md" />
+            </div>
           </div>
-        </div>
-      }
-    >
-      <SettingsContent />
-    </Suspense>
+        }
+      >
+        <SettingsContent />
+      </Suspense>
+      
+      {/* AI Chat Agent */}
+      <AIChatAgent />
+    </div>
   );
 }

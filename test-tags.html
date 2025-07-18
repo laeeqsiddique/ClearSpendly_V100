@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Tags API</title>
+</head>
+<body>
+    <h1>Tag System Test</h1>
+    <div id="results"></div>
+
+    <script>
+        async function testTagsAPI() {
+            const results = document.getElementById('results');
+            
+            try {
+                // Test categories
+                console.log('Testing categories API...');
+                const categoriesResponse = await fetch('/api/tags/categories');
+                const categoriesResult = await categoriesResponse.json();
+                
+                results.innerHTML += `<h2>Categories (${categoriesResponse.status}):</h2>`;
+                results.innerHTML += `<pre>${JSON.stringify(categoriesResult, null, 2)}</pre>`;
+                
+                if (categoriesResult.success && categoriesResult.data.length > 0) {
+                    const expenseCategory = categoriesResult.data.find(cat => cat.name === 'Expense Type');
+                    
+                    if (expenseCategory) {
+                        // Test tags for expense type
+                        console.log('Testing tags API for expense type...');
+                        const tagsResponse = await fetch(`/api/tags?categoryId=${expenseCategory.id}`);
+                        const tagsResult = await tagsResponse.json();
+                        
+                        results.innerHTML += `<h2>Tags for ${expenseCategory.name} (${tagsResponse.status}):</h2>`;
+                        results.innerHTML += `<pre>${JSON.stringify(tagsResult, null, 2)}</pre>`;
+                        
+                        // Test suggestions
+                        console.log('Testing suggestions API...');
+                        const suggestionsResponse = await fetch('/api/tags/suggestions?q=travel&limit=5');
+                        const suggestionsResult = await suggestionsResponse.json();
+                        
+                        results.innerHTML += `<h2>Suggestions for "travel" (${suggestionsResponse.status}):</h2>`;
+                        results.innerHTML += `<pre>${JSON.stringify(suggestionsResult, null, 2)}</pre>`;
+                    }
+                }
+                
+            } catch (error) {
+                results.innerHTML += `<h2>Error:</h2><pre>${error.message}</pre>`;
+                console.error('Test error:', error);
+            }
+        }
+        
+        // Run test when page loads
+        testTagsAPI();
+    </script>
+</body>
+</html>

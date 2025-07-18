@@ -21,7 +21,7 @@ import {
   IconEye,
   IconBrain,
   IconTrendingUp,
-  IconDollarSign,
+  IconCurrencyDollar,
   IconCalendar,
   IconFileText,
   IconBuilding
@@ -203,26 +203,56 @@ function formatActivityTime(timestamp: Date) {
   }
 }
 
-async function fetchRecentActivity(): Promise<ReceiptActivity[]> {
-  // TODO: Replace with actual API call
-  await new Promise(resolve => setTimeout(resolve, 300));
-  return mockActivities;
+async function fetchRecentActivity(startDate?: string, endDate?: string): Promise<ReceiptActivity[]> {
+  try {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    
+    const response = await fetch(`/api/dashboard/activity?${params}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to fetch recent activity');
+    }
+
+    return result.data;
+  } catch (error) {
+    console.error('Failed to fetch recent activity:', error);
+    
+    // Fallback to empty array if API fails
+    return [];
+  }
 }
 
-export function RecentActivity() {
+interface RecentActivityProps {
+  startDate?: string;
+  endDate?: string;
+}
+
+export function RecentActivity({ startDate, endDate }: RecentActivityProps = {}) {
   const [activities, setActivities] = useState<ReceiptActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
-    fetchRecentActivity()
+    fetchRecentActivity(startDate, endDate)
       .then(setActivities)
       .finally(() => setLoading(false));
-  }, []);
+  }, [startDate, endDate]);
 
   if (loading) {
     return (
-      <Card>
+      <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
         <CardHeader>
           <div className="h-6 bg-muted rounded w-32 animate-pulse"></div>
           <div className="h-4 bg-muted rounded w-48 animate-pulse"></div>
@@ -247,11 +277,11 @@ export function RecentActivity() {
   const displayedActivities = showAll ? activities : activities.slice(0, 5);
 
   return (
-    <Card>
+    <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <IconCalendar className="h-5 w-5" />
-          Recent Activity
+          <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Recent Activity</span>
         </CardTitle>
         <CardDescription>
           Latest receipt processing and spending insights
@@ -286,7 +316,7 @@ export function RecentActivity() {
                           
                           {activity.amount && (
                             <span className="flex items-center gap-1">
-                              <IconDollarSign className="h-3 w-3" />
+                              <IconCurrencyDollar className="h-3 w-3" />
                               ${activity.amount.toLocaleString()}
                             </span>
                           )}

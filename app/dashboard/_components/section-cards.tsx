@@ -31,48 +31,76 @@ interface DashboardStats {
   monthlyTrend: 'up' | 'down' | 'stable';
 }
 
-async function fetchDashboardStats(): Promise<DashboardStats> {
-  // TODO: Replace with actual API call when backend is ready
-  // Simulating realistic data based on recent receipt uploads
-  await new Promise(resolve => setTimeout(resolve, 300));
-  
-  return {
-    totalSpending: 2847.32,
-    totalSpendingChange: 8.2,
-    receiptsProcessed: 127,
-    receiptsProcessedChange: 23,
-    uniqueVendors: 42,
-    uniqueVendorsChange: 5,
-    priceAlerts: 3,
-    categorizedExpenses: {
-      business: 1420.50,
-      personal: 1126.82,
-      office: 180.00,
-      travel: 89.50,
-      meals: 30.50
-    },
-    monthlyTrend: 'up'
-  };
+async function fetchDashboardStats(startDate?: string, endDate?: string): Promise<DashboardStats> {
+  try {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    
+    const response = await fetch(`/api/dashboard/stats?${params}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to fetch dashboard stats');
+    }
+
+    return result.data;
+  } catch (error) {
+    console.error('Failed to fetch dashboard stats:', error);
+    
+    // Fallback to mock data if API fails
+    return {
+      totalSpending: 0,
+      totalSpendingChange: 0,
+      receiptsProcessed: 0,
+      receiptsProcessedChange: 0,
+      uniqueVendors: 0,
+      uniqueVendorsChange: 0,
+      priceAlerts: 0,
+      categorizedExpenses: {
+        business: 0,
+        personal: 0,
+        office: 0,
+        travel: 0,
+        meals: 0,
+      },
+      monthlyTrend: 'stable'
+    };
+  }
 }
 
-export function SectionCards() {
+interface SectionCardsProps {
+  startDate?: string;
+  endDate?: string;
+}
+
+export function SectionCards({ startDate, endDate }: SectionCardsProps = {}) {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchDashboardStats()
+    fetchDashboardStats(startDate, endDate)
       .then(setStats)
       .finally(() => setLoading(false));
-  }, []);
+  }, [startDate, endDate]);
 
   if (loading) {
     return (
-      <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
         {[...Array(4)].map((_, i) => (
-          <Card key={i} className="@container/card animate-pulse">
+          <Card key={i} className="@container/card bg-white/80 backdrop-blur-sm border-0 shadow-lg animate-pulse">
             <CardHeader>
-              <div className="h-4 bg-muted rounded w-24"></div>
-              <div className="h-8 bg-muted rounded w-32"></div>
+              <div className="h-4 bg-gradient-to-r from-purple-200 to-blue-200 rounded w-24"></div>
+              <div className="h-8 bg-gradient-to-r from-purple-200 to-blue-200 rounded w-32"></div>
             </CardHeader>
           </Card>
         ))}
@@ -83,14 +111,14 @@ export function SectionCards() {
   if (!stats) return null;
 
   return (
-    <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
-      <Card className="@container/card">
+    <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-2 @4xl/main:grid-cols-3">
+      <Card className="@container/card bg-white/80 backdrop-blur-sm border-0 shadow-lg">
         <CardHeader>
           <CardDescription className="flex items-center gap-2">
-            <IconCreditCard className="h-4 w-4" />
+            <IconCreditCard className="h-4 w-4 text-green-600" />
             Total Spending
           </CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
             ${stats.totalSpending.toLocaleString()}
           </CardTitle>
           <CardAction>
@@ -110,13 +138,13 @@ export function SectionCards() {
           </div>
         </CardFooter>
       </Card>
-      <Card className="@container/card">
+      <Card className="@container/card bg-white/80 backdrop-blur-sm border-0 shadow-lg">
         <CardHeader>
           <CardDescription className="flex items-center gap-2">
-            <IconReceipt className="h-4 w-4" />
+            <IconReceipt className="h-4 w-4 text-purple-600" />
             Receipts Processed
           </CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
             {stats.receiptsProcessed}
           </CardTitle>
           <CardAction>
@@ -135,13 +163,13 @@ export function SectionCards() {
           </div>
         </CardFooter>
       </Card>
-      <Card className="@container/card">
+      <Card className="@container/card bg-white/80 backdrop-blur-sm border-0 shadow-lg">
         <CardHeader>
           <CardDescription className="flex items-center gap-2">
-            <IconBuilding className="h-4 w-4" />
+            <IconBuilding className="h-4 w-4 text-blue-600" />
             Unique Vendors
           </CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
             {stats.uniqueVendors}
           </CardTitle>
           <CardAction>
@@ -157,32 +185,6 @@ export function SectionCards() {
           </div>
           <div className="text-muted-foreground">
             Auto-categorized with AI insights
-          </div>
-        </CardFooter>
-      </Card>
-      <Card className="@container/card">
-        <CardHeader>
-          <CardDescription className="flex items-center gap-2">
-            <IconAlertTriangle className="h-4 w-4" />
-            Price Alerts
-          </CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {stats.priceAlerts}
-          </CardTitle>
-          <CardAction>
-            <Badge variant={stats.priceAlerts > 0 ? "destructive" : "secondary"}>
-              <IconAlertTriangle />
-              {stats.priceAlerts > 0 ? 'Active' : 'None'}
-            </Badge>
-          </CardAction>
-        </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="line-clamp-1 flex gap-2 font-medium">
-            {stats.priceAlerts > 0 ? 'Price increases detected' : 'All prices stable'} 
-            <IconAlertTriangle className="size-4" />
-          </div>
-          <div className="text-muted-foreground">
-            {stats.priceAlerts > 0 ? 'Review recommended' : 'AI monitoring active'}
           </div>
         </CardFooter>
       </Card>

@@ -1,6 +1,103 @@
 import { NextRequest, NextResponse } from "next/server";
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
+import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@/lib/supabase/server";
+
+// Function to save receipt data to database
+async function saveReceiptToDatabase(receiptData: any, imageUrl?: string): Promise<string> {
+  try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    // For now, use a default tenant ID until auth is fully set up
+    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    
+    // Check if vendor exists, create if not
+    let vendorId;
+    const normalizedName = receiptData.vendor.toLowerCase().trim().replace(/\s+/g, ' ');
+    const { data: existingVendor } = await supabase
+      .from('vendor')
+      .select('id')
+      .eq('normalized_name', normalizedName)
+      .eq('tenant_id', defaultTenantId)
+      .single();
+    
+    if (existingVendor) {
+      vendorId = existingVendor.id;
+    } else {
+      const { data: newVendor, error: vendorError } = await supabase
+        .from('vendor')
+        .insert({
+          tenant_id: defaultTenantId,
+          name: receiptData.vendor,
+          normalized_name: normalizedName,
+          category: receiptData.category || 'Other'
+        })
+        .select('id')
+        .single();
+      
+      if (vendorError) {
+        console.error('Error creating vendor:', vendorError);
+        throw vendorError;
+      }
+      vendorId = newVendor.id;
+    }
+
+    // Create receipt record
+    const { data: receipt, error: receiptError } = await supabase
+      .from('receipt')
+      .insert({
+        tenant_id: defaultTenantId,
+        vendor_id: vendorId,
+        receipt_date: receiptData.date,
+        currency_code: receiptData.currency || 'USD',
+        total_amount: receiptData.totalAmount,
+        tax_amount: receiptData.tax || 0,
+        image_url: imageUrl || null,
+        ocr_confidence: (receiptData.confidence || 75) / 100, // Convert percentage to decimal
+        status: 'processed'
+      })
+      .select('id')
+      .single();
+    
+    if (receiptError) {
+      console.error('Error creating receipt:', receiptError);
+      throw receiptError;
+    }
+
+    // Create receipt line items
+    if (receiptData.lineItems && receiptData.lineItems.length > 0) {
+      const lineItemsToInsert = receiptData.lineItems.map((item: any) => ({
+        receipt_id: receipt.id,
+        sku: null,
+        description: item.description,
+        quantity: item.quantity || 1,
+        unit_price: item.unitPrice || 0,
+        total_price: item.totalPrice || (item.quantity * item.unitPrice) || 0,
+        category: item.category || 'Other',
+        tax_deductible: true
+      }));
+
+      const { error: lineItemsError } = await supabase
+        .from('receipt_item')
+        .insert(lineItemsToInsert);
+      
+      if (lineItemsError) {
+        console.error('Error creating line items:', lineItemsError);
+        throw lineItemsError;
+      }
+    }
+
+    console.log('✅ Receipt saved to database:', receipt.id);
+    return receipt.id;
+  } catch (error) {
+    console.error('❌ Database save error:', error);
+    throw error;
+  }
+}
 
 // Ollama processing function for local OCR
 async function processWithOllama(imageData: string) {
@@ -207,6 +304,8 @@ export async function POST(req: NextRequest) {
         notes: "",
       };
 
+      // Note: Receipt will be saved when user clicks "Save" after review
+
       return NextResponse.json({
         success: true,
         data: mockData,
@@ -317,20 +416,24 @@ If you cannot read the receipt clearly, return confidence < 50. Return ONLY the 
       }));
     }
 
+    const processedData = {
+      vendor: extractedData.vendor,
+      date: extractedData.date || new Date().toISOString().split('T')[0],
+      totalAmount: extractedData.totalAmount,
+      subtotal: extractedData.subtotal || extractedData.totalAmount,
+      tax: extractedData.tax || 0,
+      currency: extractedData.currency || "USD",
+      lineItems: extractedData.lineItems || [],
+      category: extractedData.category || "Other",
+      confidence: extractedData.confidence || 75,
+      notes: "",
+    };
+
+    // Note: Receipt will be saved when user clicks "Save" after review
+
     return NextResponse.json({
       success: true,
-      data: {
-        vendor: extractedData.vendor,
-        date: extractedData.date || new Date().toISOString().split('T')[0],
-        totalAmount: extractedData.totalAmount,
-        subtotal: extractedData.subtotal || extractedData.totalAmount,
-        tax: extractedData.tax || 0,
-        currency: extractedData.currency || "USD",
-        lineItems: extractedData.lineItems || [],
-        category: extractedData.category || "Other",
-        confidence: extractedData.confidence || 75,
-        notes: "",
-      },
+      data: processedData,
     });
   } catch (error) {
     console.error("OCR processing error:", error);

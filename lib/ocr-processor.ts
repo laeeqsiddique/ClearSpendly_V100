@@ -315,16 +315,19 @@ export class OCRProcessor {
     const vendor = this.extractVendor(lines);
     console.log('🏪 Extracted Vendor:', vendor);
     
+    // Apply vendor-specific parsing improvements
+    const vendorSpecificData = this.applyVendorSpecificParsing(vendor, lines, text);
+    
     // Extract date
-    const date = this.extractDate(lines);
+    const date = vendorSpecificData.date || this.extractDate(lines);
     console.log('📅 Extracted Date:', date);
     
     // Extract amounts
-    const amounts = this.extractAmounts(lines);
+    const amounts = vendorSpecificData.amounts || this.extractAmounts(lines);
     console.log('💰 Extracted Amounts:', amounts);
     
     // Extract line items
-    const lineItems = this.extractLineItems(lines);
+    const lineItems = vendorSpecificData.lineItems || this.extractLineItems(lines);
     console.log('📋 Extracted Line Items:', lineItems);
     
     // Determine category based on vendor and items
@@ -361,6 +364,31 @@ export class OCRProcessor {
       if (line.match(/^\d+$/) || line.match(/^[\d\/\-]+$/) || line.length < 3) {
         continue;
       }
+      
+      // Check for known vendor patterns
+      const normalizedLine = line.toUpperCase();
+      
+      // Home Depot specific
+      if (normalizedLine.includes('HOME DEPOT') || normalizedLine.includes('HOMEDEPOT')) {
+        return 'The Home Depot';
+      }
+      // Walmart specific
+      if (normalizedLine.includes('WALMART') || normalizedLine.includes('WAL-MART') || normalizedLine.includes('WAL MART')) {
+        return 'Walmart';
+      }
+      // Lowe's specific
+      if (normalizedLine.includes('LOWE\'S') || normalizedLine.includes('LOWES')) {
+        return 'Lowe\'s';
+      }
+      // Target specific
+      if (normalizedLine.includes('TARGET')) {
+        return 'Target';
+      }
+      // Costco specific
+      if (normalizedLine.includes('COSTCO')) {
+        return 'Costco';
+      }
+      
       // Take first substantial line as vendor
       if (line.length > 3 && !line.match(/^[\d\$\.\,\s]+$/)) {
         return line;
@@ -417,6 +445,8 @@ export class OCRProcessor {
         /(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*\$/g,     // 1,234.56$
         /(\d+\.\d{2})(?!\d)/g,                        // 12.34 (not part of larger number)
         /(\d+)\.(\d{2})\b/g,                          // Alternative decimal format
+        /:\s*\$?(\d+\.\d{2})/g,                      // After colon: $12.34 or : 12.34
+        /\s+(\d+\.\d{2})$/g,                         // End of line amount
       ];
       
       for (const pattern of patterns) {
@@ -439,21 +469,27 @@ export class OCRProcessor {
         let confidence = 0;
         
         // Total patterns (higher confidence for specific keywords)
-        if (/\b(total|amount\s*due|balance\s*due|grand\s*total|final\s*total|you\s*owe|pay\s*amount)\b/i.test(lowerLine)) {
+        if (/\b(total|amount\s*due|balance\s*due|grand\s*total|final\s*total|you\s*owe|pay\s*amount|total\s*amount|amount\s*paid|total\s*sale|sale\s*total)\b/i.test(lowerLine)) {
           type = 'total';
           confidence = 90;
           // Higher confidence if it's the largest amount or near end of receipt
           if (i > lines.length * 0.6) confidence += 10;
+          // Even higher for exact match patterns
+          if (/^total\s*:?\s*\$?[\d\.]+$/i.test(lowerLine)) confidence = 100;
         }
         // Subtotal patterns
-        else if (/\b(subtotal|sub\s*total|sub-total|net\s*amount|before\s*tax|merchandise\s*total|your\s*order|order\s*total|purchase\s*amount)\b/i.test(lowerLine)) {
+        else if (/\b(subtotal|sub\s*total|sub-total|net\s*amount|before\s*tax|merchandise\s*total|your\s*order|order\s*total|purchase\s*amount|item\s*total|product\s*total)\b/i.test(lowerLine)) {
           type = 'subtotal';
           confidence = 85;
+          // Higher for exact patterns
+          if (/^subtotal\s*:?\s*\$?[\d\.]+$/i.test(lowerLine)) confidence = 95;
         }
         // Tax/Fee patterns (expanded to include various fees)
-        else if (/\b(tax|gst|hst|pst|vat|sales\s*tax|state\s*tax|city\s*tax|local\s*tax|fee|service\s*fee|transaction\s*fee|processing\s*fee|convenience\s*fee)\b/i.test(lowerLine)) {
+        else if (/\b(tax|gst|hst|pst|vat|sales\s*tax|state\s*tax|city\s*tax|local\s*tax|fee|service\s*fee|transaction\s*fee|processing\s*fee|convenience\s*fee|tx|levy)\b/i.test(lowerLine)) {
           type = 'tax';
           confidence = 85;
+          // Higher for exact tax patterns
+          if (/^(sales\s*)?tax\s*:?\s*\$?[\d\.]+$/i.test(lowerLine)) confidence = 95;
         }
         // Change patterns (should be ignored)
         else if (/\b(change|cash\s*back|refund|credit)\b/i.test(lowerLine)) {
@@ -893,6 +929,269 @@ export class OCRProcessor {
     if (items.length === 0) confidence -= 25;
     
     return Math.max(confidence, 30);
+  }
+
+  private applyVendorSpecificParsing(vendor: string, lines: string[], fullText: string): {
+    date?: string;
+    amounts?: { total: number; subtotal: number; tax: number };
+    lineItems?: LineItem[];
+  } {
+    const vendorLower = vendor.toLowerCase();
+    
+    // Home Depot specific parsing
+    if (vendorLower.includes('home depot')) {
+      console.log('🏠 Applying Home Depot specific parsing...');
+      return this.parseHomeDepotReceipt(lines, fullText);
+    }
+    
+    // Walmart specific parsing
+    if (vendorLower.includes('walmart')) {
+      console.log('🛒 Applying Walmart specific parsing...');
+      return this.parseWalmartReceipt(lines, fullText);
+    }
+    
+    // Lowe's specific parsing
+    if (vendorLower.includes('lowe')) {
+      console.log('🔨 Applying Lowe\'s specific parsing...');
+      return this.parseLowesReceipt(lines, fullText);
+    }
+    
+    // Target specific parsing
+    if (vendorLower.includes('target')) {
+      console.log('🎯 Applying Target specific parsing...');
+      return this.parseTargetReceipt(lines, fullText);
+    }
+    
+    // No vendor-specific parsing
+    return {};
+  }
+
+  private parseHomeDepotReceipt(lines: string[], fullText: string): {
+    date?: string;
+    amounts?: { total: number; subtotal: number; tax: number };
+    lineItems?: LineItem[];
+  } {
+    const result: any = {};
+    
+    // Home Depot specific date pattern: often MM/DD/YY format
+    for (const line of lines) {
+      const dateMatch = line.match(/(\d{2}\/\d{2}\/\d{2})/);
+      if (dateMatch) {
+        const [month, day, year] = dateMatch[1].split('/');
+        result.date = `20${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        break;
+      }
+    }
+    
+    // Home Depot specific item patterns
+    const items: LineItem[] = [];
+    const itemPattern = /^(.+?)\s+(\d+)\s*@\s*\$(\d+\.\d{2})\s+\$(\d+\.\d{2})$/;
+    const simpleItemPattern = /^(.+?)\s+\$(\d+\.\d{2})$/;
+    
+    for (const line of lines) {
+      // Skip known non-item lines
+      if (line.match(/TAX|TOTAL|SUBTOTAL|CASH|CHANGE|VISA|MASTERCARD/i)) continue;
+      
+      let match = line.match(itemPattern);
+      if (match) {
+        const [, desc, qty, unitPrice, totalPrice] = match;
+        items.push({
+          id: crypto.randomUUID(),
+          description: desc.trim(),
+          quantity: parseInt(qty),
+          unitPrice: parseFloat(unitPrice),
+          totalPrice: parseFloat(totalPrice),
+          category: 'Equipment & Software'
+        });
+      } else {
+        match = line.match(simpleItemPattern);
+        if (match && !line.match(/^\d{12}/)) { // Skip UPC codes
+          const [, desc, price] = match;
+          items.push({
+            id: crypto.randomUUID(),
+            description: desc.trim(),
+            quantity: 1,
+            unitPrice: parseFloat(price),
+            totalPrice: parseFloat(price),
+            category: 'Equipment & Software'
+          });
+        }
+      }
+    }
+    
+    if (items.length > 0) {
+      result.lineItems = items;
+    }
+    
+    return result;
+  }
+
+  private parseWalmartReceipt(lines: string[], fullText: string): {
+    date?: string;
+    amounts?: { total: number; subtotal: number; tax: number };
+    lineItems?: LineItem[];
+  } {
+    const result: any = {};
+    
+    // Walmart specific patterns
+    const items: LineItem[] = [];
+    
+    // Walmart often uses item codes followed by description
+    const itemPattern = /^(\d{9,12})\s+(.+?)\s+\$(\d+\.\d{2})\s*([A-Z])?$/;
+    const simplePattern = /^(.+?)\s+\$(\d+\.\d{2})\s*([A-Z])?$/;
+    
+    for (const line of lines) {
+      if (line.match(/SUBTOTAL|TAX|TOTAL|CHANGE|CASH|DEBIT|CREDIT|EFT/i)) continue;
+      
+      let match = line.match(itemPattern);
+      if (match) {
+        const [, code, desc, price, taxCode] = match;
+        items.push({
+          id: crypto.randomUUID(),
+          description: desc.trim(),
+          quantity: 1,
+          unitPrice: parseFloat(price),
+          totalPrice: parseFloat(price),
+          category: this.categorizeWalmartItem(desc)
+        });
+      } else {
+        match = line.match(simplePattern);
+        if (match && match[1].length > 5) { // Avoid short non-item lines
+          const [, desc, price] = match;
+          items.push({
+            id: crypto.randomUUID(),
+            description: desc.trim(),
+            quantity: 1,
+            unitPrice: parseFloat(price),
+            totalPrice: parseFloat(price),
+            category: this.categorizeWalmartItem(desc)
+          });
+        }
+      }
+    }
+    
+    if (items.length > 0) {
+      result.lineItems = items;
+    }
+    
+    return result;
+  }
+
+  private parseLowesReceipt(lines: string[], fullText: string): {
+    date?: string;
+    amounts?: { total: number; subtotal: number; tax: number };
+    lineItems?: LineItem[];
+  } {
+    const result: any = {};
+    
+    // Lowe's specific patterns
+    const items: LineItem[] = [];
+    
+    // Lowe's pattern: often has item number, description, then price
+    const itemPattern = /^(\d{6,7})\s+(.+?)\s+\$(\d+\.\d{2})$/;
+    const qtyPattern = /^\s*QTY\s+(\d+)\s*@\s*\$(\d+\.\d{2})$/;
+    
+    let lastItem: LineItem | null = null;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      
+      if (line.match(/SUBTOTAL|TAX|TOTAL|PAYMENT|CHANGE/i)) continue;
+      
+      const itemMatch = line.match(itemPattern);
+      if (itemMatch) {
+        const [, itemNum, desc, price] = itemMatch;
+        lastItem = {
+          id: crypto.randomUUID(),
+          description: desc.trim(),
+          quantity: 1,
+          unitPrice: parseFloat(price),
+          totalPrice: parseFloat(price),
+          category: 'Equipment & Software'
+        };
+        items.push(lastItem);
+      } else if (lastItem && i > 0) {
+        // Check for quantity line after item
+        const qtyMatch = line.match(qtyPattern);
+        if (qtyMatch) {
+          const [, qty, unitPrice] = qtyMatch;
+          lastItem.quantity = parseInt(qty);
+          lastItem.unitPrice = parseFloat(unitPrice);
+          lastItem.totalPrice = lastItem.quantity * lastItem.unitPrice;
+        }
+      }
+    }
+    
+    if (items.length > 0) {
+      result.lineItems = items;
+    }
+    
+    return result;
+  }
+
+  private parseTargetReceipt(lines: string[], fullText: string): {
+    date?: string;
+    amounts?: { total: number; subtotal: number; tax: number };
+    lineItems?: LineItem[];
+  } {
+    const result: any = {};
+    
+    // Target specific patterns
+    const items: LineItem[] = [];
+    
+    // Target pattern: DPCI number, description, price
+    const itemPattern = /^(\d{3}-\d{2}-\d{4})\s+(.+?)\s+\$(\d+\.\d{2})\s*([T])?$/;
+    const simplePattern = /^(.+?)\s+\$(\d+\.\d{2})\s*([T])?$/;
+    
+    for (const line of lines) {
+      if (line.match(/SUBTOTAL|TAX|TOTAL|REDcard|VISA|CASH/i)) continue;
+      
+      let match = line.match(itemPattern);
+      if (match) {
+        const [, dpci, desc, price, taxable] = match;
+        items.push({
+          id: crypto.randomUUID(),
+          description: desc.trim(),
+          quantity: 1,
+          unitPrice: parseFloat(price),
+          totalPrice: parseFloat(price),
+          category: 'Other'
+        });
+      } else {
+        match = line.match(simplePattern);
+        if (match && match[1].length > 5) {
+          const [, desc, price] = match;
+          items.push({
+            id: crypto.randomUUID(),
+            description: desc.trim(),
+            quantity: 1,
+            unitPrice: parseFloat(price),
+            totalPrice: parseFloat(price),
+            category: 'Other'
+          });
+        }
+      }
+    }
+    
+    if (items.length > 0) {
+      result.lineItems = items;
+    }
+    
+    return result;
+  }
+
+  private categorizeWalmartItem(description: string): string {
+    const desc = description.toLowerCase();
+    if (desc.includes('grocery') || desc.includes('food') || desc.includes('produce')) {
+      return 'Other';
+    }
+    if (desc.includes('tool') || desc.includes('hardware') || desc.includes('paint')) {
+      return 'Equipment & Software';
+    }
+    if (desc.includes('office') || desc.includes('paper') || desc.includes('pen')) {
+      return 'Office Supplies';
+    }
+    return 'Other';
   }
 
   async terminate() {
