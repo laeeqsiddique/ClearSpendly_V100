@@ -1,15 +1,12 @@
-import { auth } from "@/lib/auth";
+import { getUser } from "@/lib/auth";
 import { getSubscriptionDetails } from "@/lib/subscription";
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const result = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const user = await getUser();
 
-    if (!result?.session?.userId) {
+    if (!user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

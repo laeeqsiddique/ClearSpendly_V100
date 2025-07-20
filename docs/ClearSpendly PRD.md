@@ -4,11 +4,13 @@
 
 ### 1. Purpose
 
-ClearSpendly converts any receipt (paper or digital) into structured, searchable data and actionable spend insights for small‑to‑mid‑size businesses. It speeds up bookkeeping, flags cost anomalies, and readies tax documentation – all inside a privacy‑first multi‑tenant SaaS.
+ClearSpendly provides complete Schedule C management for freelancers, contractors, and small businesses by combining receipt OCR, mileage tracking, and invoicing into one privacy-first platform. It converts any receipt into structured data, tracks business miles, manages client invoices, and automatically prepares tax documentation.
+
+**Value Proposition**: "Everything you need for Schedule C in one place - from client invoice to tax filing"
 
 ### 2. Problem Statement
 
-*Manual receipt handling is slow and error‑prone.* Bookkeepers spend hours typing line‑items, categorising expenses, and chasing employees for missing details. Existing tools stop at image‑level storage; they rarely exploit line‑item intelligence or price‑creep alerts.
+*Freelancers and contractors struggle with fragmented financial tools.* They use separate apps for expenses, mileage, and invoicing - making Schedule C preparation painful. Current solutions either focus on just expenses OR just invoicing, forcing users to manually reconcile data across multiple platforms for tax filing.
 
 ### 3. Goals & Success Metrics
 
@@ -37,6 +39,8 @@ ClearSpendly converts any receipt (paper or digital) into structured, searchable
 6. **Exports** – CSV line‑items, PDF bundle with original images.
 7. **Subscriptions & Usage Meter** – Polar integration.
 8. **Privacy Mode** – tenant toggle to enforce offline OCR only.
+9. **Mileage Tracking** – Manual entry of business trips with IRS-compliant logging.
+10. **Simple Invoicing** – Create, send, and track invoices for complete Schedule C support.
 
 ### 6. Non‑Functional Requirements
 
@@ -47,13 +51,41 @@ ClearSpendly converts any receipt (paper or digital) into structured, searchable
 
 ### 7. Out‑of‑Scope (MVP)
 
-* Mileage tracking
+* GPS-based automatic mileage tracking
 * Vendor negotiation recommender
 * Public parsing API
 
-### 8. Enhanced User Experience Features
+### 8. MVP+ Features (Schedule C Completion)
 
-#### **8.1 Advanced Receipt Management** ✅ **IMPLEMENTED**
+#### **8.1 Mileage Tracking** 🚗 **NEW**
+* **Manual Entry Form**: Simple form to log business trips
+  - Start/end locations or addresses  
+  - Total miles driven
+  - Purpose of trip (client meeting, supplies, etc.)
+  - Date and time of trip
+  - Link to client/project (optional)
+* **IRS-Compliant Logging**: Meets all IRS documentation requirements
+* **Mileage Reports**: Monthly/yearly summaries with deduction calculations
+* **Quick Entry**: Frequently used trips can be saved as templates
+* **Integration**: Mileage deductions flow directly into Schedule C calculations
+
+#### **8.2 Simple Invoicing** 💰 **NEW**
+* **Invoice Creation**: Basic invoice builder
+  - Client name and contact info
+  - Line items with descriptions and amounts
+  - Invoice number and date
+  - Payment terms (Net 30, etc.)
+* **Invoice Tracking**: 
+  - Sent/Viewed/Paid status tracking
+  - Outstanding balance dashboard
+  - Payment reminders (manual)
+* **Client Management**: Simple client list with contact details
+* **PDF Generation**: Professional invoice PDFs for sending
+* **Income Integration**: All invoice data flows into Schedule C gross receipts
+
+### 9. Enhanced User Experience Features
+
+#### **9.1 Advanced Receipt Management** ✅ **IMPLEMENTED**
 * Hybrid view system with table and card layouts
 * Smart date filtering with presets (Today, This Week, This Month, etc.)
 * Advanced tag filtering with visual grid interface
@@ -62,7 +94,7 @@ ClearSpendly converts any receipt (paper or digital) into structured, searchable
 * Enhanced empty states and filter management
 * Responsive design optimized for all devices
 
-#### **8.2 AI-Powered Features** ✅ **IMPLEMENTED**
+#### **9.2 AI-Powered Features** ✅ **IMPLEMENTED**
 * **AI Chat Agent**: Conversational interface for receipt queries and analysis
 * **Context-Aware Responses**: Understands selected receipts and active filters
 * **Natural Language Processing**: Answers questions about expenses, totals, and patterns
@@ -72,7 +104,7 @@ ClearSpendly converts any receipt (paper or digital) into structured, searchable
 * **Export Guidance**: Helps users understand and use Excel export features
 * **Real-time Integration**: Seamlessly integrates with current receipt data and filters
 
-#### **8.3 Administration & Management** ✅ **IMPLEMENTED**
+#### **9.3 Administration & Management** ✅ **IMPLEMENTED**
 * **System Configuration Panel**: App settings, currency, timezone, feature toggles
 * **Usage Analytics Dashboard**: Real-time statistics and system health monitoring
 * **Data Management Interface**: Backup creation, storage monitoring, data operations
@@ -81,16 +113,16 @@ ClearSpendly converts any receipt (paper or digital) into structured, searchable
 * **System Health Monitoring**: Database, AI service, and storage status indicators
 * **Backup & Restore**: Automated backup creation with downloadable JSON exports
 
-### 9. Nice to Have (Future Contractor Features)
+### 10. Nice to Have (Future Contractor Features)
 
-#### **9.1 Billable Expense Management**
+#### **10.1 Billable Expense Management**
 * Mark expenses as billable/non-billable to clients
 * Track reimbursement status (pending/approved/paid/rejected)
 * Client-specific expense approval workflows
 * Business vs personal expense percentage allocation
 * Pre-approval request system for large expenses
 
-#### **9.2 Mileage & Non-Receipt Expense Tracking**
+#### **10.2 Advanced Mileage & Non-Receipt Expense Tracking**
 * GPS-based automatic mileage logging for client visits
 * Manual mileage entry with start/end locations
 * IRS-compliant mileage rate tracking and updates
@@ -98,7 +130,7 @@ ClearSpendly converts any receipt (paper or digital) into structured, searchable
 * Public transit and parking expenses (no receipt scenarios)
 * Home office deduction calculations
 
-#### **9.3 Client Expense Policy Compliance**
+#### **10.3 Client Expense Policy Compliance**
 * Client-specific spending limits and approval thresholds
 * Automatic policy violation detection and warnings
 * Custom expense categories per client
@@ -106,7 +138,7 @@ ClearSpendly converts any receipt (paper or digital) into structured, searchable
 * Blocked expense category enforcement
 * Policy compliance reporting
 
-#### **9.4 Contractor-Specific Templates & Workflows**
+#### **10.4 Contractor-Specific Templates & Workflows**
 * Quick-entry templates for recurring expenses
 * Monthly subscription expense automation
 * Business percentage defaults for mixed-use expenses
@@ -114,7 +146,7 @@ ClearSpendly converts any receipt (paper or digital) into structured, searchable
 * Multi-client project expense allocation
 * Time-based expense tracking integration
 
-#### **9.5 Enhanced Contractor Reporting**
+#### **10.5 Enhanced Contractor Reporting**
 * Client-specific reimbursement reports
 * Tax deduction summaries by category
 * Mileage logs in IRS-compliant format
@@ -122,7 +154,7 @@ ClearSpendly converts any receipt (paper or digital) into structured, searchable
 * Billable vs non-billable expense breakdowns
 * Project profitability expense analysis
 
-#### **9.6 Multi-Currency & International Contractor Support**
+#### **10.6 Multi-Currency & International Contractor Support**
 * Real-time currency conversion for international work
 * Foreign tax handling (VAT, GST) by country
 * Per-country expense category mapping

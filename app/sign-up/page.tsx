@@ -21,6 +21,7 @@ function SignUpContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [organizationName, setOrganizationName] = useState("");
   const [checkingAuth, setCheckingAuth] = useState(true);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -70,6 +71,11 @@ function SignUpContent() {
       return;
     }
 
+    if (!organizationName.trim()) {
+      toast.error("Organization name is required");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -78,6 +84,9 @@ function SignUpContent() {
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: {
+            organization_name: organizationName.trim(),
+          }
         },
       });
 
@@ -131,6 +140,18 @@ function SignUpContent() {
         <CardContent className="space-y-4">
           <form onSubmit={handleEmailSignUp} className="space-y-4">
             <div className="space-y-2">
+              <Label htmlFor="organizationName">Organization Name</Label>
+              <Input
+                id="organizationName"
+                type="text"
+                placeholder="Enter your organization name"
+                value={organizationName}
+                onChange={(e) => setOrganizationName(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
@@ -171,7 +192,7 @@ function SignUpContent() {
             <Button 
               type="submit" 
               className="w-full" 
-              disabled={loading || !email || !password || !confirmPassword}
+              disabled={loading || !email || !password || !confirmPassword || !organizationName}
             >
               {loading ? "Creating account..." : "Create Account"}
             </Button>

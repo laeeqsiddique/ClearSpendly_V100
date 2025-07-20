@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { SpendingInsights } from "./spending-insights";
 import { 
   IconChartPie, 
   IconChartBar, 
@@ -322,29 +323,7 @@ export function CategoryBreakdown({ startDate, endDate }: CategoryBreakdownProps
       </Card>
 
       <div className="space-y-4">
-        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-lg bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Monthly Comparison</CardTitle>
-            <CardDescription>vs previous month</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Current Month</span>
-              <span className="font-medium">${data.monthlyComparison.currentMonth.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Previous Month</span>
-              <span className="font-medium">${data.monthlyComparison.previousMonth.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center pt-2 border-t">
-              <span className="text-sm font-medium">Change</span>
-              <Badge variant={data.monthlyComparison.change > 0 ? "destructive" : "secondary"}>
-                {data.monthlyComparison.change > 0 ? <IconTrendingUp className="h-3 w-3" /> : <IconTrendingDown className="h-3 w-3" />}
-                {data.monthlyComparison.change > 0 ? '+' : ''}{data.monthlyComparison.change}%
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
+        <SpendingInsights startDate={startDate} endDate={endDate} />
 
         {selectedCategoryData && (
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
@@ -403,29 +382,6 @@ export function CategoryBreakdown({ startDate, endDate }: CategoryBreakdownProps
             </CardContent>
           </Card>
         )}
-
-        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-lg bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Top Categories</CardTitle>
-            <CardDescription>by spending amount</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {data.categories.slice(0, 3).map((category, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {category.icon}
-                    <span className="text-sm font-medium">{category.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-medium">${category.value.toLocaleString()}</div>
-                    <div className="text-xs text-muted-foreground">{category.percentage}%</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );

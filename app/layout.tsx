@@ -7,6 +7,13 @@ export const metadata: Metadata = {
   title: "ClearSpendly - AI-Powered Receipt Management",
   description:
     "Transform receipts into actionable insights. Privacy-first expense management with AI-powered categorization, price anomaly detection, and smart analytics for modern businesses.",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icon", type: "image/png" }
+    ],
+    apple: "/apple-icon",
+  },
   openGraph: {
     title: "ClearSpendly - AI-Powered Receipt Management",
     description:

@@ -56,6 +56,7 @@ export default function AIChatAgent({ selectedReceipt, filters, onClose }: ChatA
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [lastContext, setLastContext] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -91,7 +92,9 @@ export default function AIChatAgent({ selectedReceipt, filters, onClose }: ChatA
           conversationId,
           context: {
             selectedReceipt: selectedReceipt?.id,
-            filters
+            filters,
+            previousMessage: messages.length > 0 ? messages[messages.length - 1] : null,
+            lastContext: lastContext
           }
         })
       });
@@ -104,6 +107,7 @@ export default function AIChatAgent({ selectedReceipt, filters, onClose }: ChatA
       
       setMessages(prev => [...prev, data.message]);
       setConversationId(data.conversationId);
+      setLastContext(data.context);
 
     } catch (error) {
       console.error('Chat error:', error);
@@ -165,9 +169,9 @@ export default function AIChatAgent({ selectedReceipt, filters, onClose }: ChatA
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-4 right-4 z-50 max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)]">
       <Card className={`shadow-2xl border-0 bg-white transition-all duration-300 ${
-        isMinimized ? 'w-80 h-16' : 'w-96 h-[600px]'
+        isMinimized ? 'w-80 h-16' : 'w-96 sm:w-80 md:w-96 h-[min(600px,calc(100vh-3rem))]'
       }`}>
         {/* Header */}
         <CardHeader className="pb-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white">
@@ -207,7 +211,7 @@ export default function AIChatAgent({ selectedReceipt, filters, onClose }: ChatA
         </CardHeader>
 
         {!isMinimized && (
-          <CardContent className="flex flex-col h-full p-0">
+          <CardContent className="flex flex-col h-[calc(100%-80px)] p-0 overflow-hidden">
             {/* Context Info */}
             {(selectedReceipt || filters?.search || filters?.tags?.length) && (
               <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 border-b">
@@ -238,7 +242,7 @@ export default function AIChatAgent({ selectedReceipt, filters, onClose }: ChatA
             )}
 
             {/* Messages */}
-            <ScrollArea className="flex-1 px-4 py-2">
+            <ScrollArea className="flex-1 px-4 py-2 max-h-[calc(100%-200px)] overflow-y-auto">
               <div className="space-y-4">
                 {messages.map((message) => (
                   <div
@@ -261,7 +265,7 @@ export default function AIChatAgent({ selectedReceipt, filters, onClose }: ChatA
                     <div className={`flex-1 ${
                       message.role === 'user' ? 'text-right' : 'text-left'
                     }`}>
-                      <div className={`inline-block p-3 rounded-lg max-w-xs ${
+                      <div className={`inline-block p-3 rounded-lg max-w-[280px] ${
                         message.role === 'user'
                           ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white'
                           : 'bg-gray-100 text-gray-800'

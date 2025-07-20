@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { SectionCards } from "./section-cards";
 import { ReceiptsTable } from "./receipts-table";
 import { CategoryBreakdown } from "./category-breakdown";
-import { RecentActivity } from "./recent-activity";
+
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Upload, Search, CalendarDays } from "lucide-react";
+import { Upload, CalendarDays } from "lucide-react";
 import Link from "next/link";
 import AIChatAgent from '@/components/ai-chat-agent';
 
@@ -100,18 +100,12 @@ export function DashboardWithAI() {
                 Track your spending, manage receipts, and get AI-powered insights.
               </p>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="border-purple-200 hover:bg-purple-50">
-                <Search className="h-4 w-4 mr-2" />
-                Search Receipts
-              </Button>
-              <Button size="sm" asChild className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
-                <Link href="/dashboard/upload">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Receipt
-                </Link>
-              </Button>
-            </div>
+            <Button size="sm" asChild className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+              <Link href="/dashboard/upload">
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Receipt
+              </Link>
+            </Button>
           </div>
           
           {/* Date Range Filter */}
@@ -161,19 +155,12 @@ export function DashboardWithAI() {
         <div className="@container/main flex flex-1 flex-col gap-2">
           <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
             <SectionCards startDate={startDate} endDate={endDate} />
-            <div className="grid grid-cols-1 @4xl/main:grid-cols-3 gap-4">
-              <div className="@4xl/main:col-span-2">
-                <ReceiptsTable startDate={startDate} endDate={endDate} />
-              </div>
-              <div>
-                <RecentActivity startDate={startDate} endDate={endDate} />
-              </div>
-            </div>
+            <ReceiptsTable startDate={startDate} endDate={endDate} />
             <CategoryBreakdown startDate={startDate} endDate={endDate} />
           </div>
         </div>
       </div>
-      
+
       {/* AI Chat Agent */}
       <AIChatAgent />
     </section>

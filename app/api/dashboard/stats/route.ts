@@ -51,21 +51,21 @@ export async function GET(req: NextRequest) {
       throw previousError;
     }
 
-    // Get receipt items for category breakdown
-    const { data: receiptItems, error: itemsError } = await supabase
-      .from('receipt_item')
-      .select(`
-        category,
-        total_price,
-        receipt!inner(receipt_date, tenant_id)
-      `)
-      .eq('receipt.tenant_id', defaultTenantId)
-      .gte('receipt.receipt_date', currentPeriodStart.toISOString().split('T')[0])
-      .lte('receipt.receipt_date', currentPeriodEnd.toISOString().split('T')[0]);
+    // Get receipt items for category breakdown - simplified query
+    let receiptItems: any[] = [];
+    try {
+      const { data, error: itemsError } = await supabase
+        .from('receipt_item')
+        .select('category, total_price, receipt_id')
+        .not('receipt_id', 'is', null);
 
-    if (itemsError) {
-      console.error('Error fetching receipt items:', itemsError);
-      throw itemsError;
+      if (itemsError) {
+        console.log('Receipt items query failed, using empty data:', itemsError);
+      } else {
+        receiptItems = data || [];
+      }
+    } catch (error) {
+      console.log('Receipt items table not available yet, using empty data');
     }
 
     // Calculate statistics
@@ -100,21 +100,178 @@ export async function GET(req: NextRequest) {
       ? ((receiptsProcessed - previousReceiptsProcessed) / previousReceiptsProcessed) * 100 
       : 0;
 
-    // Category breakdown
-    const categoryTotals = (receiptItems || []).reduce((acc, item) => {
-      const category = item.category || 'Other';
-      acc[category] = (acc[category] || 0) + (item.total_price || 0);
-      return acc;
-    }, {} as Record<string, number>);
+    // Simplified tag breakdown - use basic queries that are more likely to work
+    let tagBreakdown: any[] = [];
+    let receiptTags: any[] = [];
+    
+    try {
+      // Try to get tags, but don't fail if tables don't exist yet
+      const { data: tagData } = await supabase
+        .from('receipt_item_tag')
+        .select('*')
+        .limit(1);
+      
+      if (tagData !== null) {
+        // Table exists, proceed with actual query
+        const { data } = await supabase
+          .from('receipt_item_tag')
+          .select(`
+            receipt_item(
+              total_price,
+              receipt(
+                id,
+                receipt_date,
+                tenant_id
+              )
+            ),
+            tag(
+              id,
+              name
+            )
+          `)
+          .eq('tenant_id', defaultTenantId);
+        tagBreakdown = data || [];
+      }
+    } catch (error) {
+      console.log('Tags table not available yet, using empty data');
+    }
+    
+    try {
+      const { data: receiptTagData } = await supabase
+        .from('receipt_tag')
+        .select('*')
+        .limit(1);
+        
+      if (receiptTagData !== null) {
+        const { data } = await supabase
+          .from('receipt_tag')
+          .select(`
+            receipt(
+              id,
+              receipt_date,
+              total_amount,
+              tenant_id
+            ),
+            tag(
+              id,
+              name
+            )
+          `)
+          .eq('tenant_id', defaultTenantId);
+        receiptTags = data || [];
+      }
+    } catch (error) {
+      console.log('Receipt tags table not available yet, using empty data');
+    }
 
-    // Map to our expected categories
-    const categorizedExpenses = {
-      business: (categoryTotals['Professional Services'] || 0) + (categoryTotals['Equipment & Software'] || 0),
-      personal: (categoryTotals['Other'] || 0) + (categoryTotals['Non-Categorized'] || 0),
-      office: categoryTotals['Office Supplies'] || 0,
-      travel: categoryTotals['Travel & Transportation'] || 0,
-      meals: categoryTotals['Meals & Entertainment'] || 0,
-    };
+    // Calculate top categories
+    const categoryTotals = new Map<string, { name: string; amount: number }>();
+    const receiptsWithItemTags = new Set<string>();
+
+    // Process line item tags with safe access
+    (tagBreakdown || []).forEach((item: any) => {
+      try {
+        const tagName = item?.tag?.name;
+        const amount = item?.receipt_item?.total_price || 0;
+        const receiptId = item?.receipt_item?.receipt?.id;
+        
+        if (tagName && receiptId) {
+          receiptsWithItemTags.add(receiptId);
+          
+          if (!categoryTotals.has(tagName)) {
+            categoryTotals.set(tagName, { name: tagName, amount: 0 });
+          }
+          categoryTotals.get(tagName)!.amount += amount;
+        }
+      } catch (error) {
+        console.log('Error processing tag item:', error);
+      }
+    });
+
+    // Process receipt-level tags (only for receipts without line item tags)
+    (receiptTags || []).forEach((receiptTag: any) => {
+      try {
+        const receiptId = receiptTag?.receipt?.id;
+        if (receiptId && !receiptsWithItemTags.has(receiptId)) {
+          const tagName = receiptTag?.tag?.name;
+          const amount = receiptTag?.receipt?.total_amount || 0;
+          
+          if (tagName) {
+            if (!categoryTotals.has(tagName)) {
+              categoryTotals.set(tagName, { name: tagName, amount: 0 });
+            }
+            categoryTotals.get(tagName)!.amount += amount;
+          }
+        }
+      } catch (error) {
+        console.log('Error processing receipt tag:', error);
+      }
+    });
+
+    // Get top 2 categories
+    const topCategories = Array.from(categoryTotals.values())
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 2);
+
+    // Calculate tag coverage
+    const taggedAmount = Array.from(categoryTotals.values())
+      .reduce((sum, cat) => sum + cat.amount, 0);
+    const tagCoverage = currentPeriodTotal > 0 
+      ? Math.round((taggedAmount / currentPeriodTotal) * 100) 
+      : 0;
+
+    // Get receipts with and without tags  
+    const receiptsWithTagsIds = new Set([...receiptsWithItemTags]);
+    (receiptTags || []).forEach((rt: any) => receiptsWithTagsIds.add(rt.receipt.id));
+    
+    const receiptsFullyTagged = receiptsWithTagsIds.size;
+    const receiptsNeedReview = receiptsProcessed - receiptsFullyTagged;
+
+    // Get vendor breakdown - simplified to avoid join issues
+    const vendorCounts = new Map<string, number>();
+    let topVendors: Array<{ name: string; count: number }> = [];
+    
+    try {
+      const { data: vendors } = await supabase
+        .from('receipt')
+        .select('vendor_id')
+        .eq('tenant_id', defaultTenantId)
+        .gte('receipt_date', currentPeriodStart.toISOString().split('T')[0])
+        .lte('receipt_date', currentPeriodEnd.toISOString().split('T')[0]);
+
+      if (vendors && vendors.length > 0) {
+        // Count vendor occurrences
+        vendors.forEach((receipt: any) => {
+          const vendorId = receipt.vendor_id;
+          if (vendorId) {
+            vendorCounts.set(vendorId, (vendorCounts.get(vendorId) || 0) + 1);
+          }
+        });
+
+        // Get vendor names for top vendors
+        const topVendorIds = Array.from(vendorCounts.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 2)
+          .map(([id, count]) => ({ id, count }));
+
+        if (topVendorIds.length > 0) {
+          const { data: vendorDetails } = await supabase
+            .from('vendor')
+            .select('id, name')
+            .in('id', topVendorIds.map(v => v.id));
+
+          topVendors = topVendorIds.map(vendor => {
+            const detail = vendorDetails?.find(v => v.id === vendor.id);
+            return {
+              name: detail?.name || 'Unknown Vendor',
+              count: vendor.count
+            };
+          });
+        }
+      }
+    } catch (error) {
+      console.log('Vendor query failed, using empty data:', error);
+    }
 
     const stats = {
       totalSpending: Math.round(currentPeriodTotal * 100) / 100,
@@ -124,14 +281,23 @@ export async function GET(req: NextRequest) {
       uniqueVendors,
       uniqueVendorsChange: Math.round(uniqueVendorsChange * 100) / 100,
       priceAlerts: 0, // TODO: Implement price alerts
+      monthlyTrend: totalSpendingChange > 5 ? 'up' : totalSpendingChange < -5 ? 'down' : 'stable',
+      // New fields for meaningful card footers
+      topCategories,
+      tagCoverage,
+      unaccountedAmount: Math.round((currentPeriodTotal - taggedAmount) * 100) / 100,
+      receiptsFullyTagged,
+      receiptsNeedReview,
+      topVendors,
+      previousPeriodTotal: Math.round(previousPeriodTotal * 100) / 100,
+      // Keep old structure for compatibility
       categorizedExpenses: {
-        business: Math.round(categorizedExpenses.business * 100) / 100,
-        personal: Math.round(categorizedExpenses.personal * 100) / 100,
-        office: Math.round(categorizedExpenses.office * 100) / 100,
-        travel: Math.round(categorizedExpenses.travel * 100) / 100,
-        meals: Math.round(categorizedExpenses.meals * 100) / 100,
-      },
-      monthlyTrend: totalSpendingChange > 5 ? 'up' : totalSpendingChange < -5 ? 'down' : 'stable'
+        business: 0,
+        personal: 0,
+        office: 0,
+        travel: 0,
+        meals: 0,
+      }
     };
 
     return NextResponse.json({ success: true, data: stats });

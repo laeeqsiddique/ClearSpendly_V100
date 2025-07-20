@@ -1,19 +1,27 @@
 "use client";
 
-import UserProfile from "@/components/user-profile";
 import clsx from "clsx";
 import {
   Banknote,
   HomeIcon,
   LucideIcon,
   Receipt,
-  Settings,
   Tag,
   Upload,
-  Shield,
+  Settings,
+  Menu,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  PanelLeftClose,
+  PanelLeft,
+  Car,
+  FileText,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { useSidebar } from "./sidebar-context";
 
 interface NavItem {
   label: string;
@@ -38,40 +46,75 @@ const navItems: NavItem[] = [
     icon: Upload,
   },
   {
+    label: "Mileage",
+    href: "/dashboard/mileage",
+    icon: Car,
+  },
+  {
+    label: "Invoices",
+    href: "/dashboard/invoices",
+    icon: FileText,
+  },
+  {
     label: "Tags",
     href: "/dashboard/tags",
     icon: Tag,
   },
   {
-    label: "Payment Gated",
-    href: "/dashboard/payment",
-    icon: Banknote,
-  },
-  {
-    label: "Admin",
+    label: "Account",
     href: "/dashboard/admin",
-    icon: Shield,
+    icon: Settings,
   },
 ];
 
 export default function DashboardSideBar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen } = useSidebar();
 
   return (
-    <div className="min-[1024px]:block hidden w-64 border-r h-full bg-background">
-      <div className="flex h-full flex-col">
+    <>
+      {/* Mobile menu button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="fixed top-4 left-4 z-50 lg:hidden"
+        onClick={() => setIsMobileOpen(!isMobileOpen)}
+      >
+        {isMobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+      </Button>
+
+      {/* Mobile backdrop */}
+      {isMobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setIsMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div className={clsx(
+        "relative h-full bg-background border-r transition-all duration-300 z-40",
+        isCollapsed ? "w-16" : "w-64",
+        isMobileOpen ? "fixed lg:relative translate-x-0" : "fixed lg:relative -translate-x-full lg:translate-x-0"
+      )}>
+        <div className="flex h-full flex-col">
         <div className="flex h-[3.45rem] items-center border-b px-4">
           <Link
             prefetch={true}
-            className="flex items-center gap-2 font-semibold hover:cursor-pointer group"
+            className={clsx(
+              "flex items-center gap-2 font-semibold hover:cursor-pointer group",
+              isCollapsed && "justify-center w-full"
+            )}
             href="/"
           >
             <div className="relative">
               <Receipt className="h-6 w-6 text-purple-600 group-hover:text-purple-700 transition-colors" />
               <div className="absolute -inset-1 bg-purple-200/50 rounded-full blur opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
-            <span className="text-gray-900 dark:text-white">ClearSpendly</span>
+            {!isCollapsed && (
+              <span className="text-gray-900 dark:text-white">ClearSpendly</span>
+            )}
           </Link>
         </div>
 
@@ -87,32 +130,36 @@ export default function DashboardSideBar() {
                     ? "bg-primary/10 text-primary hover:bg-primary/20"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
+                title={item.label}
               >
-                <item.icon className="h-4 w-4" />
-                {item.label}
+                <item.icon className={clsx("h-4 w-4", isCollapsed ? "mx-auto" : "")} />
+                {!isCollapsed && item.label}
               </div>
             ))}
           </div>
-
-          <div className="flex flex-col gap-2 w-full">
-            <div className="px-4">
-              <div
-                onClick={() => router.push("/dashboard/settings")}
-                className={clsx(
-                  "flex items-center w-full gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:cursor-pointer",
-                  pathname === "/dashboard/settings"
-                    ? "bg-primary/10 text-primary hover:bg-primary/20"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                )}
-              >
-                <Settings className="h-4 w-4" />
-                Settings
-              </div>
-            </div>
-            <UserProfile />
-          </div>
         </nav>
       </div>
+      
+      {/* Floating collapse button */}
+      <div className="hidden lg:block">
+        <Button
+          variant="secondary"
+          size="icon"
+          className={clsx(
+            "absolute top-6 h-8 w-8 rounded-full shadow-lg bg-purple-600 text-white hover:bg-purple-700 transition-all duration-300",
+            isCollapsed ? "-right-4" : "right-3"
+          )}
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
+        </Button>
+      </div>
     </div>
+    </>
   );
 }

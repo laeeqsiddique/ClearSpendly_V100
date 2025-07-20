@@ -1,5 +1,6 @@
 import { getUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { getPrimaryTenant } from "@/lib/tenant";
 
 export type SubscriptionDetails = {
   id: string;
@@ -30,8 +31,37 @@ export async function getSubscriptionDetails(): Promise<SubscriptionDetailsResul
       return { hasSubscription: false };
     }
 
-    // TODO: Implement subscription queries with Supabase
-    // For now, return no subscription until we integrate Polar with Supabase
+    // Get user's primary tenant
+    const tenant = await getPrimaryTenant();
+    if (!tenant) {
+      return { hasSubscription: false };
+    }
+
+    // Check if user has an active subscription
+    const hasActiveSubscription = tenant.subscription_status === 'active' || 
+                                 tenant.subscription_status === 'trialing';
+
+    if (hasActiveSubscription) {
+      return {
+        hasSubscription: true,
+        subscription: {
+          id: tenant.polar_subscription_id || 'mock-subscription-id',
+          productId: 'pro',
+          status: tenant.subscription_status,
+          amount: 1500, // $15.00 in cents
+          currency: 'usd',
+          recurringInterval: 'month',
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: tenant.subscription_current_period_end ? 
+            new Date(tenant.subscription_current_period_end) : 
+            new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          cancelAtPeriodEnd: false,
+          canceledAt: null,
+          organizationId: tenant.id,
+        }
+      };
+    }
+
     return { hasSubscription: false };
 
   } catch (error) {

@@ -29,6 +29,14 @@ interface DashboardStats {
     meals: number;
   };
   monthlyTrend: 'up' | 'down' | 'stable';
+  // New fields for meaningful display
+  topCategories: Array<{ name: string; amount: number }>;
+  tagCoverage: number;
+  unaccountedAmount: number;
+  receiptsFullyTagged: number;
+  receiptsNeedReview: number;
+  topVendors: Array<{ name: string; count: number }>;
+  previousPeriodTotal: number;
 }
 
 async function fetchDashboardStats(startDate?: string, endDate?: string): Promise<DashboardStats> {
@@ -73,7 +81,15 @@ async function fetchDashboardStats(startDate?: string, endDate?: string): Promis
         travel: 0,
         meals: 0,
       },
-      monthlyTrend: 'stable'
+      monthlyTrend: 'stable',
+      // Default values for new fields
+      topCategories: [],
+      tagCoverage: 0,
+      unaccountedAmount: 0,
+      receiptsFullyTagged: 0,
+      receiptsNeedReview: 0,
+      topVendors: [],
+      previousPeriodTotal: 0
     };
   }
 }
@@ -130,11 +146,19 @@ export function SectionCards({ startDate, endDate }: SectionCardsProps = {}) {
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            {stats.totalSpendingChange > 0 ? 'Up' : 'Down'} from last month 
-            {stats.totalSpendingChange > 0 ? <IconTrendingUp className="size-4" /> : <IconTrendingDown className="size-4" />}
+            {stats.topCategories.length > 0 ? (
+              stats.topCategories.map((cat, i) => (
+                <span key={i}>
+                  {cat.name}: ${cat.amount.toLocaleString()}
+                  {i < stats.topCategories.length - 1 && ' • '}
+                </span>
+              ))
+            ) : (
+              'No categorized spending'
+            )}
           </div>
           <div className="text-muted-foreground">
-            Business: ${stats.categorizedExpenses.business.toLocaleString()} • Personal: ${stats.categorizedExpenses.personal.toLocaleString()}
+            {stats.tagCoverage}% tagged • ${stats.unaccountedAmount.toLocaleString()} unaccounted
           </div>
         </CardFooter>
       </Card>
@@ -156,10 +180,12 @@ export function SectionCards({ startDate, endDate }: SectionCardsProps = {}) {
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            More uploads this month <IconTrendingUp className="size-4" />
+            {stats.receiptsFullyTagged} fully tagged • {stats.receiptsNeedReview} need review
           </div>
           <div className="text-muted-foreground">
-            Browser OCR + AI processing complete
+            {stats.receiptsProcessed === 0 ? 'No receipts this period' : 
+             stats.receiptsNeedReview === 0 ? 'All receipts categorized ✓' : 
+             'Some receipts need tags'}
           </div>
         </CardFooter>
       </Card>
@@ -181,10 +207,21 @@ export function SectionCards({ startDate, endDate }: SectionCardsProps = {}) {
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            New vendors discovered <IconTrendingUp className="size-4" />
+            {stats.topVendors.length > 0 ? (
+              stats.topVendors.map((vendor, i) => (
+                <span key={i}>
+                  {vendor.name} ({vendor.count})
+                  {i < stats.topVendors.length - 1 && ' • '}
+                </span>
+              ))
+            ) : (
+              'No vendors this period'
+            )}
           </div>
           <div className="text-muted-foreground">
-            Auto-categorized with AI insights
+            {stats.uniqueVendorsChange > 0 ? `${Math.abs(stats.uniqueVendorsChange)} new` : 
+             stats.uniqueVendorsChange < 0 ? `${Math.abs(stats.uniqueVendorsChange)} fewer` : 
+             'Same as last period'} vendors
           </div>
         </CardFooter>
       </Card>
