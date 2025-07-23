@@ -1,6 +1,8 @@
 import { Resend } from 'resend';
 import { invoiceEmailTemplates, EmailTemplate } from './email-templates';
 import { generateInvoicePDF } from './pdf-generator';
+import { EmailTemplateGenerator } from './email-template-generator';
+import { createClient } from './supabase/server';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -8,6 +10,7 @@ interface EmailSendOptions {
   to: string;
   template: EmailTemplate;
   data: any;
+  tenantId: string;
   attachPDF?: boolean;
   customSubject?: string;
   customMessage?: string;
@@ -26,29 +29,77 @@ export class InvoiceEmailService {
     this.fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@clearspendly.com';
   }
 
+  // Fetch active email template from database
+  private async getActiveTemplate(tenantId: string, templateType: 'invoice' | 'payment_reminder' | 'payment_received') {
+    try {
+      const supabase = await createClient();
+      
+      const { data: template, error } = await supabase
+        .from('email_templates')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .eq('template_type', templateType)
+        .eq('is_active', true)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.error('Error fetching email template:', error);
+        return null;
+      }
+
+      return template;
+    } catch (error) {
+      console.error('Error in getActiveTemplate:', error);
+      return null;
+    }
+  }
+
   async sendInvoiceEmail(options: EmailSendOptions): Promise<InvoiceEmailResult> {
     try {
       if (!process.env.RESEND_API_KEY) {
         throw new Error('Resend API key not configured');
       }
 
-      const { to, template, data, attachPDF = true, customSubject, customMessage } = options;
+      const { to, template, data, tenantId, attachPDF = true, customSubject, customMessage } = options;
 
-      // Generate email content based on template
+      // First try to get custom template from database
+      const templateTypeMap = {
+        'newInvoice': 'invoice',
+        'paymentReminder': 'payment_reminder', 
+        'paymentReceived': 'payment_received'
+      } as const;
+
+      const templateType = templateTypeMap[template];
+      const customTemplate = await this.getActiveTemplate(tenantId, templateType);
+
       let emailContent;
-      
-      switch (template) {
-        case 'newInvoice':
-          emailContent = invoiceEmailTemplates.newInvoice(data);
-          break;
-        case 'paymentReminder':
-          emailContent = invoiceEmailTemplates.paymentReminder(data, data.daysOverdue || 0);
-          break;
-        case 'paymentReceived':
-          emailContent = invoiceEmailTemplates.paymentReceived(data, data.amountPaid || 0);
-          break;
-        default:
-          throw new Error(`Unknown email template: ${template}`);
+
+      if (customTemplate) {
+        // Use custom template from database
+        const generator = new EmailTemplateGenerator(customTemplate, data);
+        emailContent = {
+          subject: customTemplate.subject_template || '',
+          html: generator.generateHTML(),
+          text: generator.generateText()
+        };
+
+        // Process template variables in subject
+        emailContent.subject = generator.processVariables(emailContent.subject);
+      } else {
+        // Fallback to hardcoded templates
+        switch (template) {
+          case 'newInvoice':
+            emailContent = invoiceEmailTemplates.newInvoice(data);
+            break;
+          case 'paymentReminder':
+            emailContent = invoiceEmailTemplates.paymentReminder(data, data.daysOverdue || 0);
+            break;
+          case 'paymentReceived':
+            emailContent = invoiceEmailTemplates.paymentReceived(data, data.amountPaid || 0);
+            break;
+          default:
+            throw new Error(`Unknown email template: ${template}`);
+        }
       }
 
       // Override subject and add custom message if provided
@@ -113,33 +164,36 @@ export class InvoiceEmailService {
     }
   }
 
-  async sendNewInvoiceEmail(invoiceData: any, customOptions?: { subject?: string; message?: string }): Promise<InvoiceEmailResult> {
+  async sendNewInvoiceEmail(invoiceData: any, tenantId: string, customOptions?: { subject?: string; message?: string }): Promise<InvoiceEmailResult> {
     return this.sendInvoiceEmail({
       to: invoiceData.client.email,
       template: 'newInvoice',
       data: invoiceData,
+      tenantId,
       attachPDF: true,
       customSubject: customOptions?.subject,
       customMessage: customOptions?.message
     });
   }
 
-  async sendPaymentReminderEmail(invoiceData: any, daysOverdue: number, customOptions?: { subject?: string; message?: string }): Promise<InvoiceEmailResult> {
+  async sendPaymentReminderEmail(invoiceData: any, tenantId: string, daysOverdue: number, customOptions?: { subject?: string; message?: string }): Promise<InvoiceEmailResult> {
     return this.sendInvoiceEmail({
       to: invoiceData.client.email,
       template: 'paymentReminder',
       data: { ...invoiceData, daysOverdue },
+      tenantId,
       attachPDF: true,
       customSubject: customOptions?.subject,
       customMessage: customOptions?.message
     });
   }
 
-  async sendPaymentReceivedEmail(invoiceData: any, amountPaid: number, customOptions?: { subject?: string; message?: string }): Promise<InvoiceEmailResult> {
+  async sendPaymentReceivedEmail(invoiceData: any, tenantId: string, amountPaid: number, customOptions?: { subject?: string; message?: string }): Promise<InvoiceEmailResult> {
     return this.sendInvoiceEmail({
       to: invoiceData.client.email,
       template: 'paymentReceived',
       data: { ...invoiceData, amountPaid },
+      tenantId,
       attachPDF: false, // Usually don't attach PDF for payment confirmations
       customSubject: customOptions?.subject,
       customMessage: customOptions?.message

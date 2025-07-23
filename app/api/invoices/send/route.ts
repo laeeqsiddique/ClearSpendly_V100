@@ -4,7 +4,7 @@ import { emailService, calculateDaysOverdue } from '@/lib/email-service';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
 
     switch (emailType) {
       case 'new':
-        result = await emailService.sendNewInvoiceEmail(completeInvoiceData, {
+        result = await emailService.sendNewInvoiceEmail(completeInvoiceData, membership.tenant_id, {
           subject: customSubject,
           message: customMessage
         });
@@ -102,6 +102,7 @@ export async function POST(request: NextRequest) {
         const daysOverdue = calculateDaysOverdue(invoiceData.due_date);
         result = await emailService.sendPaymentReminderEmail(
           completeInvoiceData, 
+          membership.tenant_id,
           daysOverdue,
           {
             subject: customSubject,
@@ -116,6 +117,7 @@ export async function POST(request: NextRequest) {
         const amountPaid = invoiceData.amount_paid || invoiceData.total_amount;
         result = await emailService.sendPaymentReceivedEmail(
           completeInvoiceData,
+          membership.tenant_id,
           amountPaid,
           {
             subject: customSubject,

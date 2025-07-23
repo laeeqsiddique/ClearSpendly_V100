@@ -17,7 +17,9 @@ import {
   Phone, 
   Building,
   MoreHorizontal,
-  Search
+  Search,
+  Users,
+  DollarSign
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { createClient } from "@/lib/supabase/client";
@@ -38,9 +40,10 @@ interface Client {
 
 interface ClientManagementProps {
   refreshTrigger?: number;
+  openFormDirectly?: boolean;
 }
 
-export function ClientManagement({ refreshTrigger }: ClientManagementProps) {
+export function ClientManagement({ refreshTrigger, openFormDirectly }: ClientManagementProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -67,6 +70,12 @@ export function ClientManagement({ refreshTrigger }: ClientManagementProps) {
   useEffect(() => {
     fetchClients();
   }, [refreshTrigger]);
+
+  useEffect(() => {
+    if (openFormDirectly) {
+      setShowForm(true);
+    }
+  }, [openFormDirectly]);
 
   useEffect(() => {
     if (editingClient) {
@@ -212,10 +221,18 @@ export function ClientManagement({ refreshTrigger }: ClientManagementProps) {
 
   return (
     <div className="space-y-6">
-      <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-        <CardHeader>
+      <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
+        <CardHeader className="border-b border-purple-100 bg-gradient-to-r from-purple-50 to-blue-50">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <CardTitle>Client Directory</CardTitle>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg">
+                <Users className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-xl">Client Directory</CardTitle>
+                <p className="text-sm text-muted-foreground">Manage your client contacts and information</p>
+              </div>
+            </div>
             
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <div className="relative">
@@ -224,11 +241,14 @@ export function ClientManagement({ refreshTrigger }: ClientManagementProps) {
                   placeholder="Search clients..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-full sm:w-64"
+                  className="pl-10 w-full sm:w-64 border-purple-200 focus:border-purple-500"
                 />
               </div>
               
-              <Button onClick={() => setShowForm(true)}>
+              <Button 
+                onClick={() => setShowForm(true)}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg"
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Client
               </Button>
@@ -271,25 +291,54 @@ export function ClientManagement({ refreshTrigger }: ClientManagementProps) {
           ) : (
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-gradient-to-r from-purple-50 to-blue-50">
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Payment Terms</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead className="font-semibold text-gray-700">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        Name
+                      </div>
+                    </TableHead>
+                    <TableHead className="font-semibold text-gray-700">
+                      <div className="flex items-center gap-2">
+                        <Building className="h-4 w-4" />
+                        Company
+                      </div>
+                    </TableHead>
+                    <TableHead className="font-semibold text-gray-700">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4" />
+                        Contact
+                      </div>
+                    </TableHead>
+                    <TableHead className="font-semibold text-gray-700">Payment Terms</TableHead>
+                    <TableHead className="font-semibold text-gray-700">Status</TableHead>
                     <TableHead className="w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredClients.map((client) => (
-                    <TableRow key={client.id}>
+                    <TableRow key={client.id} className="hover:bg-gradient-to-r hover:from-purple-50/50 hover:to-blue-50/50 transition-colors">
                       <TableCell>
-                        <div className="font-medium">{client.name}</div>
-                        <div className="text-sm text-gray-500">{client.email}</div>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full flex items-center justify-center">
+                            <span className="text-sm font-semibold text-purple-700">
+                              {client.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div>
+                            <div className="font-medium">{client.name}</div>
+                            <div className="text-sm text-gray-500">{client.email}</div>
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell>
-                        {client.company_name || (
+                        {client.company_name ? (
+                          <div className="flex items-center gap-2">
+                            <Building className="h-4 w-4 text-gray-400" />
+                            <span>{client.company_name}</span>
+                          </div>
+                        ) : (
                           <span className="text-gray-400 italic">No company</span>
                         )}
                       </TableCell>
@@ -308,12 +357,14 @@ export function ClientManagement({ refreshTrigger }: ClientManagementProps) {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{client.payment_terms}</Badge>
+                        <Badge variant="outline" className="border-blue-200 text-blue-700">
+                          {client.payment_terms}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <Badge 
                           variant={client.is_active ? "default" : "secondary"}
-                          className={client.is_active ? "bg-green-100 text-green-800" : ""}
+                          className={client.is_active ? "bg-green-100 text-green-800 border-green-200" : ""}
                         >
                           {client.is_active ? "Active" : "Inactive"}
                         </Badge>
@@ -321,7 +372,7 @@ export function ClientManagement({ refreshTrigger }: ClientManagementProps) {
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
+                            <Button variant="ghost" size="sm" className="hover:bg-purple-50">
                               <MoreHorizontal className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -356,97 +407,140 @@ export function ClientManagement({ refreshTrigger }: ClientManagementProps) {
           setEditingClient(null);
         }
       }}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="border-b border-purple-100 pb-4">
+            <DialogTitle className="flex items-center gap-3 text-xl">
+              <div className="p-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg">
+                <Users className="h-5 w-5 text-white" />
+              </div>
               {editingClient ? "Edit Client" : "Add New Client"}
             </DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              {editingClient ? "Update client information and settings" : "Add a new client to your directory"}
+            </p>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="John Doe"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="email">Email *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="john@company.com"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="company">Company Name</Label>
-                <Input
-                  id="company"
-                  value={formData.company_name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, company_name: e.target.value }))}
-                  placeholder="Acme Corp"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="(555) 123-4567"
-                />
+          <div className="space-y-6 pt-4">
+            {/* Basic Information */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-gray-900 flex items-center gap-2">
+                <Users className="h-4 w-4 text-purple-600" />
+                Basic Information
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name" className="text-sm font-medium">Full Name *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="John Doe"
+                    className="border-purple-200 focus:border-purple-500"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="john@company.com"
+                    className="border-purple-200 focus:border-purple-500"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <Input
-                id="address"
-                value={formData.address_line1}
-                onChange={(e) => setFormData(prev => ({ ...prev, address_line1: e.target.value }))}
-                placeholder="123 Main Street"
-              />
+            {/* Company & Contact */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-gray-900 flex items-center gap-2">
+                <Building className="h-4 w-4 text-purple-600" />
+                Company & Contact
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="company" className="text-sm font-medium">Company Name</Label>
+                  <Input
+                    id="company"
+                    value={formData.company_name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, company_name: e.target.value }))}
+                    placeholder="Acme Corp"
+                    className="border-purple-200 focus:border-purple-500"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="text-sm font-medium">Phone</Label>
+                  <Input
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="(555) 123-4567"
+                    className="border-purple-200 focus:border-purple-500"
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="city">City</Label>
-                <Input
-                  id="city"
-                  value={formData.city}
-                  onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
-                  placeholder="New York"
-                />
+            {/* Address */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-gray-900 flex items-center gap-2">
+                <Mail className="h-4 w-4 text-purple-600" />
+                Address Information
+              </h4>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="address" className="text-sm font-medium">Street Address</Label>
+                  <Input
+                    id="address"
+                    value={formData.address_line1}
+                    onChange={(e) => setFormData(prev => ({ ...prev, address_line1: e.target.value }))}
+                    placeholder="123 Main Street"
+                    className="border-purple-200 focus:border-purple-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="city" className="text-sm font-medium">City</Label>
+                    <Input
+                      id="city"
+                      value={formData.city}
+                      onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                      placeholder="New York"
+                      className="border-purple-200 focus:border-purple-500"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="state" className="text-sm font-medium">State</Label>
+                    <Input
+                      id="state"
+                      value={formData.state}
+                      onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value }))}
+                      placeholder="NY"
+                      className="border-purple-200 focus:border-purple-500"
+                    />
+                  </div>
+                </div>
               </div>
-              
+            </div>
+
+            {/* Payment Settings */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-gray-900 flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-purple-600" />
+                Payment Settings
+              </h4>
               <div className="space-y-2">
-                <Label htmlFor="state">State</Label>
-                <Input
-                  id="state"
-                  value={formData.state}
-                  onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value }))}
-                  placeholder="NY"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="payment-terms">Payment Terms</Label>
+                <Label htmlFor="payment-terms" className="text-sm font-medium">Payment Terms</Label>
                 <Select 
                   value={formData.payment_terms} 
                   onValueChange={(value) => setFormData(prev => ({ ...prev, payment_terms: value }))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="border-purple-200 focus:border-purple-500">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -461,11 +555,14 @@ export function ClientManagement({ refreshTrigger }: ClientManagementProps) {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="border-t border-purple-100 pt-4 mt-6">
             <Button variant="outline" onClick={() => setShowForm(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit}>
+            <Button 
+              onClick={handleSubmit}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+            >
               {editingClient ? "Update Client" : "Add Client"}
             </Button>
           </DialogFooter>

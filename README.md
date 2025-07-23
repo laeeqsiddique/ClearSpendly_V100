@@ -1,105 +1,116 @@
-# Next.js SaaS Starter Kit 2.0
+# ClearSpendly V100
 
-A comprehensive, production-ready SaaS starter kit built with Next.js 15, featuring authentication, subscriptions, AI integration, and modern UI components.
+A comprehensive expense tracking and invoice management platform for freelancers, contractors, and small businesses. Built with Next.js 15, featuring OCR receipt processing, invoice management, payment tracking, and Schedule C tax preparation.
 
 ## ✨ Features
 
 ### 🔐 Authentication & User Management
-- **Better Auth v1.2.8** - Modern authentication system
-- Google OAuth integration
-- Session management with database persistence
-- User profile management with image uploads
-- Account linking for multiple providers
+- **Supabase Auth** - Modern authentication system
+- Multi-tenant architecture with Row Level Security (RLS)
+- User profile management and session persistence
+- Team membership and role management
+- Secure tenant isolation
 
-### 💳 Subscription & Billing
-- **Polar.sh** integration for subscription management
-- Two-tier pricing: Starter ($99/month) & Professional ($499/month)
-- Real-time webhook processing
-- Customer portal for self-service billing
-- Subscription status tracking (active, canceled, expired)
-- Payment gating with elegant overlays
+### 🧾 Receipt & Expense Management
+- **OCR Receipt Processing** - Extract data from receipt images
+- Smart categorization with IRS Schedule C compliance
+- Drag & drop receipt uploads with progress tracking
+- AI-powered receipt analysis and insights
+- Advanced filtering and search capabilities
+- Real-time expense tracking and analytics
 
-### 🤖 AI Integration
-- **OpenAI** powered chatbot
-- React Markdown rendering for rich responses
-- Multi-step conversation support
-- Integrated chat widget in dashboard
+### 💰 Invoice Management
+- **Professional Invoice Creation** - Multiple customizable templates
+- Client management with contact details
+- Invoice status tracking (draft, sent, viewed, paid, overdue)
+- PDF generation with custom branding
+- Email sending with status notifications
+- Invoice templates with extensive customization options
+
+### 💳 Payment Tracking System
+- **Comprehensive Payment Management** - Record and track all payments
+- Partial payment support with smart allocation
+- Payment method tracking (bank transfer, check, cash, etc.)
+- Invoice-to-payment allocation system
+- Payment history and document flow visualization
+- Over-allocation prevention with database constraints
 
 ### 🎨 Modern UI/UX
-- **Tailwind CSS v4** - Latest utility-first styling
+- **Tailwind CSS** - Modern utility-first styling
 - **shadcn/ui** components - Accessible, customizable
 - **Radix UI** primitives - Unstyled, accessible components
-- Dark/light theme support with smooth transitions
 - Responsive design with mobile-first approach
 - Loading skeletons and optimistic UI updates
+- Real-time status updates and notifications
 
 ### 🗄️ Database & Storage
-- **Neon PostgreSQL** - Serverless database
-- **Drizzle ORM** - Type-safe database toolkit
-- **Cloudflare R2** - Scalable file storage with zero egress fees
-- Database migrations with Drizzle Kit
-- Drag & drop file uploads with progress tracking
-
-### 📊 Analytics & Monitoring
-- **PostHog** integration for product analytics
-- User behavior tracking
-- Custom event monitoring
-- Error tracking and insights
+- **Supabase PostgreSQL** - Serverless database with RLS
+- Real-time subscriptions and updates
+- Secure file storage for receipts and documents
+- Database triggers for automatic calculations
+- Multi-tenant data isolation
+- Automated backup and recovery
 
 ## 🚀 Tech Stack
 
 - **Framework**: Next.js 15.3.1 with App Router
 - **Language**: TypeScript with strict mode
-- **Styling**: Tailwind CSS v4 + shadcn/ui
-- **Database**: Neon PostgreSQL + Drizzle ORM
-- **Authentication**: Better Auth v1.2.8
-- **Payments**: Polar.sh
-- **AI**: OpenAI SDK
-- **Storage**: Cloudflare R2
-- **Analytics**: PostHog
+- **Styling**: Tailwind CSS + shadcn/ui
+- **Database**: Supabase PostgreSQL with Row Level Security
+- **Authentication**: Supabase Auth
+- **File Storage**: Supabase Storage
+- **Real-time**: Supabase Realtime subscriptions
+- **PDF Generation**: React-PDF
+- **Date Handling**: date-fns
+- **UI Components**: Radix UI primitives
 - **Deployment**: Vercel (recommended)
 
 ## 📁 Project Structure
 
 ```
 ├── app/
-│   ├── (auth)/              # Authentication pages
-│   ├── dashboard/           # Protected dashboard area
-│   │   ├── _components/     # Dashboard components
-│   │   ├── chat/           # AI chat interface
-│   │   ├── upload/         # File upload with R2
-│   │   ├── payment/        # Subscription management
-│   │   └── settings/       # User settings & billing
-│   ├── pricing/            # Public pricing page
-│   └── api/                # API routes
+│   ├── (auth)/                    # Authentication pages
+│   ├── dashboard/                 # Protected dashboard area
+│   │   ├── _components/           # Shared dashboard components
+│   │   ├── receipts/              # Receipt management
+│   │   │   ├── _components/       # Receipt-specific components
+│   │   │   └── upload/            # Receipt upload interface
+│   │   ├── invoices/              # Invoice management
+│   │   │   ├── _components/       # Invoice-specific components
+│   │   │   ├── create/            # Invoice creation
+│   │   │   ├── [id]/edit/         # Invoice editing
+│   │   │   └── templates/         # Invoice templates
+│   │   ├── payments/              # Payment management
+│   │   │   ├── record/            # Payment recording
+│   │   │   └── [id]/edit/         # Payment editing
+│   │   ├── clients/               # Client management
+│   │   └── settings/              # Application settings
+│   └── api/                       # API routes
 ├── components/
-│   ├── ui/                 # shadcn/ui components
-│   └── homepage/           # Landing page sections
+│   ├── ui/                        # shadcn/ui components
+│   └── layout/                    # Layout components
 ├── lib/
-│   ├── auth/              # Authentication config
-│   ├── subscription.ts    # Subscription utilities
-│   └── upload-image.ts    # R2 file upload utilities
-└── db/
-    ├── schema.ts          # Database schema
-    └── drizzle.ts         # Database connection
+│   ├── supabase/                  # Supabase client config
+│   └── utils.ts                   # Utility functions
+└── docs/
+    ├── ClearSpendly PRD.md        # Product requirements
+    ├── database-structure.md      # Database documentation
+    └── implementation-plan.md     # Implementation guide
 ```
 
 ## 🛠️ Quick Start
 
 ### Prerequisites
 - Node.js 18+
-- PostgreSQL database (Neon recommended)
-- Cloudflare R2 bucket for file storage
-- Polar.sh account for subscriptions
-- OpenAI API key for AI features
-- Google OAuth credentials (optional)
+- Supabase account for database and authentication
+- Modern web browser with JavaScript enabled
 
 ### Installation
 
 1. **Clone the repository**
 ```bash
 git clone <repository-url>
-cd next-starter-2.0
+cd ClearSpendly_V100
 ```
 
 2. **Install dependencies**
@@ -110,114 +121,111 @@ npm install
 3. **Environment Setup**
 Create a `.env.local` file with:
 ```env
-# Database
-DATABASE_URL="your-neon-database-url"
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL="your-supabase-project-url"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="your-supabase-anon-key"
+SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
 
-# Authentication
-BETTER_AUTH_SECRET="your-secret-key"
-GOOGLE_CLIENT_ID="your-google-client-id"
-GOOGLE_CLIENT_SECRET="your-google-client-secret"
+# Application Configuration
+NEXT_PUBLIC_SITE_URL="http://localhost:3000"
 
-# Polar.sh
-POLAR_ACCESS_TOKEN="your-polar-access-token"
-POLAR_WEBHOOK_SECRET="your-webhook-secret"
-
-# OpenAI
+# Optional: AI Features (if implementing OCR)
 OPENAI_API_KEY="your-openai-api-key"
-
-# Cloudflare R2 Storage
-CLOUDFLARE_ACCOUNT_ID="your-cloudflare-account-id"
-R2_UPLOAD_IMAGE_ACCESS_KEY_ID="your-r2-access-key-id"
-R2_UPLOAD_IMAGE_SECRET_ACCESS_KEY="your-r2-secret-access-key"
-R2_UPLOAD_IMAGE_BUCKET_NAME="your-r2-bucket-name"
-
-# Polar.sh Pricing Tiers
-NEXT_PUBLIC_STARTER_TIER="your-starter-product-id"
-NEXT_PUBLIC_STARTER_SLUG="your-starter-slug"
 ```
 
 4. **Database Setup**
-```bash
-# Generate and run migrations
-npx drizzle-kit generate
-npx drizzle-kit push
-```
+- Create a new Supabase project
+- Run the SQL migrations in your Supabase SQL editor:
+  - Execute `PAYMENT_MIGRATION_FINAL.sql` for payment system tables
+  - Execute `FIX_PAYMENT_STATUS_FINAL.sql` for payment triggers
+- Enable Row Level Security (RLS) for all tables
 
-5. **Cloudflare R2 Setup**
-- Create a Cloudflare account and set up R2 storage
-- Create a bucket for file uploads
-- Generate API tokens with R2 permissions
-- Configure CORS settings for your domain
+5. **Authentication Setup**
+- Configure authentication providers in Supabase Auth settings
+- Set up email templates and redirect URLs
+- Enable the auth providers you want to use
 
-6. **Polar.sh Setup**
-- Create products for your pricing tiers
-- Set up webhook endpoints for subscription events
-- Configure your pricing structure
-
-7. **Start Development Server**
+6. **Start Development Server**
 ```bash
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to see your application.
 
+### First Time Setup
+1. Create your account via the authentication flow
+2. Complete your tenant setup
+3. Add your first client
+4. Create your first invoice template
+5. Start tracking expenses and managing invoices!
+
 ## 🎯 Key Features Explained
 
-### Subscription Management
-- Automatic subscription status checking
-- Payment gating for premium features
-- Integration with Polar.sh customer portal
-- Webhook handling for real-time updates
+### Invoice Management System
+- **Professional Templates** - Multiple customizable invoice templates with extensive styling options
+- **Client Management** - Comprehensive client database with contact information and history
+- **Status Tracking** - Real-time invoice status updates (draft, sent, viewed, paid, overdue)
+- **PDF Generation** - Professional PDF invoices with custom branding
+- **Email Integration** - Send invoices directly with delivery tracking
 
-### AI Chat Integration
-- Built-in chatbot with OpenAI
-- Markdown rendering for rich responses
-- Conversation history and context
+### Payment Tracking System
+- **Smart Payment Allocation** - Automatically allocate payments to specific invoices
+- **Partial Payment Support** - Handle partial payments with remaining balance tracking
+- **Payment History** - Complete document flow and timeline visualization
+- **Multiple Payment Methods** - Support for bank transfer, check, cash, credit card, PayPal
+- **Over-allocation Prevention** - Database constraints prevent payment overages
 
-### File Upload System
-- **Cloudflare R2 integration** with S3-compatible API
-- **Drag & drop interface** with visual feedback
-- **File validation** - Type checking and size limits
-- **Progress tracking** - Real-time upload progress
-- **Image gallery** - View uploaded files with metadata
-- **Copy URLs** - Easy sharing and integration
+### Receipt & Expense Management
+- **OCR Processing** - Extract data from receipt images (future feature)
+- **Smart Categorization** - IRS Schedule C compliant expense categories
+- **Real-time Search** - Advanced filtering and search capabilities
+- **Drag & Drop Upload** - Easy receipt upload with progress tracking
+- **Multi-tenant Security** - Secure data isolation between organizations
 
-### Analytics & Tracking
-- PostHog event tracking
-- User behavior monitoring
-- Custom analytics dashboard
+### Multi-Tenant Architecture
+- **Row Level Security** - Database-level tenant isolation
+- **Team Management** - Role-based access control
+- **Real-time Updates** - Live data synchronization across sessions
+- **Secure Authentication** - Supabase Auth with session management
 
 ## 🔧 Customization
 
 ### Adding New Features
-1. Create components in `components/`
-2. Add API routes in `app/api/`
-3. Update database schema in `db/schema.ts`
-4. Run `npx drizzle-kit generate` and `npx drizzle-kit push`
+1. Create components in `components/` or `app/dashboard/_components/`
+2. Add database tables via Supabase SQL editor
+3. Update TypeScript interfaces for new data structures
+4. Implement Row Level Security policies for new tables
+5. Add API routes in `app/api/` if needed
 
-### Styling
+### Styling & Branding
 - Modify `app/globals.css` for global styles
 - Use Tailwind classes for component styling
-- Customize theme in `tailwind.config.ts`
+- Customize theme in `tailwind.config.js`
+- Update invoice templates in `app/dashboard/invoices/_components/`
 
-### Authentication
-- Configure providers in `lib/auth/auth.ts`
-- Add new OAuth providers as needed
-- Customize user profile fields in database schema
+### Database Schema
+- All schema changes should be made in Supabase SQL editor
+- Enable RLS for all new tables
+- Add appropriate indexes for performance
+- Use database triggers for calculated fields
 
 ## 📚 Learn More
 
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Better Auth Documentation](https://better-auth.com)
-- [Polar.sh Documentation](https://docs.polar.sh)
-- [Drizzle ORM Documentation](https://orm.drizzle.team)
-- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
+- [Next.js Documentation](https://nextjs.org/docs) - Learn about Next.js features and API
+- [Supabase Documentation](https://supabase.com/docs) - Database, Auth, and Real-time features
+- [Tailwind CSS Documentation](https://tailwindcss.com/docs) - Utility-first CSS framework
+- [shadcn/ui Documentation](https://ui.shadcn.com/) - Reusable UI components
+- [React PDF Documentation](https://react-pdf.org/) - PDF generation for invoices
 
 ## 🚀 Deployment
 
 ### Vercel (Recommended)
 1. Connect your GitHub repository to Vercel
-2. Add environment variables in Vercel dashboard
+2. Add all environment variables in Vercel dashboard:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `NEXT_PUBLIC_SITE_URL`
 3. Deploy automatically on every push
 
 ### Manual Deployment
@@ -225,6 +233,12 @@ Open [http://localhost:3000](http://localhost:3000) to see your application.
 npm run build
 npm start
 ```
+
+### Database Migration for Production
+1. Run the SQL migrations in your production Supabase instance
+2. Enable RLS policies for all tables
+3. Set up proper database backups
+4. Configure monitoring and alerting
 
 ## 📄 License
 
@@ -234,6 +248,13 @@ This project is licensed under the MIT License.
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+### Development Guidelines
+- Follow TypeScript best practices
+- Maintain multi-tenant security (RLS) for all data operations
+- Write comprehensive tests for new features
+- Update documentation for any new functionality
+- Ensure responsive design for all components
+
 ---
 
-Built with ❤️ using Next.js and modern web technologies.
+Built with ❤️ for freelancers and contractors using Next.js and Supabase.

@@ -3,7 +3,9 @@
     "allow": [
       "Bash(curl:*)",
       "Bash(git checkout:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(mkdir:*)"
     ],
     "deny": []
   }

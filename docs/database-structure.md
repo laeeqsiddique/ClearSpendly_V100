@@ -463,9 +463,338 @@ CREATE INDEX idx_receipt_embeddings_tenant ON receipt_embeddings(tenant_id);
 CREATE INDEX idx_receipt_embeddings_vector ON receipt_embeddings USING ivfflat (embedding vector_l2_ops);
 ```
 
+## Invoice & Payment Management Tables
+
+### 17. client
+Stores client information for invoicing.
+
+```sql
+CREATE TABLE client (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES user(id),
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  phone VARCHAR(50),
+  company_name VARCHAR(255),
+  address_line_1 VARCHAR(255),
+  address_line_2 VARCHAR(255),
+  city VARCHAR(100),
+  state VARCHAR(100),
+  postal_code VARCHAR(20),
+  country VARCHAR(2) DEFAULT 'US',
+  tax_id VARCHAR(50),
+  notes TEXT,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_client_tenant ON client(tenant_id);
+CREATE INDEX idx_client_name ON client(tenant_id, name);
+CREATE INDEX idx_client_email ON client(tenant_id, email);
+CREATE INDEX idx_client_active ON client(tenant_id, is_active) WHERE is_active = true;
+```
+
+### 18. invoice_template
+Stores invoice template configurations.
+
+```sql
+CREATE TABLE invoice_template (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES user(id),
+  name VARCHAR(255) NOT NULL,
+  style VARCHAR(100) NOT NULL, -- modern, bold_creative, classic, etc.
+  color_scheme VARCHAR(50) NOT NULL,
+  font_family VARCHAR(100) NOT NULL,
+  logo_url TEXT,
+  company_name VARCHAR(255),
+  company_address TEXT,
+  company_phone VARCHAR(50),
+  company_email VARCHAR(255),
+  company_website VARCHAR(255),
+  default_payment_terms VARCHAR(100) DEFAULT 'Net 30',
+  default_notes TEXT,
+  is_default BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_invoice_template_tenant ON invoice_template(tenant_id);
+CREATE INDEX idx_invoice_template_default ON invoice_template(tenant_id, is_default) WHERE is_default = true;
+```
+
+### 19. invoice
+Stores invoice header information.
+
+```sql
+CREATE TABLE invoice (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES user(id),
+  client_id UUID NOT NULL REFERENCES client(id),
+  template_id UUID REFERENCES invoice_template(id),
+  invoice_number VARCHAR(50) NOT NULL,
+  issue_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  due_date DATE NOT NULL,
+  subject VARCHAR(500),
+  notes TEXT,
+  status VARCHAR(50) DEFAULT 'draft', -- draft, sent, viewed, paid, overdue, cancelled
+  payment_status VARCHAR(50) DEFAULT 'unpaid', -- unpaid, partial, paid
+  
+  -- Financial calculations (generated columns)
+  subtotal DECIMAL(10,2) NOT NULL DEFAULT 0,
+  tax_rate DECIMAL(5,4) DEFAULT 0,
+  tax_amount DECIMAL(10,2) GENERATED ALWAYS AS (subtotal * tax_rate) STORED,
+  total_amount DECIMAL(10,2) GENERATED ALWAYS AS (subtotal + tax_amount) STORED,
+  amount_paid DECIMAL(10,2) DEFAULT 0,
+  balance_due DECIMAL(10,2) GENERATED ALWAYS AS (total_amount - amount_paid) STORED,
+  
+  -- Email tracking
+  sent_date TIMESTAMPTZ,
+  last_viewed_date TIMESTAMPTZ,
+  
+  -- Payment integration
+  stripe_payment_link_id VARCHAR(255),
+  stripe_payment_link_url TEXT,
+  
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_invoice_tenant ON invoice(tenant_id);
+CREATE INDEX idx_invoice_client ON invoice(tenant_id, client_id);
+CREATE INDEX idx_invoice_number ON invoice(tenant_id, invoice_number);
+CREATE INDEX idx_invoice_status ON invoice(tenant_id, status);
+CREATE INDEX idx_invoice_payment_status ON invoice(tenant_id, payment_status);
+CREATE INDEX idx_invoice_due_date ON invoice(tenant_id, due_date) WHERE status NOT IN ('paid', 'cancelled');
+```
+
+### 20. invoice_item
+Stores invoice line items.
+
+```sql
+CREATE TABLE invoice_item (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  invoice_id UUID NOT NULL REFERENCES invoice(id) ON DELETE CASCADE,
+  description TEXT NOT NULL,
+  quantity DECIMAL(10,2) DEFAULT 1,
+  unit_price DECIMAL(10,2) NOT NULL,
+  total_price DECIMAL(10,2) GENERATED ALWAYS AS (quantity * unit_price) STORED,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_invoice_item_invoice ON invoice_item(invoice_id);
+CREATE INDEX idx_invoice_item_tenant ON invoice_item(tenant_id);
+```
+
+### 21. payment
+Stores payment records.
+
+```sql
+CREATE TABLE payment (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES user(id),
+  payment_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  amount DECIMAL(10,2) NOT NULL CHECK (amount > 0),
+  payment_method VARCHAR(50) NOT NULL, -- bank_transfer, check, cash, credit_card, paypal, other
+  reference_number VARCHAR(255),
+  description TEXT,
+  notes TEXT,
+  category VARCHAR(50) DEFAULT 'revenue',
+  client_id UUID REFERENCES client(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_payment_tenant ON payment(tenant_id);
+CREATE INDEX idx_payment_client ON payment(tenant_id, client_id);
+CREATE INDEX idx_payment_date ON payment(tenant_id, payment_date DESC);
+CREATE INDEX idx_payment_method ON payment(tenant_id, payment_method);
+```
+
+### 22. payment_allocation
+Tracks how payments are allocated to specific invoices.
+
+```sql
+CREATE TABLE payment_allocation (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  payment_id UUID NOT NULL REFERENCES payment(id) ON DELETE CASCADE,
+  invoice_id UUID NOT NULL REFERENCES invoice(id) ON DELETE CASCADE,
+  allocated_amount DECIMAL(10,2) NOT NULL CHECK (allocated_amount > 0),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(payment_id, invoice_id)
+);
+
+CREATE INDEX idx_payment_allocation_payment ON payment_allocation(payment_id);
+CREATE INDEX idx_payment_allocation_invoice ON payment_allocation(invoice_id);
+CREATE INDEX idx_payment_allocation_tenant ON payment_allocation(tenant_id);
+```
+
+### 23. payment_summary (View)
+Materialized view for payment dashboard analytics.
+
+```sql
+CREATE VIEW payment_summary AS
+SELECT 
+  p.id,
+  p.tenant_id,
+  p.payment_date,
+  p.amount,
+  p.payment_method,
+  p.reference_number,
+  p.description,
+  p.category,
+  c.name as client_name,
+  c.email as client_email,
+  c.company_name as client_company,
+  CASE 
+    WHEN COUNT(pa.id) = 0 THEN 'Unallocated'
+    ELSE STRING_AGG(
+      CONCAT(i.invoice_number, ' ($', pa.allocated_amount, ')'), 
+      ', ' ORDER BY pa.created_at
+    )
+  END as allocated_to
+FROM payment p
+LEFT JOIN client c ON p.client_id = c.id
+LEFT JOIN payment_allocation pa ON p.id = pa.payment_id
+LEFT JOIN invoice i ON pa.invoice_id = i.id
+GROUP BY p.id, p.tenant_id, p.payment_date, p.amount, p.payment_method, 
+         p.reference_number, p.description, p.category, c.name, c.email, c.company_name;
+```
+
+## Email Template System Tables
+
+### 24. email_templates
+Stores customizable email templates for each tenant.
+
+```sql
+CREATE TABLE email_templates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  
+  -- Template identification
+  template_type TEXT NOT NULL CHECK (template_type IN ('invoice', 'payment_reminder', 'payment_received')),
+  name TEXT NOT NULL DEFAULT 'Default Template',
+  description TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  
+  -- Branding configuration
+  primary_color TEXT NOT NULL DEFAULT '#667eea',
+  secondary_color TEXT NOT NULL DEFAULT '#764ba2',
+  accent_color TEXT NOT NULL DEFAULT '#10b981',
+  text_color TEXT NOT NULL DEFAULT '#1a1a1a',
+  background_color TEXT NOT NULL DEFAULT '#f5f5f5',
+  
+  -- Logo and branding assets
+  logo_url TEXT,
+  logo_width INTEGER DEFAULT 60,
+  logo_height INTEGER DEFAULT 60,
+  company_name TEXT,
+  
+  -- Email content customization
+  subject_template TEXT,
+  greeting_message TEXT,
+  footer_message TEXT,
+  
+  -- Template structure
+  header_style JSONB DEFAULT '{"gradient": true, "centerAlign": true}'::jsonb,
+  body_style JSONB DEFAULT '{"padding": "48px 40px", "backgroundColor": "#ffffff"}'::jsonb,
+  button_style JSONB DEFAULT '{"borderRadius": "50px", "padding": "18px 48px"}'::jsonb,
+  
+  -- Custom CSS (for advanced users)
+  custom_css TEXT,
+  
+  -- Metadata
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_by UUID REFERENCES auth.users(id),
+  
+  -- Constraints
+  UNIQUE(tenant_id, template_type, name)
+);
+
+CREATE INDEX idx_email_templates_tenant_type ON email_templates(tenant_id, template_type);
+CREATE INDEX idx_email_templates_active ON email_templates(tenant_id, template_type, is_active);
+```
+
+### 25. email_template_variables
+Stores dynamic content variables for email templates.
+
+```sql
+CREATE TABLE email_template_variables (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  template_id UUID NOT NULL REFERENCES email_templates(id) ON DELETE CASCADE,
+  
+  -- Variable definition
+  variable_name TEXT NOT NULL,
+  variable_type TEXT NOT NULL CHECK (variable_type IN ('text', 'number', 'currency', 'date', 'boolean', 'url')),
+  display_name TEXT NOT NULL,
+  description TEXT,
+  default_value TEXT,
+  is_required BOOLEAN NOT NULL DEFAULT false,
+  
+  -- Validation rules
+  validation_rules JSONB DEFAULT '{}'::jsonb,
+  
+  -- Metadata
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  
+  -- Constraints
+  UNIQUE(template_id, variable_name)
+);
+
+CREATE INDEX idx_email_template_variables_template ON email_template_variables(template_id);
+```
+
+### 26. email_send_log
+Tracks email sending history and analytics.
+
+```sql
+CREATE TABLE email_send_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  template_id UUID REFERENCES email_templates(id) ON DELETE SET NULL,
+  
+  -- Email details
+  recipient_email TEXT NOT NULL,
+  recipient_name TEXT,
+  subject TEXT NOT NULL,
+  template_type TEXT NOT NULL,
+  
+  -- Send status
+  status TEXT NOT NULL CHECK (status IN ('sent', 'failed', 'pending')) DEFAULT 'pending',
+  provider_message_id TEXT,
+  error_message TEXT,
+  
+  -- Template snapshot (for audit trail)
+  template_snapshot JSONB,
+  
+  -- Metadata
+  sent_at TIMESTAMPTZ DEFAULT now(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  sent_by UUID REFERENCES auth.users(id),
+  
+  -- Related records
+  invoice_id UUID, -- Could reference invoice table
+  
+  -- Constraints
+  CONSTRAINT valid_status CHECK (status IN ('sent', 'failed', 'pending'))
+);
+
+CREATE INDEX idx_email_send_log_tenant_date ON email_send_log(tenant_id, created_at DESC);
+CREATE INDEX idx_email_send_log_status ON email_send_log(tenant_id, status);
+CREATE INDEX idx_email_send_log_template ON email_send_log(template_id) WHERE template_id IS NOT NULL;
+```
+
 ## Support Tables
 
-### 16. support_ticket
+### 27. support_ticket
 Tracks user support requests.
 
 ```sql
@@ -630,6 +959,114 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER check_receipt_item_price_anomaly
   BEFORE INSERT OR UPDATE ON receipt_item
   FOR EACH ROW EXECUTE FUNCTION check_price_anomaly();
+```
+
+### Payment status update trigger
+
+```sql
+CREATE OR REPLACE FUNCTION update_invoice_payment_status()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_total_paid DECIMAL(10,2);
+    v_invoice_total DECIMAL(10,2);
+    v_new_payment_status VARCHAR(20);
+    v_new_invoice_status VARCHAR(20);
+    v_invoice_id UUID;
+BEGIN
+    -- Get the invoice ID from the trigger context
+    v_invoice_id := COALESCE(NEW.invoice_id, OLD.invoice_id);
+    
+    -- Skip if no invoice_id
+    IF v_invoice_id IS NULL THEN
+        RETURN COALESCE(NEW, OLD);
+    END IF;
+    
+    -- Calculate total paid for the invoice
+    SELECT COALESCE(SUM(pa.allocated_amount), 0)
+    INTO v_total_paid
+    FROM payment_allocation pa
+    WHERE pa.invoice_id = v_invoice_id;
+    
+    -- Get invoice total amount
+    SELECT total_amount
+    INTO v_invoice_total
+    FROM invoice
+    WHERE id = v_invoice_id;
+    
+    -- Skip if invoice not found
+    IF v_invoice_total IS NULL THEN
+        RETURN COALESCE(NEW, OLD);
+    END IF;
+    
+    -- Determine payment status
+    IF v_total_paid = 0 THEN
+        v_new_payment_status := 'unpaid';
+        SELECT status INTO v_new_invoice_status FROM invoice WHERE id = v_invoice_id;
+    ELSIF v_total_paid >= v_invoice_total THEN
+        v_new_payment_status := 'paid';
+        v_new_invoice_status := 'paid';
+    ELSE
+        v_new_payment_status := 'partial';
+        SELECT status INTO v_new_invoice_status FROM invoice WHERE id = v_invoice_id;
+    END IF;
+    
+    -- Update invoice with calculated values
+    UPDATE invoice
+    SET 
+        amount_paid = v_total_paid,
+        payment_status = v_new_payment_status,
+        status = v_new_invoice_status,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = v_invoice_id;
+    
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_invoice_on_payment_allocation
+    AFTER INSERT OR UPDATE OR DELETE ON payment_allocation
+    FOR EACH ROW
+    EXECUTE FUNCTION update_invoice_payment_status();
+```
+
+### Over-allocation prevention trigger
+
+```sql
+CREATE OR REPLACE FUNCTION check_payment_allocation()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_invoice_total DECIMAL(10,2);
+    v_existing_paid DECIMAL(10,2);
+    v_remaining_balance DECIMAL(10,2);
+BEGIN
+    -- Get invoice total
+    SELECT total_amount INTO v_invoice_total
+    FROM invoice
+    WHERE id = NEW.invoice_id;
+    
+    -- Get existing payments for this invoice (excluding current allocation if updating)
+    SELECT COALESCE(SUM(allocated_amount), 0) INTO v_existing_paid
+    FROM payment_allocation
+    WHERE invoice_id = NEW.invoice_id
+    AND (TG_OP = 'INSERT' OR id != NEW.id);
+    
+    -- Calculate remaining balance
+    v_remaining_balance := v_invoice_total - v_existing_paid;
+    
+    -- Check if new allocation exceeds remaining balance
+    IF NEW.allocated_amount > v_remaining_balance THEN
+        RAISE EXCEPTION 'Payment allocation ($%) exceeds remaining invoice balance ($%)', 
+                       NEW.allocated_amount, v_remaining_balance;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER check_payment_allocation_trigger
+    BEFORE INSERT OR UPDATE ON payment_allocation
+    FOR EACH ROW
+    EXECUTE FUNCTION check_payment_allocation();
 ```
 
 ## Indexes Summary

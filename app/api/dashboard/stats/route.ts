@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
 
     // For now, use default tenant ID until auth is fully set up
     const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    console.log('Receipts dashboard using tenant_id:', defaultTenantId);
 
     // Use provided date range or default to current month
     const now = new Date();
@@ -28,10 +29,16 @@ export async function GET(req: NextRequest) {
     // Get receipts for the selected period
     const { data: currentPeriodReceipts, error: currentError } = await supabase
       .from('receipt')
-      .select('total_amount, vendor_id, receipt_date')
+      .select('total_amount, vendor_id, receipt_date, tenant_id')
       .eq('tenant_id', defaultTenantId)
       .gte('receipt_date', currentPeriodStart.toISOString().split('T')[0])
       .lte('receipt_date', currentPeriodEnd.toISOString().split('T')[0]);
+    
+    console.log('Receipts query result:', { 
+      count: currentPeriodReceipts?.length, 
+      dateRange: [currentPeriodStart.toISOString().split('T')[0], currentPeriodEnd.toISOString().split('T')[0]],
+      sampleReceipt: currentPeriodReceipts?.[0] 
+    });
 
     if (currentError) {
       console.error('Error fetching current month receipts:', currentError);

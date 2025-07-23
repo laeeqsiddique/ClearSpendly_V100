@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Plus, 
   FileText, 
@@ -16,12 +18,13 @@ import {
   Settings,
   TrendingUp,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  CalendarDays
 } from "lucide-react";
 import { InvoiceStats } from "./invoice-stats";
 import { InvoiceList } from "./invoice-list";
 import { ClientManagement } from "./client-management";
-import { InvoiceTemplatesNew } from "./invoice-templates-new";
+import { InvoiceTemplatesRedesigned } from "./invoice-templates-redesigned";
 import { RemindersManager } from "./reminders-manager";
 import { createClient } from "@/lib/supabase/client";
 
@@ -30,12 +33,13 @@ export function InvoicesDashboard() {
   const searchParams = useSearchParams();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || "invoices");
-  const [quickStats, setQuickStats] = useState({
-    total: 0,
-    pending: 0,
-    overdue: 0,
-    paid: 0
-  });
+  const [openClientForm, setOpenClientForm] = useState(false);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  
+  // Date filter states
+  const [dateRange, setDateRange] = useState<string>('this-month');
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const supabase = createClient();
 
@@ -43,123 +47,135 @@ export function InvoicesDashboard() {
     router.push('/dashboard/invoices/create');
   };
 
+  const handleManageClients = () => {
+    setActiveTab("clients");
+    setOpenClientForm(true);
+  };
+
   // Update URL when tab changes
   const handleTabChange = (value: string) => {
     setActiveTab(value);
+    setOpenClientForm(false); // Reset form state when switching tabs
+    
+    // Update URL without scrolling
     const url = new URL(window.location.href);
     url.searchParams.set('tab', value);
-    router.replace(url.pathname + url.search);
+    
+    // Use window.history.replaceState to avoid router scroll behavior
+    window.history.replaceState({}, '', url.toString());
   };
 
-  // Fetch quick stats
-  useEffect(() => {
-    fetchQuickStats();
-  }, [refreshTrigger]);
-
-  const fetchQuickStats = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: membership } = await supabase
-        .from('membership')
-        .select('tenant_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!membership) return;
-
-      // Get current counts
-      const { data: invoices } = await supabase
-        .from('invoice')
-        .select('status, total_amount')
-        .eq('tenant_id', membership.tenant_id);
-
-      if (invoices) {
-        const stats = invoices.reduce((acc, inv) => {
-          acc.total += 1;
-          switch (inv.status) {
-            case 'sent':
-            case 'viewed':
-              acc.pending += 1;
-              break;
-            case 'overdue':
-              acc.overdue += 1;
-              break;
-            case 'paid':
-              acc.paid += 1;
-              break;
-          }
-          return acc;
-        }, { total: 0, pending: 0, overdue: 0, paid: 0 });
-
-        setQuickStats(stats);
-      }
-    } catch (error) {
-      console.error('Error fetching quick stats:', error);
+  // Handle date range changes - matching main dashboard
+  const handleDateRangeChange = (preset: string) => {
+    setDateRange(preset);
+    const today = new Date();
+    const formatDate = (date: Date) => date.toISOString().split('T')[0];
+    
+    switch (preset) {
+      case 'today':
+        setStartDate(formatDate(today));
+        setEndDate(formatDate(today));
+        break;
+      case 'this-week':
+        const weekStart = new Date(today.setDate(today.getDate() - today.getDay()));
+        setStartDate(formatDate(weekStart));
+        setEndDate(formatDate(new Date()));
+        break;
+      case 'this-month':
+        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+        setStartDate(formatDate(monthStart));
+        setEndDate(formatDate(new Date()));
+        break;
+      case 'last-month':
+        const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+        setStartDate(formatDate(lastMonthStart));
+        setEndDate(formatDate(lastMonthEnd));
+        break;
+      case 'this-quarter':
+        const currentQuarter = Math.floor(today.getMonth() / 3);
+        const quarterStart = new Date(today.getFullYear(), currentQuarter * 3, 1);
+        setStartDate(formatDate(quarterStart));
+        setEndDate(formatDate(new Date()));
+        break;
+      case 'last-quarter':
+        const lastQuarter = Math.floor(today.getMonth() / 3) - 1;
+        const lastQuarterStart = new Date(today.getFullYear() + (lastQuarter < 0 ? -1 : 0), (lastQuarter < 0 ? 3 : 0) + lastQuarter * 3, 1);
+        const lastQuarterEnd = new Date(today.getFullYear() + (lastQuarter < 0 ? -1 : 0), (lastQuarter < 0 ? 3 : 0) + lastQuarter * 3 + 3, 0);
+        setStartDate(formatDate(lastQuarterStart));
+        setEndDate(formatDate(lastQuarterEnd));
+        break;
+      case 'this-year':
+        const yearStart = new Date(today.getFullYear(), 0, 1);
+        setStartDate(formatDate(yearStart));
+        setEndDate(formatDate(new Date()));
+        break;
+      case 'last-year':
+        const lastYearStart = new Date(today.getFullYear() - 1, 0, 1);
+        const lastYearEnd = new Date(today.getFullYear() - 1, 11, 31);
+        setStartDate(formatDate(lastYearStart));
+        setEndDate(formatDate(lastYearEnd));
+        break;
+      case 'custom':
+        // Keep current dates
+        break;
     }
   };
+  
+  // Initialize date range on component mount
+  useEffect(() => {
+    handleDateRangeChange('this-month');
+  }, []);
+
 
   return (
     <div className="space-y-6">
-      {/* Quick Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Invoices</p>
-                <p className="text-2xl font-bold text-blue-600">{quickStats.total}</p>
-              </div>
-              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                <FileText className="w-5 h-5 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Pending</p>
-                <p className="text-2xl font-bold text-orange-600">{quickStats.pending}</p>
-              </div>
-              <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                <Clock className="w-5 h-5 text-orange-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Overdue</p>
-                <p className="text-2xl font-bold text-red-600">{quickStats.overdue}</p>
-              </div>
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <AlertCircle className="w-5 h-5 text-red-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Paid</p>
-                <p className="text-2xl font-bold text-green-600">{quickStats.paid}</p>
-              </div>
-              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                <DollarSign className="w-5 h-5 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Date Range Filter - Matching main dashboard */}
+      <div className="flex items-center justify-end gap-4 bg-white/80 backdrop-blur-sm border-0 shadow-lg rounded-lg p-4">
+        <div className="flex items-center gap-3">
+          <CalendarDays className="h-5 w-5 text-blue-600" />
+          <span className="text-sm font-medium text-gray-700">Date Range:</span>
+          <Select value={dateRange} onValueChange={handleDateRangeChange}>
+            <SelectTrigger className="w-40 border-blue-200 focus:border-blue-500">
+              <SelectValue placeholder="Select range" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="this-week">This Week</SelectItem>
+              <SelectItem value="this-month">This Month</SelectItem>
+              <SelectItem value="last-month">Last Month</SelectItem>
+              <SelectItem value="this-quarter">This Quarter</SelectItem>
+              <SelectItem value="last-quarter">Last Quarter</SelectItem>
+              <SelectItem value="this-year">This Year</SelectItem>
+              <SelectItem value="last-year">Last Year</SelectItem>
+              <SelectItem value="custom">Custom Range</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          {dateRange === 'custom' && (
+            <>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-auto border-blue-200 focus:border-blue-500"
+                placeholder="Start date"
+              />
+              <span className="text-muted-foreground">to</span>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-auto border-blue-200 focus:border-blue-500"
+                placeholder="End date"
+              />
+            </>
+          )}
+        </div>
       </div>
+
+      {/* Detailed Stats */}
+      <InvoiceStats refreshTrigger={refreshTrigger} startDate={startDate} endDate={endDate} />
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -176,7 +192,7 @@ export function InvoicesDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveTab("clients")}>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={handleManageClients}>
           <CardContent className="p-6">
             <div className="flex items-center space-x-4">
               <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
@@ -207,11 +223,9 @@ export function InvoicesDashboard() {
         </Card>
       </div>
 
-      {/* Detailed Stats */}
-      <InvoiceStats refreshTrigger={refreshTrigger} />
-
       {/* Main Content Tabs */}
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
+      <div ref={tabsRef}>
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="invoices" className="flex items-center gap-2">
             <FileText className="w-4 h-4" />
@@ -243,21 +257,21 @@ export function InvoicesDashboard() {
               New Invoice
             </Button>
           </div>
-          <InvoiceList refreshTrigger={refreshTrigger} />
+          <InvoiceList refreshTrigger={refreshTrigger} startDate={startDate} endDate={endDate} />
         </TabsContent>
 
         <TabsContent value="clients" className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold">Client Management</h3>
           </div>
-          <ClientManagement refreshTrigger={refreshTrigger} />
+          <ClientManagement 
+            refreshTrigger={refreshTrigger} 
+            openFormDirectly={openClientForm}
+          />
         </TabsContent>
 
         <TabsContent value="templates" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Invoice Templates</h3>
-          </div>
-          <InvoiceTemplatesNew refreshTrigger={refreshTrigger} />
+          <InvoiceTemplatesRedesigned />
         </TabsContent>
 
         <TabsContent value="reminders" className="space-y-4">
@@ -350,6 +364,7 @@ export function InvoicesDashboard() {
           </div>
         </TabsContent>
       </Tabs>
+      </div>
 
     </div>
   );

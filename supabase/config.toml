@@ -60,8 +60,7 @@ enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
 
-[edge_functions]
-enabled = true
+[functions]
 # Configure one of the supported regions: https://supabase.com/docs/guides/functions/limits#regions
 # region = "us-west-1"
 
@@ -71,7 +70,7 @@ enabled = false
 [functions.clearspendly]
 verify_jwt = false
 
-[auth.third_party.google]
+[auth.external.google]
 enabled = false
 client_id = ""
 secret = ""
@@ -81,7 +80,7 @@ redirect_uri = ""
 # or any other third-party OIDC providers.
 url = ""
 
-[auth.third_party.azure]
+[auth.external.azure]
 enabled = false
 client_id = ""
 secret = ""
@@ -90,5 +89,3 @@ redirect_uri = ""
 # Overrides the default auth provider URL. Used to support self-hosted gitlab, single-tenant Azure,
 # or any other third-party OIDC providers.
 url = ""
-# Tenant ID for Azure. Required if using Azure.
-tenant = ""

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,12 @@ import {
   Filter,
   Calendar,
   User,
-  CreditCard
+  CreditCard,
+  CheckCircle,
+  Clock,
+  XCircle,
+  Receipt,
+  History
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
@@ -28,6 +34,7 @@ import { toast } from "sonner";
 import { InvoicePDFViewer } from "./invoice-pdf-viewer";
 import { SendEmailDialog } from "./send-email-dialog";
 import { PaymentLinkManager } from "./payment-link-manager";
+import { InvoicePaymentHistory } from "./invoice-payment-history";
 
 interface Invoice {
   id: string;
@@ -35,6 +42,7 @@ interface Invoice {
   issue_date: string;
   due_date: string;
   status: string;
+  payment_status?: string;
   total_amount: number;
   amount_paid: number;
   balance_due: number;
@@ -50,6 +58,8 @@ interface Invoice {
 
 interface InvoiceListProps {
   refreshTrigger?: number;
+  startDate?: string;
+  endDate?: string;
 }
 
 const statusColors = {
@@ -70,10 +80,10 @@ const statusLabels = {
   cancelled: "Cancelled"
 };
 
-export function InvoiceList({ refreshTrigger }: InvoiceListProps) {
+export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListProps) {
+  const router = useRouter();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
@@ -87,7 +97,7 @@ export function InvoiceList({ refreshTrigger }: InvoiceListProps) {
 
   useEffect(() => {
     fetchInvoices();
-  }, [refreshTrigger]);
+  }, [refreshTrigger, startDate, endDate]);
 
   const fetchInvoices = async () => {
     try {
@@ -103,7 +113,7 @@ export function InvoiceList({ refreshTrigger }: InvoiceListProps) {
 
       if (!membership) return;
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('invoice')
         .select(`
           id,
@@ -111,6 +121,7 @@ export function InvoiceList({ refreshTrigger }: InvoiceListProps) {
           issue_date,
           due_date,
           status,
+          payment_status,
           total_amount,
           amount_paid,
           balance_due,
@@ -123,8 +134,16 @@ export function InvoiceList({ refreshTrigger }: InvoiceListProps) {
             company_name
           )
         `)
-        .eq('tenant_id', membership.tenant_id)
-        .order('issue_date', { ascending: false });
+        .eq('tenant_id', membership.tenant_id);
+
+      // Apply date filter if provided
+      if (startDate && endDate) {
+        query = query
+          .gte('issue_date', startDate)
+          .lte('issue_date', endDate);
+      }
+
+      const { data, error } = await query.order('issue_date', { ascending: false });
 
       if (error) throw error;
       
@@ -147,15 +166,8 @@ export function InvoiceList({ refreshTrigger }: InvoiceListProps) {
   };
 
   const filteredInvoices = invoices.filter(invoice => {
-    const matchesSearch = 
-      invoice.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      invoice.client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      invoice.client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (invoice.subject && invoice.subject.toLowerCase().includes(searchTerm.toLowerCase()));
-    
     const matchesStatus = statusFilter === "all" || invoice.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
+    return matchesStatus;
   });
 
   const paginatedInvoices = filteredInvoices.slice(
@@ -210,11 +222,41 @@ export function InvoiceList({ refreshTrigger }: InvoiceListProps) {
     }
   };
 
+  const handleStatusChange = async (invoiceId: string, newStatus: string) => {
+    try {
+      const statusLabels = {
+        'sent': 'sent',
+        'paid': 'paid',
+        'cancelled': 'cancelled'
+      };
+
+      const { error } = await supabase
+        .from('invoice')
+        .update({ 
+          status: newStatus
+        })
+        .eq('id', invoiceId);
+
+      if (error) throw error;
+      
+      toast.success(`Invoice marked as ${statusLabels[newStatus as keyof typeof statusLabels] || newStatus}`);
+      fetchInvoices();
+    } catch (error) {
+      console.error('Error updating invoice status:', error);
+      toast.error("Failed to update invoice status");
+    }
+  };
+
   const getActionButtons = (invoice: Invoice) => {
     const canSend = ['draft', 'viewed'].includes(invoice.status);
     const canEdit = ['draft'].includes(invoice.status);
     const canDelete = ['draft', 'cancelled'].includes(invoice.status);
     const canManagePayment = !['cancelled'].includes(invoice.status);
+    const canMarkSent = ['draft'].includes(invoice.status);
+    const canMarkPaid = ['sent', 'viewed', 'overdue'].includes(invoice.status);
+    const canCancel = !['paid', 'cancelled'].includes(invoice.status);
+    const canMarkDraft = ['sent', 'viewed'].includes(invoice.status);
+    const canRecordPayment = !['cancelled'].includes(invoice.status) && invoice.balance_due > 0;
 
     return (
       <DropdownMenu>
@@ -239,7 +281,7 @@ export function InvoiceList({ refreshTrigger }: InvoiceListProps) {
             </DropdownMenuItem>
           )}
           {canEdit && (
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push(`/dashboard/invoices/${invoice.id}/edit`)}>
               <Edit className="w-4 h-4 mr-2" />
               Edit
             </DropdownMenuItem>
@@ -250,6 +292,53 @@ export function InvoiceList({ refreshTrigger }: InvoiceListProps) {
               Send Reminder
             </DropdownMenuItem>
           )}
+          
+          {/* Status Change Options */}
+          {canMarkDraft && (
+            <DropdownMenuItem onClick={() => handleStatusChange(invoice.id, 'draft')}>
+              <Edit className="w-4 h-4 mr-2" />
+              Mark as Unsent (Draft)
+            </DropdownMenuItem>
+          )}
+          {canMarkSent && (
+            <DropdownMenuItem onClick={() => handleStatusChange(invoice.id, 'sent')}>
+              <Clock className="w-4 h-4 mr-2" />
+              Mark as Sent
+            </DropdownMenuItem>
+          )}
+          {canMarkPaid && (
+            <DropdownMenuItem onClick={() => handleStatusChange(invoice.id, 'paid')}>
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Mark as Paid
+            </DropdownMenuItem>
+          )}
+          {canCancel && (
+            <DropdownMenuItem 
+              onClick={() => handleStatusChange(invoice.id, 'cancelled')}
+              className="text-red-600"
+            >
+              <XCircle className="w-4 h-4 mr-2" />
+              Cancel Invoice
+            </DropdownMenuItem>
+          )}
+          
+          {canRecordPayment && (
+            <DropdownMenuItem onClick={() => router.push(`/dashboard/payments/record?invoice=${invoice.id}`)}>
+              <Receipt className="w-4 h-4 mr-2" />
+              Record Payment
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem asChild>
+            <InvoicePaymentHistory 
+              invoice={invoice}
+              trigger={
+                <div className="flex items-center w-full px-2 py-1.5 text-sm cursor-pointer hover:bg-accent">
+                  <History className="w-4 h-4 mr-2" />
+                  Payment History
+                </div>
+              }
+            />
+          </DropdownMenuItem>
           {canManagePayment && (
             <DropdownMenuItem onClick={() => handleManagePayment(invoice)}>
               <CreditCard className="w-4 h-4 mr-2" />
@@ -296,16 +385,6 @@ export function InvoiceList({ refreshTrigger }: InvoiceListProps) {
           <CardTitle>Invoice List</CardTitle>
           
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="Search invoices..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full sm:w-64"
-              />
-            </div>
-            
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full sm:w-40">
                 <Filter className="w-4 h-4 mr-2" />
@@ -333,8 +412,8 @@ export function InvoiceList({ refreshTrigger }: InvoiceListProps) {
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No invoices found</h3>
             <p className="text-gray-500 mb-4">
-              {searchTerm || statusFilter !== "all" 
-                ? "Try adjusting your search or filter criteria"
+              {statusFilter !== "all" 
+                ? "Try adjusting your filter criteria"
                 : "Create your first invoice to get started"
               }
             </p>
@@ -387,12 +466,29 @@ export function InvoiceList({ refreshTrigger }: InvoiceListProps) {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Badge 
-                          variant="secondary" 
-                          className={statusColors[invoice.status as keyof typeof statusColors]}
-                        >
-                          {statusLabels[invoice.status as keyof typeof statusLabels]}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge 
+                            variant="secondary" 
+                            className={statusColors[invoice.status as keyof typeof statusColors]}
+                          >
+                            {statusLabels[invoice.status as keyof typeof statusLabels]}
+                          </Badge>
+                          {invoice.payment_status && invoice.payment_status !== 'unpaid' && (
+                            <Badge 
+                              variant="secondary" 
+                              className={
+                                invoice.payment_status === 'paid' 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-yellow-100 text-yellow-800'
+                              }
+                            >
+                              {invoice.payment_status === 'partial' 
+                                ? `Partial (${Math.round((invoice.amount_paid / invoice.total_amount) * 100)}%)`
+                                : 'Paid'
+                              }
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         ${invoice.total_amount.toFixed(2)}

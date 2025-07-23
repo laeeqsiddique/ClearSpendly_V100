@@ -1,7 +1,18 @@
+"use client";
+
 import { Suspense } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 import { InvoicesDashboard } from "./_components/invoices-dashboard";
 
 export default function InvoicesPage() {
+  const router = useRouter();
+
+  const handleNewInvoice = () => {
+    router.push('/dashboard/invoices/create');
+  };
+
   return (
     <section className="flex flex-col items-start justify-start p-6 w-full bg-gradient-to-br from-purple-50 via-white to-blue-50 min-h-screen">
       <div className="w-full">
@@ -16,6 +27,10 @@ export default function InvoicesPage() {
                 Create, send, and track professional invoices for your business.
               </p>
             </div>
+            <Button size="sm" onClick={handleNewInvoice} className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+              <Plus className="h-4 w-4 mr-2" />
+              Create Invoice
+            </Button>
           </div>
         </div>
         

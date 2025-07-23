@@ -16,7 +16,8 @@ import {
   IconCurrencyDollar, 
   IconCalendar,
   IconClock,
-  IconReceiptDollar
+  IconReceiptDollar,
+  IconFileText
 } from "@tabler/icons-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -40,25 +41,34 @@ interface InvoiceStats {
     count: number;
     amount: number;
   };
+  quickStats: {
+    total: number;
+    pending: number;
+    overdue: number;
+    paid: number;
+  };
 }
 
 interface InvoiceStatsProps {
   refreshTrigger?: number;
+  startDate?: string;
+  endDate?: string;
 }
 
-export function InvoiceStats({ refreshTrigger }: InvoiceStatsProps) {
+export function InvoiceStats({ refreshTrigger, startDate, endDate }: InvoiceStatsProps) {
   const [stats, setStats] = useState<InvoiceStats>({
     thisMonth: { totalAmount: 0, invoiceCount: 0, paidAmount: 0, pendingAmount: 0 },
     lastMonth: { totalAmount: 0, invoiceCount: 0 },
     thisYear: { totalAmount: 0, invoiceCount: 0, paidAmount: 0 },
-    overdue: { count: 0, amount: 0 }
+    overdue: { count: 0, amount: 0 },
+    quickStats: { total: 0, pending: 0, overdue: 0, paid: 0 }
   });
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
   useEffect(() => {
     fetchStats();
-  }, [refreshTrigger]);
+  }, [refreshTrigger, startDate, endDate]);
 
   const fetchStats = async () => {
     try {
@@ -81,13 +91,27 @@ export function InvoiceStats({ refreshTrigger }: InvoiceStatsProps) {
       const thisYearStart = new Date(now.getFullYear(), 0, 1);
       const thisYearEnd = new Date(now.getFullYear(), 11, 31);
 
-      // This month stats
-      const { data: thisMonthData } = await supabase
+      // Apply date filter if provided, otherwise use default ranges
+      const filterStartDate = startDate || thisMonthStart.toISOString().split('T')[0];
+      const filterEndDate = endDate || now.toISOString().split('T')[0];
+
+      // This month stats (or filtered period)
+      let thisMonthQuery = supabase
         .from('invoice')
         .select('total_amount, amount_paid, status, issue_date')
-        .eq('tenant_id', membership.tenant_id)
-        .gte('issue_date', thisMonthStart.toISOString().split('T')[0])
-        .lte('issue_date', thisMonthEnd.toISOString().split('T')[0]);
+        .eq('tenant_id', membership.tenant_id);
+      
+      if (startDate && endDate) {
+        thisMonthQuery = thisMonthQuery
+          .gte('issue_date', filterStartDate)
+          .lte('issue_date', filterEndDate);
+      } else {
+        thisMonthQuery = thisMonthQuery
+          .gte('issue_date', thisMonthStart.toISOString().split('T')[0])
+          .lte('issue_date', thisMonthEnd.toISOString().split('T')[0]);
+      }
+      
+      const { data: thisMonthData } = await thisMonthQuery;
 
       // Last month stats
       const { data: lastMonthData } = await supabase
@@ -97,21 +121,53 @@ export function InvoiceStats({ refreshTrigger }: InvoiceStatsProps) {
         .gte('issue_date', lastMonthStart.toISOString().split('T')[0])
         .lte('issue_date', lastMonthEnd.toISOString().split('T')[0]);
 
-      // This year stats
-      const { data: thisYearData } = await supabase
+      // This year stats (or filtered period for year total)
+      let thisYearQuery = supabase
         .from('invoice')
         .select('total_amount, amount_paid, status, issue_date')
-        .eq('tenant_id', membership.tenant_id)
-        .gte('issue_date', thisYearStart.toISOString().split('T')[0])
-        .lte('issue_date', thisYearEnd.toISOString().split('T')[0]);
+        .eq('tenant_id', membership.tenant_id);
+      
+      if (startDate && endDate) {
+        thisYearQuery = thisYearQuery
+          .gte('issue_date', filterStartDate)
+          .lte('issue_date', filterEndDate);
+      } else {
+        thisYearQuery = thisYearQuery
+          .gte('issue_date', thisYearStart.toISOString().split('T')[0])
+          .lte('issue_date', thisYearEnd.toISOString().split('T')[0]);
+      }
+      
+      const { data: thisYearData } = await thisYearQuery;
 
-      // Overdue invoices
-      const { data: overdueData } = await supabase
+      // Overdue invoices (within the filtered period)
+      let overdueQuery = supabase
         .from('invoice')
-        .select('total_amount, due_date')
+        .select('total_amount, due_date, issue_date')
         .eq('tenant_id', membership.tenant_id)
         .in('status', ['sent', 'viewed'])
         .lt('due_date', now.toISOString().split('T')[0]);
+      
+      if (startDate && endDate) {
+        overdueQuery = overdueQuery
+          .gte('issue_date', filterStartDate)
+          .lte('issue_date', filterEndDate);
+      }
+      
+      const { data: overdueData } = await overdueQuery;
+
+      // All invoices for quick stats (within the filtered period)
+      let allInvoicesQuery = supabase
+        .from('invoice')
+        .select('status, total_amount, issue_date')
+        .eq('tenant_id', membership.tenant_id);
+      
+      if (startDate && endDate) {
+        allInvoicesQuery = allInvoicesQuery
+          .gte('issue_date', filterStartDate)
+          .lte('issue_date', filterEndDate);
+      }
+      
+      const { data: allInvoices } = await allInvoicesQuery;
 
       // Calculate stats
       const calculateMonthStats = (data: any[]) => {
@@ -153,6 +209,24 @@ export function InvoiceStats({ refreshTrigger }: InvoiceStatsProps) {
         };
       };
 
+      // Calculate quick stats
+      const quickStats = allInvoices ? allInvoices.reduce((acc, inv) => {
+        acc.total += 1;
+        switch (inv.status) {
+          case 'sent':
+          case 'viewed':
+            acc.pending += 1;
+            break;
+          case 'overdue':
+            acc.overdue += 1;
+            break;
+          case 'paid':
+            acc.paid += 1;
+            break;
+        }
+        return acc;
+      }, { total: 0, pending: 0, overdue: 0, paid: 0 }) : { total: 0, pending: 0, overdue: 0, paid: 0 };
+
       setStats({
         thisMonth: calculateMonthStats(thisMonthData),
         lastMonth: {
@@ -160,7 +234,8 @@ export function InvoiceStats({ refreshTrigger }: InvoiceStatsProps) {
           invoiceCount: lastMonthData?.length || 0
         },
         thisYear: calculateYearStats(thisYearData),
-        overdue: calculateOverdueStats(overdueData)
+        overdue: calculateOverdueStats(overdueData),
+        quickStats
       });
     } catch (error) {
       console.error('Error fetching invoice stats:', error);
@@ -203,25 +278,27 @@ export function InvoiceStats({ refreshTrigger }: InvoiceStatsProps) {
       <Card className="@container/card bg-white/80 backdrop-blur-sm border-0 shadow-lg">
         <CardHeader>
           <CardDescription className="flex items-center gap-2">
-            <IconCurrencyDollar className="h-4 w-4 text-green-600" />
-            Revenue This Month
+            <IconFileText className="h-4 w-4 text-blue-600" />
+            Total Invoices {startDate && endDate && '(Filtered)'}
           </CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-            ${stats.thisMonth.totalAmount.toFixed(0)}
+          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            {stats.quickStats.total}
           </CardTitle>
           <CardAction>
-            <Badge variant={growth !== null && growth > 0 ? "outline" : "secondary"}>
-              {growth !== null && growth > 0 ? <IconTrendingUp /> : growth !== null && growth < 0 ? <IconTrendingDown /> : <IconTrendingUp />}
-              {growth !== null ? `${growth >= 0 ? '+' : ''}${growth}%` : 'N/A'}
+            <Badge variant="outline">
+              <IconTrendingUp className="h-3 w-3" />
+              {stats.thisMonth.invoiceCount} this month
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            {stats.thisMonth.invoiceCount} invoices created
+            <span className="text-orange-600">{stats.quickStats.pending} pending</span>
+            <span className="text-muted-foreground">•</span>
+            <span className="text-green-600">{stats.quickStats.paid} paid</span>
           </div>
           <div className="text-muted-foreground">
-            vs last month: ${stats.lastMonth.totalAmount.toFixed(0)}
+            Revenue: ${stats.thisMonth.totalAmount.toFixed(0)}{startDate && endDate ? '' : '/mo'}
           </div>
         </CardFooter>
       </Card>

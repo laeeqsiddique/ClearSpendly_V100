@@ -21,6 +21,7 @@ interface InvoiceReminderData {
   last_reminder_sent_at?: string;
   reminder_count: number;
   stripe_payment_link_url?: string;
+  tenant_id: string;
   client: {
     name: string;
     email: string;
@@ -54,7 +55,7 @@ export class InvoiceReminderService {
     skipped: number;
     errors: number;
   }> {
-    const supabase = createClient();
+    const supabase = await createClient();
     const results = {
       processed: 0,
       sent: 0,
@@ -194,11 +195,11 @@ export class InvoiceReminderService {
       const daysOverdue = calculateDaysOverdue(invoice.due_date);
       
       // Send reminder email
-      const result = await emailService.sendPaymentReminderEmail(invoice, daysOverdue);
+      const result = await emailService.sendPaymentReminderEmail(invoice, invoice.tenant_id, daysOverdue);
 
       if (result.success) {
         // Update invoice reminder tracking
-        const supabase = createClient();
+        const supabase = await createClient();
         await supabase
           .from('invoice')
           .update({
@@ -222,7 +223,7 @@ export class InvoiceReminderService {
 
   async sendManualReminder(invoiceId: string, customMessage?: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const supabase = createClient();
+      const supabase = await createClient();
 
       // Get invoice data
       const { data: invoice, error } = await supabase
@@ -255,6 +256,7 @@ export class InvoiceReminderService {
       // Send reminder email
       const result = await emailService.sendPaymentReminderEmail(
         reminderData, 
+        invoice.tenant_id,
         daysOverdue,
         customMessage ? { message: customMessage } : undefined
       );
@@ -289,7 +291,7 @@ export class InvoiceReminderService {
     maxRemindersReached: number;
     autoStopped: number;
   }> {
-    const supabase = createClient();
+    const supabase = await createClient();
     const summary = {
       total: 0,
       needingFirstReminder: 0,

@@ -11,7 +11,8 @@ import {
   Eye, 
   FileText,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  RefreshCcw
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { generateInvoicePDF, downloadInvoicePDF } from "@/lib/pdf-generator";
@@ -127,6 +128,7 @@ export function InvoicePDFViewer({ invoiceId, open, onClose }: InvoicePDFViewerP
         items: invoiceData.items || []
       };
 
+
       setInvoice(completeInvoiceData);
       await generatePDFPreview(completeInvoiceData);
     } catch (error) {
@@ -142,7 +144,20 @@ export function InvoicePDFViewer({ invoiceId, open, onClose }: InvoicePDFViewerP
     try {
       setGenerating(true);
       
-      const pdfBlob = await generateInvoicePDF(invoiceData);
+      // Use new HTML-to-PDF API for preview (pass data directly to avoid auth issues)
+      const response = await fetch('/api/invoices/pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ invoiceData: invoiceData })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+
+      const pdfBlob = await response.blob();
       const url = URL.createObjectURL(pdfBlob);
       setPdfUrl(url);
     } catch (error) {
@@ -159,7 +174,30 @@ export function InvoicePDFViewer({ invoiceId, open, onClose }: InvoicePDFViewerP
 
     try {
       setGenerating(true);
-      await downloadInvoicePDF(invoice, `Invoice-${invoice.invoice_number}.pdf`);
+      
+      // Use new HTML-to-PDF API for download (pass data directly to avoid auth issues)
+      const response = await fetch('/api/invoices/pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ invoiceData: invoice })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Invoice-${invoice.invoice_number}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
       toast.success("PDF downloaded successfully!");
     } catch (error) {
       console.error('Error downloading PDF:', error);
@@ -196,16 +234,28 @@ export function InvoicePDFViewer({ invoiceId, open, onClose }: InvoicePDFViewerP
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader className="border-b pb-4">
+      <DialogContent className="max-w-[95vw] w-[1600px] max-h-[95vh] h-[90vh] overflow-hidden flex flex-col p-0 gap-0 bg-white">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-50 to-sky-50 border-b px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <DialogTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Invoice Preview
-              </DialogTitle>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <FileText className="w-5 h-5 text-blue-700" />
+                </div>
+                <div>
+                  <DialogTitle className="text-lg font-semibold text-gray-900">
+                    Invoice Preview
+                  </DialogTitle>
+                  {invoice && (
+                    <p className="text-gray-600 text-sm">
+                      #{invoice.invoice_number} • {invoice.client.name}
+                    </p>
+                  )}
+                </div>
+              </div>
               {invoice && (
-                <Badge className={getStatusColor(invoice.status)}>
+                <Badge className={`${getStatusColor(invoice.status)} border shadow-sm`}>
                   {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
                 </Badge>
               )}
@@ -217,16 +267,18 @@ export function InvoicePDFViewer({ invoiceId, open, onClose }: InvoicePDFViewerP
                 size="sm"
                 onClick={handleSendEmail}
                 disabled={!invoice}
+                className="border-blue-200 hover:bg-blue-50 hover:border-blue-300"
               >
                 <Mail className="w-4 h-4 mr-2" />
                 Send Email
               </Button>
               
               <Button
-                variant="outline"
+                variant="default"
                 size="sm"
                 onClick={handleDownload}
                 disabled={!invoice || generating}
+                className="bg-[#0071e3] hover:bg-[#0051a2] text-white"
               >
                 {generating ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -237,50 +289,69 @@ export function InvoicePDFViewer({ invoiceId, open, onClose }: InvoicePDFViewerP
               </Button>
             </div>
           </div>
-        </DialogHeader>
+        </div>
 
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden bg-slate-50 p-4">
           {loading ? (
-            <div className="flex items-center justify-center h-96">
+            <div className="flex items-center justify-center h-full">
               <div className="text-center space-y-3">
-                <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
-                <p className="text-muted-foreground">Loading invoice data...</p>
+                <Loader2 className="w-10 h-10 animate-spin mx-auto text-[#0071e3]" />
+                <div>
+                  <h3 className="font-medium text-gray-900">Loading Invoice</h3>
+                  <p className="text-gray-500 text-sm mt-1">Please wait...</p>
+                </div>
               </div>
             </div>
           ) : error ? (
-            <div className="flex items-center justify-center h-96">
-              <Card className="w-96">
+            <div className="flex items-center justify-center h-full">
+              <Card className="w-96 border-red-200">
                 <CardContent className="text-center py-8">
                   <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
                   <h3 className="font-semibold text-lg mb-2">Error Loading Invoice</h3>
-                  <p className="text-muted-foreground mb-4">{error}</p>
-                  <Button onClick={fetchInvoiceData} variant="outline">
+                  <p className="text-gray-600 mb-4">{error}</p>
+                  <Button 
+                    onClick={fetchInvoiceData} 
+                    variant="outline"
+                    className="border-red-300 text-red-600 hover:bg-red-50"
+                  >
+                    <RefreshCcw className="w-4 h-4 mr-2" />
                     Try Again
                   </Button>
                 </CardContent>
               </Card>
             </div>
           ) : generating ? (
-            <div className="flex items-center justify-center h-96">
+            <div className="flex items-center justify-center h-full">
               <div className="text-center space-y-3">
-                <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
-                <p className="text-muted-foreground">Generating PDF preview...</p>
+                <Loader2 className="w-10 h-10 animate-spin mx-auto text-[#0071e3]" />
+                <div>
+                  <h3 className="font-medium text-gray-900">Generating Preview</h3>
+                  <p className="text-gray-500 text-sm mt-1">This may take a moment...</p>
+                </div>
               </div>
             </div>
           ) : pdfUrl ? (
-            <div className="h-full">
+            <div className="h-full bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
               <iframe
                 src={pdfUrl}
-                className="w-full h-full border-0 rounded-lg"
+                className="w-full h-full border-0"
                 title="Invoice PDF Preview"
               />
             </div>
           ) : (
-            <div className="flex items-center justify-center h-96">
+            <div className="flex items-center justify-center h-full">
               <div className="text-center space-y-3">
-                <Eye className="w-12 h-12 text-muted-foreground mx-auto" />
-                <p className="text-muted-foreground">PDF preview not available</p>
-                <Button onClick={() => invoice && generatePDFPreview(invoice)} variant="outline">
+                <Eye className="w-12 h-12 text-blue-400 mx-auto" />
+                <div>
+                  <h3 className="font-medium text-gray-900">No Preview Available</h3>
+                  <p className="text-gray-500 text-sm mt-1">Unable to generate PDF preview</p>
+                </div>
+                <Button 
+                  onClick={() => invoice && generatePDFPreview(invoice)} 
+                  variant="outline"
+                  className="mt-2 border-blue-200 hover:bg-blue-50"
+                >
+                  <RefreshCcw className="w-4 h-4 mr-2" />
                   Regenerate Preview
                 </Button>
               </div>
@@ -289,17 +360,21 @@ export function InvoicePDFViewer({ invoiceId, open, onClose }: InvoicePDFViewerP
         </div>
 
         {invoice && (
-          <div className="border-t pt-4">
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <div className="bg-gradient-to-r from-blue-50 to-sky-50 border-t px-6 py-3">
+            <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-4">
-                <span>Invoice #{invoice.invoice_number}</span>
-                <span>•</span>
-                <span>{invoice.client.name}</span>
-                <span>•</span>
-                <span>${invoice.total_amount.toFixed(2)}</span>
+                <span className="font-medium text-gray-900">Invoice #{invoice.invoice_number}</span>
+                <span className="text-blue-300">•</span>
+                <span className="text-gray-600">{invoice.client.name}</span>
+                <span className="text-blue-300">•</span>
+                <span className="font-medium text-gray-900">${invoice.total_amount.toFixed(2)}</span>
               </div>
-              <div>
-                Due: {new Date(invoice.due_date).toLocaleDateString()}
+              <div className="text-gray-600 font-medium">
+                Due: {new Date(invoice.due_date).toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric', 
+                  year: 'numeric' 
+                })}
               </div>
             </div>
           </div>

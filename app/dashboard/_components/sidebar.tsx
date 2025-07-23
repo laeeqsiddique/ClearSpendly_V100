@@ -17,6 +17,9 @@ import {
   PanelLeft,
   Car,
   FileText,
+  CreditCard,
+  Mail,
+  TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -54,6 +57,21 @@ const navItems: NavItem[] = [
     label: "Invoices",
     href: "/dashboard/invoices",
     icon: FileText,
+  },
+  {
+    label: "Payments",
+    href: "/dashboard/payments",
+    icon: CreditCard,
+  },
+  {
+    label: "Analytics",
+    href: "/dashboard/analytics",
+    icon: TrendingUp,
+  },
+  {
+    label: "Email Templates",
+    href: "/dashboard/email-templates",
+    icon: Mail,
   },
   {
     label: "Tags",
