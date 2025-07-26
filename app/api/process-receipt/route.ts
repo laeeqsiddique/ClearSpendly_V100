@@ -4,6 +4,7 @@ import { generateText } from "ai";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@/lib/supabase/server";
 import { getTenantIdWithFallback } from "@/lib/api-tenant";
+import { withPermission } from "@/lib/api-middleware";
 
 // Function to save receipt data to database
 async function saveReceiptToDatabase(receiptData: any, imageUrl?: string): Promise<string> {
@@ -190,12 +191,13 @@ Return ONLY the JSON object, no additional text.`;
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const { imageUrl, imageData } = await req.json();
+  return withPermission('receipts:create')(req, async (request, context) => {
+    try {
+      const { imageUrl, imageData } = await request.json();
 
-    if (!imageUrl && !imageData) {
-      return NextResponse.json({ error: "No image provided" }, { status: 400 });
-    }
+      if (!imageUrl && !imageData) {
+        return NextResponse.json({ error: "No image provided" }, { status: 400 });
+      }
 
     // Check if this is a PDF (which browser OCR can't handle)
     const isPdf = imageUrl?.includes('data:application/pdf') || imageData?.includes('data:application/pdf');
@@ -443,4 +445,5 @@ If you cannot read the receipt clearly, return confidence < 50. Return ONLY the 
       { status: 500 }
     );
   }
+  });
 }

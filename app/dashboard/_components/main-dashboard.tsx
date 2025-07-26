@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { PermissionGate } from "@/hooks/use-permissions";
 import {
   Select,
   SelectContent,
@@ -22,7 +23,8 @@ import {
   ArrowRight,
   Plus,
   Upload,
-  Mail
+  Mail,
+  Users
 } from "lucide-react";
 import Link from "next/link";
 
@@ -53,6 +55,13 @@ interface DashboardStats {
     totalPayments: number;
     avgPaymentAmount: number;
     topPaymentMethod: string;
+    change: number;
+  };
+  team: {
+    totalMembers: number;
+    activeMembers: number;
+    pendingInvitations: number;
+    planLimit: number;
     change: number;
   };
 }
@@ -98,6 +107,17 @@ const cardData = [
     icon: CreditCard,
     href: "/dashboard/payments",
     color: "text-purple-600", 
+    bgColor: "bg-purple-100 dark:bg-purple-900/20",
+    gradient: "from-purple-50 via-blue-50 to-indigo-50 dark:from-purple-950/20 dark:via-blue-950/20 dark:to-indigo-950/20",
+    borderColor: "border-gray-200 hover:border-purple-300 dark:border-gray-700 dark:hover:border-purple-600"
+  },
+  {
+    id: "team",
+    title: "Team",
+    description: "Manage team members",
+    icon: Users,
+    href: "/dashboard/team",
+    color: "text-purple-600",
     bgColor: "bg-purple-100 dark:bg-purple-900/20",
     gradient: "from-purple-50 via-blue-50 to-indigo-50 dark:from-purple-950/20 dark:via-blue-950/20 dark:to-indigo-950/20",
     borderColor: "border-gray-200 hover:border-purple-300 dark:border-gray-700 dark:hover:border-purple-600"
@@ -202,26 +222,38 @@ export function MainDashboard() {
     const fetchStats = async () => {
       setLoading(true);
       try {
-        const [expensesRes, mileageRes, invoicesRes, paymentsRes] = await Promise.all([
+        const [expensesRes, mileageRes, invoicesRes, paymentsRes, teamRes] = await Promise.all([
           fetch(`/api/dashboard/stats?startDate=${startDate}&endDate=${endDate}`),
           fetch(`/api/dashboard/mileage-stats?startDate=${startDate}&endDate=${endDate}`),
           fetch(`/api/dashboard/invoice-stats?startDate=${startDate}&endDate=${endDate}`),
-          fetch(`/api/dashboard/payment-stats?startDate=${startDate}&endDate=${endDate}`)
+          fetch(`/api/dashboard/payment-stats?startDate=${startDate}&endDate=${endDate}`),
+          fetch(`/api/dashboard/team-stats`)
         ]);
 
-        const [expensesData, mileageData, invoicesData, paymentsData] = await Promise.all([
+        const [expensesData, mileageData, invoicesData, paymentsData, teamData] = await Promise.all([
           expensesRes.json(),
           mileageRes.json(),
           invoicesRes.json(),
-          paymentsRes.json()
+          paymentsRes.json(),
+          teamRes.json()
         ]);
 
-        if (expensesData.success && mileageData.success && invoicesData.success && paymentsData.success) {
+        console.log('Dashboard API responses:', {
+          expenses: expensesData.success,
+          mileage: mileageData.success,
+          invoices: invoicesData.success,
+          payments: paymentsData.success,
+          team: teamData.success,
+          teamData: teamData
+        });
+
+        if (expensesData.success && mileageData.success && invoicesData.success && paymentsData.success && teamData.success) {
           setStats({
             expenses: expensesData.data,
             mileage: mileageData.data,
             invoices: invoicesData.data,
-            payments: paymentsData.data
+            payments: paymentsData.data,
+            team: teamData.data
           });
         }
       } catch (error) {
@@ -242,6 +274,7 @@ export function MainDashboard() {
   };
 
   const getStatValue = (cardId: string) => {
+    console.log('getStatValue called for:', cardId, 'stats:', stats);
     if (!stats) return { primary: '$0', secondary: '', change: 0 };
     
     switch (cardId) {
@@ -268,6 +301,13 @@ export function MainDashboard() {
           primary: formatCurrency(stats.payments.totalReceived),
           secondary: `${stats.payments.totalPayments} payments received`,
           change: stats.payments.change
+        };
+      case 'team':
+        console.log('Team stats:', stats.team);
+        return {
+          primary: `${stats.team?.activeMembers || 0}/${stats.team?.planLimit || 0}`,
+          secondary: `${stats.team?.totalMembers || 0} members, ${stats.team?.pendingInvitations || 0} pending`,
+          change: stats.team?.change || 0
         };
       default:
         return { primary: '', secondary: '', change: 0 };
@@ -314,18 +354,22 @@ export function MainDashboard() {
                 transition={{ duration: 0.5, delay: 0.2 }}
                 className="flex gap-2"
               >
-                <Button size="sm" asChild className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
-                  <Link href="/dashboard/upload">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Add Receipt
-                  </Link>
-                </Button>
-                <Button size="sm" variant="outline" asChild>
-                  <Link href="/dashboard/invoices/create">
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Invoice
-                  </Link>
-                </Button>
+                <PermissionGate permission="receipts:create">
+                  <Button size="sm" asChild className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+                    <Link href="/dashboard/upload">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Add Receipt
+                    </Link>
+                  </Button>
+                </PermissionGate>
+                <PermissionGate permission="invoices:create">
+                  <Button size="sm" variant="outline" asChild>
+                    <Link href="/dashboard/invoices/create">
+                      <Plus className="h-4 w-4 mr-2" />
+                      New Invoice
+                    </Link>
+                  </Button>
+                </PermissionGate>
               </motion.div>
             </div>
             
@@ -380,6 +424,7 @@ export function MainDashboard() {
             {/* Dashboard Cards */}
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
               {cardData.map((card, index) => {
+                console.log('Rendering card:', card.id, card.title);
                 const statData = getStatValue(card.id);
                 const Icon = card.icon;
                 
@@ -473,7 +518,7 @@ export function MainDashboard() {
                               </p>
 
                               {/* Stats Display */}
-                              {!loading && statData.primary && (card.id === 'expenses' || card.id === 'mileage' || card.id === 'invoices' || card.id === 'payments') && (
+                              {!loading && statData.primary && (card.id === 'expenses' || card.id === 'mileage' || card.id === 'invoices' || card.id === 'payments' || card.id === 'team') && (
                                 <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
                                   <div className="text-2xl font-bold text-gray-900 dark:text-white">
                                     {statData.primary}

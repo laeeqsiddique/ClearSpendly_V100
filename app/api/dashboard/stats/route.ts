@@ -1,21 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getUser } from "@/lib/auth";
+import { withPermission } from "@/lib/api-middleware";
 
 export async function GET(req: NextRequest) {
-  try {
-    // Check authentication
-    const user = await getUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  return withPermission('receipts:view')(req, async (request, context) => {
+    try {
 
-    const { searchParams } = new URL(req.url);
+      const { searchParams } = new URL(request.url);
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     
     const supabase = await createClient();
-    console.log('Receipts dashboard using authenticated user:', user.id);
+      console.log('Receipts dashboard using authenticated user:', context.user.id);
 
     // Use provided date range or default to current month
     const now = new Date();
@@ -37,7 +33,7 @@ export async function GET(req: NextRequest) {
     console.log('Receipts query result:', { 
       count: currentPeriodReceipts?.length, 
       dateRange: [currentPeriodStart.toISOString().split('T')[0], currentPeriodEnd.toISOString().split('T')[0]],
-      userId: user.id
+      userId: context.user.id
     });
 
     if (currentError) {
@@ -304,12 +300,13 @@ export async function GET(req: NextRequest) {
       }
     };
 
-    return NextResponse.json({ success: true, data: stats });
-  } catch (error) {
-    console.error("Dashboard stats error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch dashboard statistics" },
-      { status: 500 }
-    );
-  }
+      return NextResponse.json({ success: true, data: stats });
+    } catch (error) {
+      console.error("Dashboard stats error:", error);
+      return NextResponse.json(
+        { error: "Failed to fetch dashboard statistics" },
+        { status: 500 }
+      );
+    }
+  });
 }

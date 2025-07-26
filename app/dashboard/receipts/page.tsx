@@ -69,7 +69,7 @@ import {
   RotateCw,
   ArrowLeft,
   ArrowRight,
-  Image as ImageLucide
+  Image as ImageLucide,
 } from "lucide-react";
 import {
   Select,
@@ -944,6 +944,7 @@ export default function ReceiptsPage() {
                   className="pl-10 h-12 text-base border-purple-200 focus:border-purple-500 focus:ring-purple-500"
                 />
               </div>
+              
               <Button 
                 variant="outline" 
                 onClick={() => setShowFilters(!showFilters)}

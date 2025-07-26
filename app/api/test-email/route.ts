@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     const { to } = await request.json();
 
     const result = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+      from: process.env.RESEND_FROM_EMAIL || 'test@updates.flowvya.com',
       to: to || 'laeeq.siddique@gmail.com',
       subject: 'ClearSpendly Email Test',
       html: `

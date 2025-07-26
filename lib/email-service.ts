@@ -26,7 +26,7 @@ export class InvoiceEmailService {
   private fromEmail: string;
 
   constructor() {
-    this.fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@clearspendly.com';
+    this.fromEmail = process.env.RESEND_FROM_EMAIL || 'invoice@updates.flowvya.com';
   }
 
   // Fetch active email template from database

@@ -1,20 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from "@supabase/supabase-js";
-import { getTenantIdWithFallback } from "@/lib/api-tenant";
+import { createClient } from '@/lib/supabase/server';
+import { withPermission } from '@/lib/api-middleware';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-    
-    // Get the current tenant ID for the authenticated user
-    const tenantId = await getTenantIdWithFallback();
-    const receiptId = params.id;
+  return withPermission('receipts:view')(request, async (req, context) => {
+    try {
+      const supabase = await createClient();
+      const receiptId = params.id;
+      const tenantId = context.membership.tenant_id;
 
     // Get receipt with vendor and line items
     const { data: receipt, error: receiptError } = await supabase
@@ -66,34 +62,31 @@ export async function GET(
       })) || []
     };
 
-    return NextResponse.json({
-      success: true,
-      data: transformedReceipt
-    });
+      return NextResponse.json({
+        success: true,
+        data: transformedReceipt
+      });
 
-  } catch (error) {
-    console.error('API Error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
+    } catch (error) {
+      console.error('API Error:', error);
+      return NextResponse.json(
+        { success: false, error: 'Internal server error' },
+        { status: 500 }
+      );
+    }
+  });
 }
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-    
-    // Get the current tenant ID for the authenticated user
-    const tenantId = await getTenantIdWithFallback();
-    const receiptId = params.id;
-    const body = await request.json();
+  return withPermission('receipts:edit')(request, async (req, context) => {
+    try {
+      const supabase = await createClient();
+      const receiptId = params.id;
+      const body = await req.json();
+      const tenantId = context.membership.tenant_id;
 
     console.log('Updating receipt:', receiptId, 'with data:', JSON.stringify(body, null, 2));
 
@@ -136,7 +129,7 @@ export async function PATCH(
           .insert({
             name: body.vendor,
             category: 'Other', // Default category
-            tenant_id: defaultTenantId
+            tenant_id: tenantId
           })
           .select('id')
           .single();
@@ -198,7 +191,7 @@ export async function PATCH(
         const tagInserts = body.tags.map((tagId: string) => ({
           receipt_id: receiptId,
           tag_id: tagId,
-          tenant_id: defaultTenantId
+          tenant_id: tenantId
         }));
 
         const { error: insertError } = await supabase
@@ -262,7 +255,7 @@ export async function PATCH(
             const lineItemTagInserts = lineItem.tags.map((tagId: string) => ({
               receipt_item_id: lineItem.id,
               tag_id: tagId,
-              tenant_id: defaultTenantId
+              tenant_id: tenantId
             }));
 
             console.log('Inserting line item tags:', lineItemTagInserts);
@@ -333,34 +326,31 @@ export async function PATCH(
       })) || []
     };
 
-    return NextResponse.json({
-      success: true,
-      data: transformedReceipt,
-      message: 'Receipt updated successfully'
-    });
+      return NextResponse.json({
+        success: true,
+        data: transformedReceipt,
+        message: 'Receipt updated successfully'
+      });
 
-  } catch (error) {
-    console.error('API Error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
+    } catch (error) {
+      console.error('API Error:', error);
+      return NextResponse.json(
+        { success: false, error: 'Internal server error' },
+        { status: 500 }
+      );
+    }
+  });
 }
 
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-    
-    // Get the current tenant ID for the authenticated user
-    const tenantId = await getTenantIdWithFallback();
-    const receiptId = params.id;
+  return withPermission('receipts:delete')(request, async (req, context) => {
+    try {
+      const supabase = await createClient();
+      const tenantId = context.membership.tenant_id;
+      const receiptId = params.id;
 
     // Delete in the correct order due to foreign key constraints
     // 1. Delete receipt tags
@@ -405,16 +395,17 @@ export async function DELETE(
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Receipt deleted successfully'
-    });
+      return NextResponse.json({
+        success: true,
+        message: 'Receipt deleted successfully'
+      });
 
-  } catch (error) {
-    console.error('API Error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
+    } catch (error) {
+      console.error('API Error:', error);
+      return NextResponse.json(
+        { success: false, error: 'Internal server error' },
+        { status: 500 }
+      );
+    }
+  });
 }

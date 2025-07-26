@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
     const maxAmount = searchParams.get('maxAmount');
     const tags = searchParams.get('tags'); // Comma-separated tag IDs
     const tagCategory = searchParams.get('tagCategory'); // Filter by tag category
+    const myDataOnly = searchParams.get('myDataOnly') === 'true'; // User filtering for multi-user tenants
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 100;
 
     const supabase = await createClient();
@@ -42,6 +43,7 @@ export async function GET(req: NextRequest) {
           ocr_confidence,
           ocr_status,
           created_at,
+          created_by,
           receipt_type,
           manual_entry_reason,
           business_purpose,
@@ -49,6 +51,11 @@ export async function GET(req: NextRequest) {
             id,
             name,
             category
+          ),
+          created_by_user:user!created_by(
+            id,
+            email,
+            full_name
           ),
           receipt_tag!inner(
             tag!inner(
@@ -72,6 +79,7 @@ export async function GET(req: NextRequest) {
           ocr_confidence,
           ocr_status,
           created_at,
+          created_by,
           receipt_type,
           manual_entry_reason,
           business_purpose,
@@ -79,6 +87,11 @@ export async function GET(req: NextRequest) {
             id,
             name,
             category
+          ),
+          created_by_user:user!created_by(
+            id,
+            email,
+            full_name
           )
         `);
     }
@@ -116,6 +129,11 @@ export async function GET(req: NextRequest) {
       receiptsQuery = receiptsQuery.or(
         `vendor.name.ilike.%${query}%,notes.ilike.%${query}%`
       );
+    }
+
+    // Apply user filtering for multi-user tenants
+    if (myDataOnly) {
+      receiptsQuery = receiptsQuery.eq('created_by', user.id);
     }
 
     const { data: receipts, error } = await receiptsQuery

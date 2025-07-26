@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getUser } from "@/lib/auth";
+import { withUserAttribution } from "@/lib/user-context";
 
 export async function GET(req: NextRequest) {
   try {
@@ -98,17 +99,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Create category with user attribution
+    const categoryData = await withUserAttribution({
+      name,
+      description: description || null,
+      color: color || '#6366f1',
+      required: required || false,
+      multiple: multiple !== false, // Default to true
+      sort_order: sort_order || 0,
+      tenant_id: tenantId
+    });
+    
     const { data: category, error } = await supabase
       .from('tag_category')
-      .insert({
-        name,
-        description: description || null,
-        color: color || '#6366f1',
-        required: required || false,
-        multiple: multiple !== false, // Default to true
-        sort_order: sort_order || 0,
-        tenant_id: tenantId
-      })
+      .insert(categoryData)
       .select()
       .single();
 

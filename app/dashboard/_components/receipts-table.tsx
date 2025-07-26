@@ -48,6 +48,7 @@ import {
   Download,
   RefreshCw,
   X,
+  User,
   PenTool,
   Search,
   FileSpreadsheet,
@@ -70,6 +71,7 @@ import { TagInput } from '@/components/ui/tag-input';
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { useTeamContext } from '@/hooks/use-team-context';
 
 // Simple debounce function
 function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T {
@@ -112,6 +114,12 @@ interface ReceiptData {
   confidence: number;
   ocr_status: string;
   created_at: string;
+  created_by?: string;  // User ID who created the receipt
+  created_by_user?: {   // User details for display
+    id: string;
+    email: string;
+    full_name: string;
+  };
   receipt_type?: 'scanned' | 'manual' | 'imported';
   manual_entry_reason?: string;
   business_purpose?: string;
@@ -200,6 +208,11 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
   const [exporting, setExporting] = useState(false);
   const [searching, setSearching] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
+  
+  // Team context for user filtering
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const teamContext = useTeamContext(isDevelopment);
+  const [showMyDataOnly, setShowMyDataOnly] = useState(false);
   
   // Filter states
   const [showFilters, setShowFilters] = useState(false);
@@ -304,6 +317,8 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
       if (globalEndDate) params.append('endDate', globalEndDate);
       if (tagIds && tagIds.length > 0) params.append('tags', tagIds.join(','));
       if (tagCategoryId && tagCategoryId !== 'all') params.append('tagCategory', tagCategoryId);
+      // Add user filtering for multi-user tenants
+      if (teamContext.showUserFiltering && showMyDataOnly) params.append('myDataOnly', 'true');
       params.append('limit', limit.toString());
 
       const response = await fetch(`/api/receipts/search?${params}`);
@@ -372,7 +387,7 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
   // Update when external date range changes
   useEffect(() => {
     debouncedSearch(searchQuery, selectedTagIds, selectedTagCategory, 10);
-  }, [globalStartDate, globalEndDate, debouncedSearch, searchQuery, selectedTagIds, selectedTagCategory]);
+  }, [globalStartDate, globalEndDate, debouncedSearch, searchQuery, selectedTagIds, selectedTagCategory, showMyDataOnly]);
 
   // Edit functions
   const handleEditReceipt = async (receiptId: string) => {
@@ -935,6 +950,25 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
               <RefreshCw className={`h-4 w-4 mr-2 ${(loading || searching) ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
+            
+            {/* User Filtering Toggle - only show in multi-user tenants */}
+            {teamContext.showUserFiltering && (
+              <Button
+                variant={showMyDataOnly ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowMyDataOnly(!showMyDataOnly)}
+                className={`${
+                  showMyDataOnly 
+                    ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg" 
+                    : "border-purple-200 hover:bg-purple-50"
+                }`}
+                title={showMyDataOnly ? "Showing only your data" : "Showing all team data"}
+              >
+                <User className="h-4 w-4 mr-2" />
+                {showMyDataOnly ? "My Data" : "All Data"}
+              </Button>
+            )}
+            
             <Button 
               variant="outline" 
               size="sm" 
@@ -1524,6 +1558,15 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                         Tags
                       </div>
                     </TableHead>
+                    {/* Show Created By column only in multi-user tenants */}
+                    {teamContext.showCreatedBy && (
+                      <TableHead>
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          Created By
+                        </div>
+                      </TableHead>
+                    )}
                     <TableHead>Type</TableHead>
                     <TableHead>Items</TableHead>
                     <TableHead>Status</TableHead>
@@ -1639,6 +1682,28 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                           )}
                         </div>
                       </TableCell>
+                      {/* Show Created By cell only in multi-user tenants */}
+                      {teamContext.showCreatedBy && (
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full flex items-center justify-center">
+                              <span className="text-xs font-medium text-purple-700">
+                                {receipt.created_by_user?.full_name?.charAt(0).toUpperCase() || 
+                                 receipt.created_by_user?.email?.charAt(0).toUpperCase() || 
+                                 'U'}
+                              </span>
+                            </div>
+                            <div className="text-sm">
+                              <div className="font-medium text-gray-900">
+                                {receipt.created_by_user?.full_name || 'Unknown User'}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {receipt.created_by_user?.email}
+                              </div>
+                            </div>
+                          </div>
+                        </TableCell>
+                      )}
                       <TableCell>
                         <div className="flex items-center gap-2">
                           {receipt.receipt_type === 'manual' ? (

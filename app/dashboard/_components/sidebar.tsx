@@ -28,12 +28,16 @@ import {
   UserCircle,
   Palette,
   FileImage,
+  Users,
+  Shield,
+  TestTube,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "./sidebar-context";
 import { useState } from "react";
+import { useTeamContext } from "@/hooks/use-team-context";
 
 interface NavItem {
   label: string;
@@ -141,6 +145,17 @@ const navSections: NavSection[] = [
     ],
   },
   {
+    label: "Team",
+    icon: Users,
+    items: [
+      {
+        label: "Team Members",
+        href: "/dashboard/team",
+        icon: Users,
+      },
+    ],
+  },
+  {
     label: "Settings",
     icon: Settings,
     items: [
@@ -148,6 +163,16 @@ const navSections: NavSection[] = [
         label: "Account",
         href: "/dashboard/admin",
         icon: UserCircle,
+      },
+      {
+        label: "Permission Test",
+        href: "/dashboard/permissions-test",
+        icon: Shield,
+      },
+      {
+        label: "Team Test Lab",
+        href: "/dashboard/team-test",
+        icon: TestTube,
       },
     ],
   },
@@ -157,10 +182,22 @@ export default function DashboardSideBar() {
   const pathname = usePathname();
   const router = useRouter();
   const { isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen } = useSidebar();
+  // Enable test mode for development to count pending users
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const teamContext = useTeamContext(isDevelopment);
+  
+  // Filter navigation sections based on team context
+  const filteredNavSections = navSections.filter(section => {
+    // Hide Team section for single-user tenants OR while loading
+    if (section.label === "Team" && (!teamContext.showTeamFeatures || teamContext.loading)) {
+      return false;
+    }
+    return true;
+  });
   
   // Initialize expanded sections based on current path
   const getInitialExpandedSections = () => {
-    const active = navSections.find(section => 
+    const active = filteredNavSections.find(section => 
       section.items.some(item => pathname === item.href)
     );
     return active ? [active.label] : ["Expenses"];
@@ -265,7 +302,7 @@ export default function DashboardSideBar() {
               )}
             </div>
 
-            {navSections.map((section) => {
+            {filteredNavSections.map((section) => {
               const isExpanded = expandedSections.includes(section.label);
               const sectionActive = isSectionActive(section);
               

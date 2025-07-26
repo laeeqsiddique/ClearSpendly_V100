@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getTenantIdWithFallback } from "@/lib/api-tenant";
+import { withUserAttribution, requireUserId } from "@/lib/user-context";
+import { withPermission } from "@/lib/api-middleware";
 
 // Simple Levenshtein distance calculation for fuzzy matching
 function levenshteinDistance(str1: string, str2: string): number {
@@ -51,8 +53,9 @@ function calculateSimilarity(str1: string, str2: string): number {
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const receiptData = await req.json();
+  return withPermission('receipts:create')(req, async (request, context) => {
+    try {
+      const receiptData = await request.json();
     console.log('Received receipt data:', receiptData);
 
     // Validate required fields
@@ -73,8 +76,8 @@ export async function POST(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Get the current tenant ID for the authenticated user
-    const tenantId = await getTenantIdWithFallback();
+    // Get the tenant ID from the authentication context
+    const tenantId = context.membership.tenant_id;
     
     // Check if vendor exists, create if not
     let vendorId;
@@ -138,6 +141,9 @@ export async function POST(req: NextRequest) {
       vendorId = newVendor.id;
     }
 
+    // Get current user ID for attribution
+    const currentUserId = await requireUserId();
+    
     // Use a transaction to ensure all-or-nothing save
     const { data: transactionResult, error: transactionError } = await supabase.rpc('save_receipt_with_items', {
       p_tenant_id: tenantId,
@@ -149,6 +155,7 @@ export async function POST(req: NextRequest) {
       p_original_file_url: receiptData.imageUrl || 'placeholder',
       p_ocr_confidence: (receiptData.confidence || 75) / 100,
       p_notes: receiptData.notes || '',
+      p_created_by: currentUserId,
       p_line_items: receiptData.lineItems && receiptData.lineItems.length > 0 
         ? JSON.stringify(receiptData.lineItems.map((item: any, index: number) => ({
             line_number: index + 1,
@@ -168,21 +175,23 @@ export async function POST(req: NextRequest) {
       // Fallback to manual transaction if the stored procedure doesn't exist
       console.log('Falling back to manual transaction...');
       
-      // Create receipt record
+      // Create receipt record with user attribution
+      const receiptData_withAttribution = await withUserAttribution({
+        tenant_id: tenantId,
+        vendor_id: vendorId,
+        receipt_date: receiptData.date,
+        currency: receiptData.currency || 'USD',
+        total_amount: receiptData.totalAmount,
+        tax_amount: receiptData.tax || 0,
+        original_file_url: receiptData.imageUrl || 'placeholder',
+        ocr_confidence: (receiptData.confidence || 75) / 100,
+        ocr_status: 'processed',
+        notes: receiptData.notes || ''
+      });
+      
       const { data: receipt, error: receiptError } = await supabase
         .from('receipt')
-        .insert({
-          tenant_id: tenantId,
-          vendor_id: vendorId,
-          receipt_date: receiptData.date,
-          currency: receiptData.currency || 'USD',
-          total_amount: receiptData.totalAmount,
-          tax_amount: receiptData.tax || 0,
-          original_file_url: receiptData.imageUrl || 'placeholder',
-          ocr_confidence: (receiptData.confidence || 75) / 100,
-          ocr_status: 'processed',
-          notes: receiptData.notes || ''
-        })
+        .insert(receiptData_withAttribution)
         .select('id')
         .single();
       
@@ -304,12 +313,13 @@ export async function POST(req: NextRequest) {
       stack: error instanceof Error ? error.stack : 'No stack trace',
       name: error instanceof Error ? error.name : 'Unknown'
     });
-    return NextResponse.json(
-      { 
-        error: "Failed to save receipt",
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
-  }
+      return NextResponse.json(
+        { 
+          error: "Failed to save receipt",
+          details: error instanceof Error ? error.message : 'Unknown error'
+        },
+        { status: 500 }
+      );
+    }
+  });
 }
