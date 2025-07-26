@@ -1,6 +1,6 @@
 import { getUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { DashboardWithAI } from "./_components/dashboard-with-ai";
+import { MainDashboard } from "./_components/main-dashboard";
 
 export default async function Dashboard() {
   const user = await getUser();
@@ -9,5 +9,5 @@ export default async function Dashboard() {
     redirect("/sign-in");
   }
 
-  return <DashboardWithAI />;
+  return <MainDashboard />;
 }

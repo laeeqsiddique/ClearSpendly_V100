@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { AIClient, SYSTEM_PROMPTS } from '@/lib/ai-utils';
+import { getTenantIdWithFallback } from '@/lib/api-tenant';
 
 interface ChatMessage {
   id: string;
@@ -38,8 +39,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Default tenant ID (replace with actual auth later)
-    const tenantId = '00000000-0000-0000-0000-000000000001';
+    // Get the current tenant ID for the authenticated user
+    const tenantId = await getTenantIdWithFallback();
     
     // Create Supabase client
     const supabase = createClient(

@@ -182,6 +182,7 @@ export default function CreateTemplatePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const templateId = searchParams.get('edit');
+  const from = searchParams.get('from'); // Check where we came from
   const isEditing = !!templateId;
   
   const [selectedStyle, setSelectedStyle] = useState<string>('classic');
@@ -339,7 +340,12 @@ export default function CreateTemplatePage() {
       if (result.error) throw result.error;
       
       toast.success(isEditing ? "Template updated successfully!" : "Template created successfully!");
-      router.push('/dashboard/invoices?tab=templates');
+      // Navigate based on where we came from
+      if (from === 'branding') {
+        router.push('/dashboard/invoice-templates');
+      } else {
+        router.push('/dashboard/invoices?tab=templates');
+      }
     } catch (error) {
       console.error('Error saving template:', error);
       toast.error("Failed to save template");
@@ -936,51 +942,56 @@ export default function CreateTemplatePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="container mx-auto py-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push('/dashboard/invoices?tab=templates')}
-              className="bg-white/80 backdrop-blur-sm"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Templates
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+    <section className="flex flex-col items-start justify-start p-6 w-full bg-gradient-to-br from-blue-50 via-white to-purple-50 min-h-screen">
+      <div className="w-full">
+        <div className="flex flex-col gap-6">
+          {/* Header */}
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+            <div className="flex flex-col items-start justify-center gap-2">
+              <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                 {isEditing ? 'Edit Template' : 'Create New Template'}
               </h1>
               <p className="text-muted-foreground">
-                Customize how your invoices look with real-time preview and logo support
+                Create and customize professional invoice templates for your business.
               </p>
             </div>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                onClick={() => {
+                  // Navigate based on where we came from
+                  if (from === 'branding') {
+                    router.push('/dashboard/invoice-templates');
+                  } else {
+                    router.push('/dashboard/invoices?tab=templates');
+                  }
+                }} 
+                className="group flex items-center gap-2 px-4 py-2 rounded-lg bg-white/80 backdrop-blur-sm border border-gray-200/50 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:border-gray-300 transition-all duration-200 shadow-sm hover:shadow-md"
+              >
+                <span className="font-medium text-gray-600 group-hover:text-gray-700 transition-colors">
+                  Cancel
+                </span>
+              </Button>
+              <Button onClick={handleSave} disabled={loading} className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800">
+                {loading ? (
+                  <>
+                    <Save className="w-4 h-4 mr-2 animate-spin" />
+                    {isEditing ? 'Updating...' : 'Creating...'}
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    {isEditing ? 'Update Template' : 'Create Template'}
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
+        </div>
         
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => router.push('/dashboard/invoices?tab=templates')} className="bg-white/80 backdrop-blur-sm">
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={loading} className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800">
-              {loading ? (
-                <>
-                  <Save className="w-4 h-4 mr-2 animate-spin" />
-                  {isEditing ? 'Updating...' : 'Creating...'}
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 mr-2" />
-                  {isEditing ? 'Update Template' : 'Create Template'}
-                </>
-              )}
-            </Button>
-          </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="@container/main flex flex-1 flex-col gap-2">
+          <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Settings Panel */}
         <div className="space-y-6">
           <Card>
@@ -1370,8 +1381,10 @@ export default function CreateTemplatePage() {
             </CardContent>
           </Card>
         </div>
+            </div>
+          </div>
+        </div>
       </div>
-      </div>
-    </div>
+    </section>
   );
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getTenantIdWithFallback } from "@/lib/api-tenant";
 
 // Simple Levenshtein distance calculation for fuzzy matching
 function levenshteinDistance(str1: string, str2: string): number {
@@ -72,8 +73,8 @@ export async function POST(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // For now, use default tenant ID until auth is fully set up
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    // Get the current tenant ID for the authenticated user
+    const tenantId = await getTenantIdWithFallback();
     
     // Check if vendor exists, create if not
     let vendorId;
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest) {
       .from('vendor')
       .select('id')
       .eq('normalized_name', normalizedName)
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .single();
     
     if (existingVendor) {
@@ -93,7 +94,7 @@ export async function POST(req: NextRequest) {
         const { data: allVendors } = await supabase
           .from('vendor')
           .select('id, name, category')
-          .eq('tenant_id', defaultTenantId);
+          .eq('tenant_id', tenantId);
 
         const similarVendors = (allVendors || [])
           .map(vendor => ({
@@ -122,7 +123,7 @@ export async function POST(req: NextRequest) {
       const { data: newVendor, error: vendorError } = await supabase
         .from('vendor')
         .insert({
-          tenant_id: defaultTenantId,
+          tenant_id: tenantId,
           name: receiptData.vendor,
           normalized_name: normalizedName,
           category: receiptData.category || 'Other'
@@ -139,7 +140,7 @@ export async function POST(req: NextRequest) {
 
     // Use a transaction to ensure all-or-nothing save
     const { data: transactionResult, error: transactionError } = await supabase.rpc('save_receipt_with_items', {
-      p_tenant_id: defaultTenantId,
+      p_tenant_id: tenantId,
       p_vendor_id: vendorId,
       p_receipt_date: receiptData.date,
       p_currency: receiptData.currency || 'USD',
@@ -171,7 +172,7 @@ export async function POST(req: NextRequest) {
       const { data: receipt, error: receiptError } = await supabase
         .from('receipt')
         .insert({
-          tenant_id: defaultTenantId,
+          tenant_id: tenantId,
           vendor_id: vendorId,
           receipt_date: receiptData.date,
           currency: receiptData.currency || 'USD',
@@ -193,7 +194,7 @@ export async function POST(req: NextRequest) {
       // Create receipt line items (only if they exist)
       if (receiptData.lineItems && receiptData.lineItems.length > 0) {
         const lineItemsToInsert = receiptData.lineItems.map((item: any, index: number) => ({
-          tenant_id: defaultTenantId,
+          tenant_id: tenantId,
           receipt_id: receipt.id,
           line_number: index + 1,
           description: item.description,
@@ -223,7 +224,7 @@ export async function POST(req: NextRequest) {
             lineItemTags.push({
               receipt_item_id: lineItemId,
               tag_id: item.tag,
-              tenant_id: defaultTenantId
+              tenant_id: tenantId
             });
           }
         });
@@ -245,7 +246,7 @@ export async function POST(req: NextRequest) {
         const receiptTags = tags.map((tagId: string) => ({
           receipt_id: receipt.id,
           tag_id: tagId,
-          tenant_id: defaultTenantId
+          tenant_id: tenantId
         }));
 
         const { error: tagsError } = await supabase
@@ -273,7 +274,7 @@ export async function POST(req: NextRequest) {
         const receiptTags = tags.map((tagId: string) => ({
           receipt_id: transactionResult,
           tag_id: tagId,
-          tenant_id: defaultTenantId
+          tenant_id: tenantId
         }));
 
         const { error: tagsError } = await supabase

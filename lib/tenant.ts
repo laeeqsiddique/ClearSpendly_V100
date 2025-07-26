@@ -1,13 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
+import { createDefaultCategoriesAndTags } from '@/lib/default-categories'
 
 export interface Tenant {
   id: string
   name: string
   slug: string
-  subscription_status: 'free' | 'pro' | 'enterprise'
-  subscription_current_period_end?: string
-  receipts_limit: number
-  storage_limit_gb: number
+  subscription_status: string
+  subscription_plan: string
+  privacy_mode: boolean
+  logo_url?: string
+  settings: any
   created_at: string
   updated_at: string
 }
@@ -33,10 +35,10 @@ export async function getUserTenants(): Promise<TenantWithMembership[]> {
   if (!user) return []
 
   const { data, error } = await supabase
-    .from('memberships')
+    .from('membership')
     .select(`
       *,
-      tenants:tenant_id (*)
+      tenant:tenant_id (*)
     `)
     .eq('user_id', user.id)
 
@@ -46,7 +48,7 @@ export async function getUserTenants(): Promise<TenantWithMembership[]> {
   }
 
   return data?.map(membership => ({
-    ...membership.tenants,
+    ...membership.tenant,
     membership: {
       id: membership.id,
       user_id: membership.user_id,
@@ -63,7 +65,7 @@ export async function getTenant(tenantId: string): Promise<Tenant | null> {
   const supabase = await createClient()
   
   const { data, error } = await supabase
-    .from('tenants')
+    .from('tenant')
     .select('*')
     .eq('id', tenantId)
     .single()
@@ -85,13 +87,14 @@ export async function createTenant(name: string, slug: string): Promise<Tenant |
 
   // Start a transaction
   const { data: tenant, error: tenantError } = await supabase
-    .from('tenants')
+    .from('tenant')
     .insert({
       name,
       slug,
-      subscription_status: 'free',
-      receipts_limit: 10,
-      storage_limit_gb: 10
+      subscription_status: 'active',
+      subscription_plan: 'free',
+      privacy_mode: false,
+      settings: {}
     })
     .select()
     .single()
@@ -103,7 +106,7 @@ export async function createTenant(name: string, slug: string): Promise<Tenant |
 
   // Add user as owner
   const { error: membershipError } = await supabase
-    .from('memberships')
+    .from('membership')
     .insert({
       user_id: user.id,
       tenant_id: tenant.id,
@@ -113,8 +116,15 @@ export async function createTenant(name: string, slug: string): Promise<Tenant |
   if (membershipError) {
     console.error('Error creating membership:', membershipError)
     // Clean up tenant if membership creation fails
-    await supabase.from('tenants').delete().eq('id', tenant.id)
+    await supabase.from('tenant').delete().eq('id', tenant.id)
     return null
+  }
+
+  // Create default categories and tags for the new tenant
+  const defaultsCreated = await createDefaultCategoriesAndTags(tenant.id)
+  if (!defaultsCreated) {
+    console.warn('Failed to create default categories and tags for tenant:', tenant.id)
+    // Don't fail tenant creation if defaults fail, but log the issue
   }
 
   return tenant
@@ -134,7 +144,7 @@ export async function isSlugAvailable(slug: string): Promise<boolean> {
   const supabase = await createClient()
   
   const { data, error } = await supabase
-    .from('tenants')
+    .from('tenant')
     .select('id')
     .eq('slug', slug)
     .single()
@@ -151,20 +161,16 @@ export async function getPrimaryTenant(): Promise<TenantWithMembership | null> {
 // Update tenant subscription
 export async function updateTenantSubscription(
   tenantId: string, 
-  status: 'free' | 'pro' | 'enterprise',
-  receiptsLimit: number,
-  storageLimit: number,
-  currentPeriodEnd?: string
+  status: string,
+  plan: string
 ): Promise<boolean> {
   const supabase = await createClient()
   
   const { error } = await supabase
-    .from('tenants')
+    .from('tenant')
     .update({
       subscription_status: status,
-      receipts_limit: receiptsLimit,
-      storage_limit_gb: storageLimit,
-      subscription_current_period_end: currentPeriodEnd
+      subscription_plan: plan
     })
     .eq('id', tenantId)
 

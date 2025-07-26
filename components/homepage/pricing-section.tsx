@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { ReceiptCard } from "@/components/ui/receipt-card";
 import { Check, X, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -10,57 +9,56 @@ import { Switch } from "@/components/ui/switch";
 
 const plans = [
   {
-    name: "Starter",
-    description: "Perfect for small businesses",
-    monthlyPrice: 29,
-    yearlyPrice: 290,
+    name: "Free",
+    description: "Perfect for getting started",
+    monthlyPrice: 0,
+    yearlyPrice: 0,
     features: [
-      { text: "Up to 100 receipts/month", included: true },
-      { text: "Basic AI categorization", included: true },
-      { text: "Email & drag-drop upload", included: true },
-      { text: "CSV export", included: true },
+      { text: "Up to 3 invoices/month", included: true },
+      { text: "Unlimited receipt scanning", included: true },
+      { text: "Basic mileage tracking", included: true },
+      { text: "Standard invoice templates", included: true },
+      { text: "Basic P&L reporting", included: true },
       { text: "Email support", included: true },
-      { text: "Price anomaly detection", included: false },
-      { text: "API access", included: false },
-      { text: "Priority support", included: false },
+      { text: "Custom branding", included: false },
+      { text: "Payment tracking", included: false },
     ],
-    cta: "Start free trial",
+    cta: "Start Free",
     popular: false,
   },
   {
-    name: "Professional",
-    description: "For growing teams",
-    monthlyPrice: 79,
-    yearlyPrice: 790,
+    name: "Pro",
+    description: "For serious business owners",
+    monthlyPrice: 39,
+    yearlyPrice: 390,
     features: [
-      { text: "Up to 1,000 receipts/month", included: true },
-      { text: "Advanced AI with custom rules", included: true },
-      { text: "All upload methods", included: true },
-      { text: "All export formats", included: true },
-      { text: "Price anomaly detection", included: true },
-      { text: "API access", included: true },
+      { text: "Unlimited invoices", included: true },
+      { text: "Unlimited receipt scanning", included: true },
+      { text: "Advanced mileage templates", included: true },
+      { text: "Custom branded invoices & emails", included: true },
+      { text: "Payment tracking & reminders", included: true },
+      { text: "Real-time P&L insights", included: true },
+      { text: "Schedule C exports", included: true },
       { text: "Priority support", included: true },
-      { text: "Custom integrations", included: false },
+      { text: "Multi-entity management", included: false },
     ],
-    cta: "Start free trial",
+    cta: "Start Pro Trial",
     popular: true,
   },
   {
-    name: "Enterprise",
-    description: "Tailored for large organizations",
-    monthlyPrice: null,
-    yearlyPrice: null,
+    name: "Premium", 
+    description: "For growing enterprises",
+    monthlyPrice: 99,
+    yearlyPrice: 990,
     features: [
-      { text: "Unlimited receipts", included: true },
-      { text: "Custom AI training", included: true },
-      { text: "White-label options", included: true },
-      { text: "Advanced analytics", included: true },
+      { text: "Everything in Pro", included: true },
+      { text: "Multi-entity management", included: true },
+      { text: "API access & webhooks", included: true },
+      { text: "Advanced analytics dashboard", included: true },
       { text: "Custom integrations", included: true },
-      { text: "Dedicated account manager", included: true },
-      { text: "SLA guarantees", included: true },
-      { text: "On-premise deployment", included: true },
+      { text: "White-label invoices", included: true },
     ],
-    cta: "Contact sales",
+    cta: "Start Premium Trial",
     popular: false,
   },
 ];
@@ -109,84 +107,108 @@ export default function PricingSection() {
               key={plan.name}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
+              whileHover={{ y: -8, scale: 1.02 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
               viewport={{ once: true }}
+              className="relative group"
             >
-              <ReceiptCard 
-                className="h-full" 
-                variant={plan.popular ? "highlighted" : "default"}
-              >
-                {/* Popular badge */}
+              <div className={`relative h-full overflow-hidden rounded-2xl border transition-all duration-300 ${
+                plan.popular 
+                  ? 'border-purple-200 dark:border-purple-800 bg-gradient-to-b from-purple-50 to-white dark:from-purple-950/50 dark:to-gray-900 shadow-lg shadow-purple-500/20' 
+                  : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-purple-300 dark:hover:border-purple-700 hover:shadow-lg'
+              }`}>
+                {/* Gradient overlay for popular plan */}
                 {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <div className="inline-flex items-center gap-1 rounded-full bg-purple-600 px-3 py-1 text-xs font-semibold text-white">
-                      <Sparkles className="h-3 w-3" />
-                      Most Popular
-                    </div>
-                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-blue-500/5 pointer-events-none" />
                 )}
 
-                {/* Plan header */}
-                <div className="text-center">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {plan.name}
-                  </h3>
-                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                    {plan.description}
-                  </p>
-                  
-                  {/* Price */}
-                  <div className="mt-6">
-                    {plan.monthlyPrice ? (
-                      <div>
-                        <span className="text-4xl font-bold text-gray-900 dark:text-white">
-                          ${isYearly ? plan.yearlyPrice : plan.monthlyPrice}
-                        </span>
-                        <span className="text-gray-600 dark:text-gray-400">
-                          /{isYearly ? 'year' : 'month'}
-                        </span>
+                <div className="relative p-8 h-full flex flex-col">
+                  {/* Popular badge inside card */}
+                  {plan.popular && (
+                    <div className="flex justify-center mb-4">
+                      <div className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-lg">
+                        <Sparkles className="h-4 w-4" />
+                        Most Popular
                       </div>
-                    ) : (
-                      <div className="text-4xl font-bold text-gray-900 dark:text-white">
+                    </div>
+                  )}
+                  {/* Plan header */}
+                  <div className="text-center mb-8">
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                      {plan.name}
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      {plan.description}
+                    </p>
+                    
+                    {/* Price */}
+                    <div className="mt-6">
+                      {plan.monthlyPrice !== null ? (
+                        <div className="flex items-end justify-center gap-1">
+                          {plan.monthlyPrice === 0 ? (
+                            <span className="text-5xl font-bold text-gray-900 dark:text-white">Free</span>
+                          ) : (
+                            <>
+                              <span className="text-sm text-gray-500 dark:text-gray-400">$</span>
+                              <span className="text-5xl font-bold text-gray-900 dark:text-white">
+                                {isYearly ? plan.yearlyPrice : plan.monthlyPrice}
+                              </span>
+                              <span className="text-gray-600 dark:text-gray-400 pb-1">
+                                /{isYearly ? 'year' : 'month'}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-4xl font-bold text-gray-900 dark:text-white">
                         Custom
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Features list */}
-                <ul className="mt-8 space-y-3">
-                  {plan.features.map((feature, featureIndex) => (
-                    <li key={featureIndex} className="flex items-start gap-3">
-                      {feature.included ? (
-                        <Check className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0" />
-                      ) : (
-                        <X className="h-5 w-5 text-gray-400 dark:text-gray-600 flex-shrink-0" />
-                      )}
-                      <span className={`text-sm ${
-                        feature.included 
-                          ? 'text-gray-700 dark:text-gray-300' 
-                          : 'text-gray-400 dark:text-gray-600'
-                      }`}>
-                        {feature.text}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                  {/* Features list - grows to fill available space */}
+                  <div className="space-y-4 flex-grow">
+                    {plan.features.map((feature, featureIndex) => (
+                      <div key={featureIndex} className="flex items-start gap-3">
+                        {feature.included ? (
+                          <div className="flex-shrink-0 w-5 h-5 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mt-0.5">
+                            <Check className="h-3 w-3 text-green-600 dark:text-green-400" />
+                          </div>
+                        ) : (
+                          <div className="flex-shrink-0 w-5 h-5 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mt-0.5">
+                            <X className="h-3 w-3 text-gray-400" />
+                          </div>
+                        )}
+                        <span className={`text-sm leading-relaxed ${
+                          feature.included 
+                            ? 'text-gray-700 dark:text-gray-300' 
+                            : 'text-gray-400 dark:text-gray-600 line-through'
+                        }`}>
+                          {feature.text}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
 
-                {/* CTA button */}
-                <div className="mt-8">
-                  <Button 
-                    asChild 
-                    className="w-full" 
-                    variant={plan.popular ? "default" : "outline"}
-                  >
-                    <Link href={plan.name === "Enterprise" ? "/contact" : "/sign-up"}>
-                      {plan.cta}
-                    </Link>
-                  </Button>
+                  {/* CTA button - always at bottom */}
+                  <div className="mt-8">
+                    <Button 
+                      asChild 
+                      className={`w-full h-12 text-base font-semibold transition-all duration-300 ${
+                        plan.popular 
+                          ? 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg hover:shadow-xl' 
+                          : 'hover:shadow-md'
+                      }`}
+                      variant={plan.popular ? "default" : "outline"}
+                    >
+                      <Link href="/sign-up">
+                        {plan.cta}
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
-              </ReceiptCard>
+              </div>
             </motion.div>
           ))}
         </div>

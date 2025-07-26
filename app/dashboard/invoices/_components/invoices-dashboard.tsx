@@ -133,10 +133,10 @@ export function InvoicesDashboard() {
       {/* Date Range Filter - Matching main dashboard */}
       <div className="flex items-center justify-end gap-4 bg-white/80 backdrop-blur-sm border-0 shadow-lg rounded-lg p-4">
         <div className="flex items-center gap-3">
-          <CalendarDays className="h-5 w-5 text-blue-600" />
+          <CalendarDays className="h-5 w-5 text-purple-600" />
           <span className="text-sm font-medium text-gray-700">Date Range:</span>
           <Select value={dateRange} onValueChange={handleDateRangeChange}>
-            <SelectTrigger className="w-40 border-blue-200 focus:border-blue-500">
+            <SelectTrigger className="w-40 border-purple-200 focus:border-purple-500">
               <SelectValue placeholder="Select range" />
             </SelectTrigger>
             <SelectContent>

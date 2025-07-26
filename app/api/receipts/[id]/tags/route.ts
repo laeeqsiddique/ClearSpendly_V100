@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getTenantIdWithFallback } from "@/lib/api-tenant";
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -8,7 +9,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    const tenantId = await getTenantIdWithFallback();
     const receiptId = params.id;
 
     const { data: receiptTags, error } = await supabase
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         )
       `)
       .eq('receipt_id', receiptId)
-      .eq('tenant_id', defaultTenantId);
+      .eq('tenant_id', tenantId);
 
     if (error) {
       console.error('Error fetching receipt tags:', error);
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    const tenantId = await getTenantIdWithFallback();
     const receiptId = params.id;
     const body = await req.json();
     const { tagIds } = body;
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       .from('receipt')
       .select('id')
       .eq('id', receiptId)
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .single();
 
     if (receiptError || !receipt) {
@@ -100,7 +101,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       .from('receipt_tag')
       .delete()
       .eq('receipt_id', receiptId)
-      .eq('tenant_id', defaultTenantId);
+      .eq('tenant_id', tenantId);
 
     if (deleteError) {
       console.error('Error removing existing receipt tags:', deleteError);
@@ -112,7 +113,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       const receiptTags = tagIds.map(tagId => ({
         receipt_id: receiptId,
         tag_id: tagId,
-        tenant_id: defaultTenantId
+        tenant_id: tenantId
       }));
 
       const { error: insertError } = await supabase
@@ -145,14 +146,14 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    const tenantId = await getTenantIdWithFallback();
     const receiptId = params.id;
 
     const { error } = await supabase
       .from('receipt_tag')
       .delete()
       .eq('receipt_id', receiptId)
-      .eq('tenant_id', defaultTenantId);
+      .eq('tenant_id', tenantId);
 
     if (error) {
       console.error('Error removing receipt tags:', error);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from "@supabase/supabase-js";
+import { getTenantIdWithFallback } from "@/lib/api-tenant";
 
 export async function GET(
   request: NextRequest,
@@ -11,8 +12,8 @@ export async function GET(
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
     
-    // For now, use default tenant ID until auth is fully set up
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    // Get the current tenant ID for the authenticated user
+    const tenantId = await getTenantIdWithFallback();
     const receiptId = params.id;
 
     // Get receipt with vendor and line items
@@ -38,7 +39,7 @@ export async function GET(
         )
       `)
       .eq('id', receiptId)
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .single();
 
     if (receiptError) {
@@ -89,8 +90,8 @@ export async function PATCH(
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
     
-    // For now, use default tenant ID until auth is fully set up
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    // Get the current tenant ID for the authenticated user
+    const tenantId = await getTenantIdWithFallback();
     const receiptId = params.id;
     const body = await request.json();
 
@@ -122,7 +123,7 @@ export async function PATCH(
         .from('vendor')
         .select('id')
         .eq('name', body.vendor)
-        .eq('tenant_id', defaultTenantId)
+        .eq('tenant_id', tenantId)
         .single();
 
       if (existingVendor) {
@@ -160,7 +161,7 @@ export async function PATCH(
         .from('receipt')
         .update(updates)
         .eq('id', receiptId)
-        .eq('tenant_id', defaultTenantId);
+        .eq('tenant_id', tenantId);
 
       if (receiptError) {
         console.error('Error updating receipt:', receiptError);
@@ -182,7 +183,7 @@ export async function PATCH(
         .from('receipt_tag')
         .delete()
         .eq('receipt_id', receiptId)
-        .eq('tenant_id', defaultTenantId);
+        .eq('tenant_id', tenantId);
 
       if (deleteError) {
         console.error('Error deleting existing tags:', deleteError);
@@ -305,7 +306,7 @@ export async function PATCH(
         )
       `)
       .eq('id', receiptId)
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .single();
 
     if (fetchError) {
@@ -357,8 +358,8 @@ export async function DELETE(
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
     
-    // For now, use default tenant ID until auth is fully set up
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    // Get the current tenant ID for the authenticated user
+    const tenantId = await getTenantIdWithFallback();
     const receiptId = params.id;
 
     // Delete in the correct order due to foreign key constraints

@@ -17,18 +17,7 @@ export async function GET(request: NextRequest) {
     const fromDate = searchParams.get('from') || format(startOfMonth(new Date()), 'yyyy-MM-dd');
     const toDate = searchParams.get('to') || format(endOfMonth(new Date()), 'yyyy-MM-dd');
 
-    // Get tenant_id for the user
-    const { data: membership } = await supabase
-      .from('membership')
-      .select('tenant_id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!membership) {
-      return NextResponse.json({ error: "No tenant found" }, { status: 404 });
-    }
-
-    const tenant_id = membership.tenant_id;
+    // RLS will handle tenant filtering automatically based on user membership
 
     // Get basic P&L data using the database function
     let pnlData = null;
@@ -36,7 +25,6 @@ export async function GET(request: NextRequest) {
     try {
       const { data, error: pnlError } = await supabase
         .rpc('get_basic_pnl', {
-          p_tenant_id: tenant_id,
           p_start_date: fromDate,
           p_end_date: toDate
         });
@@ -117,7 +105,6 @@ export async function GET(request: NextRequest) {
     try {
       const { data } = await supabase
         .rpc('get_basic_pnl', {
-          p_tenant_id: tenant_id,
           p_start_date: format(prevStartDate, 'yyyy-MM-dd'),
           p_end_date: format(prevEndDate, 'yyyy-MM-dd')
         });

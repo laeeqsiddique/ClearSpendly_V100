@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowRight, Sparkles, Receipt, Shield, TrendingUp } from "lucide-react";
+import { ArrowRight, Sparkles, Receipt, Shield, TrendingUp, Camera, Car, Send, DollarSign, BarChart3 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 
@@ -10,9 +10,9 @@ export default function HeroSection() {
   const [currentStat, setCurrentStat] = useState(0);
   
   const stats = [
-    { value: "$847K", label: "Expenses Tracked" },
-    { value: "12,483", label: "Receipts Processed" },
-    { value: "99.8%", label: "OCR Accuracy" },
+    { value: "$127,483", label: "Revenue This Month" },
+    { value: "$48,291", label: "Expenses Tracked" },
+    { value: "$79,192", label: "Net Profit" },
   ];
 
   useEffect(() => {
@@ -45,7 +45,7 @@ export default function HeroSection() {
                 className="mb-8 inline-flex items-center rounded-full bg-purple-100 dark:bg-purple-900/30 px-4 py-1.5 text-sm font-medium text-purple-700 dark:text-purple-300"
               >
                 <Sparkles className="mr-2 h-4 w-4" />
-                AI-Powered Receipt Intelligence
+                Track. Bill. Get Paid. One Flow.
               </motion.div>
 
               {/* Main heading */}
@@ -55,10 +55,10 @@ export default function HeroSection() {
                 transition={{ duration: 0.5, delay: 0.1 }}
                 className="text-5xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-7xl"
               >
-                Turn Receipts Into
+                Every receipt, mile, invoice,
                 <span className="relative">
                   <span className="relative z-10 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                    {" "}Insights
+                    {" "}payment in one flow
                   </span>
                   <svg
                     className="absolute -bottom-2 left-0 w-full"
@@ -83,16 +83,58 @@ export default function HeroSection() {
               </motion.h1>
 
               {/* Subheading */}
-              <motion.p 
+              <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
-                className="mt-6 text-xl leading-8 text-gray-600 dark:text-gray-300"
+                className="mt-8 text-lg sm:text-xl leading-relaxed"
               >
-                Smart expense tracking for modern businesses. Upload receipts, get instant 
-                categorization, detect price anomalies, and unlock powerful analytics—all 
-                while keeping your data private.
-              </motion.p>
+                <div className="flex flex-wrap items-center justify-center gap-2 text-gray-600 dark:text-gray-300">
+                  {[
+                    { icon: Camera, text: "Snap receipts", color: "text-purple-600 dark:text-purple-400" },
+                    { icon: Car, text: "Log miles", color: "text-blue-600 dark:text-blue-400" },
+                    { icon: Send, text: "Send invoices", color: "text-indigo-600 dark:text-indigo-400" },
+                    { icon: DollarSign, text: "Record payments", color: "text-purple-600 dark:text-purple-400" },
+                    { icon: BarChart3, text: "Live P&L", color: "text-blue-600 dark:text-blue-400" }
+                  ].map((item, index) => (
+                    <motion.div
+                      key={item.text}
+                      initial={{ opacity: 0, scale: 0.5 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ 
+                        duration: 0.3, 
+                        delay: 0.3 + (index * 0.1),
+                        type: "spring",
+                        stiffness: 200
+                      }}
+                      className="flex items-center"
+                    >
+                      <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-700 transition-all shadow-sm hover:shadow-md">
+                        <item.icon className={`h-5 w-5 ${item.color}`} />
+                        <span className="font-medium text-gray-700 dark:text-gray-200">{item.text}</span>
+                      </span>
+                      {index < 4 && (
+                        <motion.span 
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.4 + (index * 0.1) }}
+                          className="mx-3"
+                        >
+                          <ArrowRight className="h-4 w-4 text-gray-400 dark:text-gray-600" />
+                        </motion.span>
+                      )}
+                    </motion.div>
+                  ))}
+                </div>
+                <motion.p 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
+                  className="mt-4 text-center text-gray-500 dark:text-gray-400"
+                >
+                  All in <span className="font-semibold text-purple-600 dark:text-purple-400">Flowvya</span> — your complete financial workflow
+                </motion.p>
+              </motion.div>
 
               {/* CTA buttons */}
               <motion.div 
@@ -103,7 +145,7 @@ export default function HeroSection() {
               >
                 <Button asChild size="lg" className="group w-full sm:w-auto">
                   <Link href="/sign-up">
-                    Start Free Trial
+                    Start Free
                     <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </Link>
                 </Button>
@@ -123,15 +165,15 @@ export default function HeroSection() {
               >
                 <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                   <Shield className="h-5 w-5 text-green-600" />
-                  <span>SOC2 Compliant</span>
+                  <span>Your Data Stays Yours</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                  <Receipt className="h-5 w-5 text-blue-600" />
-                  <span>10M+ Receipts Processed</span>
+                  <TrendingUp className="h-5 w-5 text-blue-600" />
+                  <span>$2.3M+ Invoiced Monthly</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                  <TrendingUp className="h-5 w-5 text-purple-600" />
-                  <span>30% Cost Savings</span>
+                  <BarChart3 className="h-5 w-5 text-purple-600" />
+                  <span>Real-time P&L Updates</span>
                 </div>
               </motion.div>
             </div>
@@ -156,7 +198,7 @@ export default function HeroSection() {
                     </div>
                     <div className="flex-1 text-center">
                       <div className="inline-flex items-center rounded-md bg-gray-700 px-3 py-1 text-xs text-gray-300">
-                        app.clearspendly.com
+                        app.flowvya.com
                       </div>
                     </div>
                   </div>
@@ -186,41 +228,44 @@ export default function HeroSection() {
                         </div>
                       </div>
 
-                      {/* Receipt list */}
+                      {/* Financial Activity */}
                       <div className="lg:col-span-2">
                         <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow-sm">
                           <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-                            Recent Receipts
+                            Recent Activity
                           </h3>
                           <div className="space-y-3">
                             {[
-                              { vendor: "Whole Foods Market", amount: "$127.43", category: "Groceries", status: "processed" },
-                              { vendor: "Office Depot", amount: "$84.99", category: "Office Supplies", status: "anomaly" },
-                              { vendor: "Delta Airlines", amount: "$487.20", category: "Travel", status: "processed" },
-                            ].map((receipt, index) => (
+                              { type: "invoice", icon: Send, title: "Invoice #INV-2024-089", subtitle: "Sent to Tech Corp", amount: "$5,250.00", status: "sent", color: "text-blue-600" },
+                              { type: "payment", icon: DollarSign, title: "Payment Received", subtitle: "From StartupXYZ", amount: "$3,800.00", status: "completed", color: "text-green-600" },
+                              { type: "expense", icon: Receipt, title: "Office Supplies", subtitle: "Staples", amount: "$284.99", status: "tagged", color: "text-purple-600" },
+                              { type: "mileage", icon: Car, title: "Client Meeting", subtitle: "45 miles roundtrip", amount: "$25.65", status: "logged", color: "text-indigo-600" },
+                            ].map((item, index) => (
                               <div key={index} className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 p-3">
                                 <div className="flex items-center gap-3">
-                                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700">
-                                    <Receipt className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                                  <div className={`flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700`}>
+                                    <item.icon className={`h-5 w-5 ${item.color}`} />
                                   </div>
                                   <div>
                                     <div className="font-medium text-gray-900 dark:text-white">
-                                      {receipt.vendor}
+                                      {item.title}
                                     </div>
                                     <div className="text-sm text-gray-600 dark:text-gray-400">
-                                      {receipt.category}
+                                      {item.subtitle}
                                     </div>
                                   </div>
                                 </div>
                                 <div className="text-right">
                                   <div className="font-semibold text-gray-900 dark:text-white">
-                                    {receipt.amount}
+                                    {item.amount}
                                   </div>
-                                  {receipt.status === "anomaly" && (
-                                    <span className="text-xs text-orange-600 dark:text-orange-400">
-                                      Price Alert
-                                    </span>
-                                  )}
+                                  <span className={`text-xs ${
+                                    item.status === 'completed' ? 'text-green-600' : 
+                                    item.status === 'sent' ? 'text-blue-600' : 
+                                    'text-gray-600'
+                                  }`}>
+                                    {item.status}
+                                  </span>
                                 </div>
                               </div>
                             ))}
@@ -232,17 +277,25 @@ export default function HeroSection() {
                       <div className="lg:col-span-1">
                         <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow-sm">
                           <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-                            AI Assistant
+                            Financial Insights
                           </h3>
                           <div className="space-y-3">
-                            <div className="rounded-lg bg-gray-100 dark:bg-gray-700 p-3 text-sm">
-                              <p className="text-gray-700 dark:text-gray-300">
-                                "What was my biggest expense last month?"
+                            <div className="rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4">
+                              <div className="flex items-center gap-2 mb-2">
+                                <TrendingUp className="h-4 w-4 text-green-600" />
+                                <span className="text-sm font-medium text-green-800 dark:text-green-400">Revenue Up 23%</span>
+                              </div>
+                              <p className="text-sm text-gray-700 dark:text-gray-300">
+                                Your revenue is trending 23% higher than last month. Great job!
                               </p>
                             </div>
-                            <div className="rounded-lg bg-purple-100 dark:bg-purple-900/30 p-3 text-sm">
-                              <p className="text-purple-700 dark:text-purple-300">
-                                Your biggest expense was $487.20 at Delta Airlines on March 15th for business travel.
+                            <div className="rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4">
+                              <div className="flex items-center gap-2 mb-2">
+                                <BarChart3 className="h-4 w-4 text-blue-600" />
+                                <span className="text-sm font-medium text-blue-800 dark:text-blue-400">62% Profit Margin</span>
+                              </div>
+                              <p className="text-sm text-gray-700 dark:text-gray-300">
+                                Your net profit margin is healthy at 62% this month.
                               </p>
                             </div>
                           </div>

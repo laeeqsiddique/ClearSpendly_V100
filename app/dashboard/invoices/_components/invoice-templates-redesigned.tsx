@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { 
   FileText, 
   Check,
@@ -187,6 +187,7 @@ const sampleInvoiceData = {
 
 export function InvoiceTemplatesRedesigned() {
   const router = useRouter();
+  const pathname = usePathname();
   const [templates, setTemplates] = useState<any[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(true);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; template: any | null }>({ open: false, template: null });
@@ -254,11 +255,21 @@ export function InvoiceTemplatesRedesigned() {
   };
 
   const handleCreateNew = () => {
-    router.push('/dashboard/invoices/templates/create');
+    // Check if we're in the branding section
+    const fromBranding = pathname.includes('/invoice-templates');
+    const url = fromBranding 
+      ? '/dashboard/invoices/templates/create?from=branding'
+      : '/dashboard/invoices/templates/create';
+    router.push(url);
   };
 
   const handleEdit = (template: any) => {
-    router.push(`/dashboard/invoices/templates/create?edit=${template.id}`);
+    // Check if we're in the branding section
+    const fromBranding = pathname.includes('/invoice-templates');
+    const url = fromBranding 
+      ? `/dashboard/invoices/templates/create?edit=${template.id}&from=branding`
+      : `/dashboard/invoices/templates/create?edit=${template.id}`;
+    router.push(url);
   };
 
   const handleDeleteClick = (template: any) => {
@@ -890,13 +901,7 @@ export function InvoiceTemplatesRedesigned() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h3 className="text-lg font-semibold">Invoice Templates</h3>
-          <p className="text-sm text-muted-foreground">
-            Manage your invoice templates with logo support and live preview
-          </p>
-        </div>
+      <div className="flex justify-end items-center">
         <Button onClick={handleCreateNew} className="h-10">
           <Plus className="w-4 h-4 mr-2" />
           New Template

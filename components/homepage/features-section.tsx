@@ -2,15 +2,15 @@
 
 import { ReceiptCard } from "@/components/ui/receipt-card";
 import { 
-  Upload, 
-  Brain, 
-  TrendingUp, 
-  Shield, 
-  MessageSquare, 
-  FileText,
+  ScanLine, 
+  Car, 
+  FileText, 
+  DollarSign, 
+  BarChart3, 
+  History,
   Zap,
   Users,
-  BarChart3,
+  Shield,
   Lock,
   Smartphone,
   Globe
@@ -19,79 +19,72 @@ import { motion } from "framer-motion";
 
 const features = [
   {
-    title: "Smart Upload & OCR",
-    description: "Drag & drop, snap a photo, or forward emails. Our AI extracts every detail with 99.8% accuracy using local Mistral-7B or cloud fallback.",
-    icon: Upload,
+    title: "Scan to Sheet",
+    description: "Snap a receipt and see it instantly organized in a tidy, spreadsheet‑style grid—export‑ready in one click and downright addictive to use.",
+    icon: ScanLine,
     color: "text-blue-600",
     bgColor: "bg-blue-100 dark:bg-blue-900/20",
   },
   {
-    title: "AI Categorization",
-    description: "Automatically categorize expenses with machine learning. Custom rules, smart suggestions, and bulk categorization support.",
-    icon: Brain,
+    title: "Template-Based Mileage Entry",
+    description: "Enter miles in seconds—turn frequent routes into templates and save hours every month.",
+    icon: Car,
     color: "text-purple-600",
     bgColor: "bg-purple-100 dark:bg-purple-900/20",
   },
   {
-    title: "Price Anomaly Detection",
-    description: "Track vendor pricing over time. Get instant alerts when costs spike unexpectedly. Never miss a pricing error again.",
-    icon: TrendingUp,
+    title: "Invoices with Direct & Partial Payments",
+    description: "Create professional, fully‑branded invoices, emails styled with your logo and colors. Record payments and track running balances in one place.",
+    icon: FileText,
     color: "text-orange-600",
     bgColor: "bg-orange-100 dark:bg-orange-900/20",
   },
   {
-    title: "Privacy-First Mode",
-    description: "Toggle offline processing for complete data privacy. Your receipts never leave your infrastructure when enabled.",
-    icon: Shield,
+    title: "Instant P & L Insights",
+    description: "Generate real‑time P & L and get clean, categorized exports—prepped for your Schedule paperwork.",
+    icon: BarChart3,
     color: "text-green-600",
     bgColor: "bg-green-100 dark:bg-green-900/20",
   },
   {
-    title: "Natural Language Search",
-    description: "Ask questions in plain English. 'Show me all office supplies from last quarter' works like magic.",
-    icon: MessageSquare,
+    title: "Full Document History",
+    description: "See the full document flow—each invoice from draft to final, every partial payment and balance updates",
+    icon: History,
     color: "text-indigo-600",
     bgColor: "bg-indigo-100 dark:bg-indigo-900/20",
-  },
-  {
-    title: "Export & Compliance",
-    description: "Generate tax-ready reports, CSV exports, and PDF bundles. GDPR compliant with full data portability.",
-    icon: FileText,
-    color: "text-teal-600",
-    bgColor: "bg-teal-100 dark:bg-teal-900/20",
   },
 ];
 
 const additionalFeatures = [
   {
-    title: "Real-time Analytics",
-    description: "Live dashboards with spending trends, category breakdowns, and vendor analytics.",
-    icon: BarChart3,
+    title: "No More Vanishing Receipts",
+    description: "Receipts that vanish when tax time hits – no more digging through glove‑boxes and email threads to prove deductible expenses.",
+    icon: FileText,
   },
   {
-    title: "Multi-tenant Ready",
-    description: "Built for teams with role-based access, department isolation, and audit trails.",
-    icon: Users,
+    title: "Stop Re‑Entering Mileage",
+    description: "Re‑entering the same mileage data over and over – repeating routes eats hours and invites errors.",
+    icon: Car,
   },
   {
-    title: "Mobile First",
-    description: "Native mobile experience for receipt capture on-the-go. Works offline too.",
-    icon: Smartphone,
-  },
-  {
-    title: "API Access",
-    description: "RESTful API for custom integrations. Webhook support for real-time events.",
+    title: "One App for Everything",
+    description: "Juggling three apps just to send an invoice and record the payment – copy‑pasting figures between systems slows cash flow and breeds mistakes.",
     icon: Zap,
   },
   {
-    title: "Bank-Level Security",
-    description: "256-bit encryption, SOC2 compliance, and regular security audits.",
-    icon: Lock,
+    title: "Your Brand, Not Theirs",
+    description: "Generic invoices and reminder emails that make the business look amateur – customers see a vendor's logo instead of yours.",
+    icon: Users,
   },
   {
-    title: "Global Support",
-    description: "Multi-currency, multi-language support with local tax compliance.",
-    icon: Globe,
+    title: "Know Your Profit Now",
+    description: "Waiting until month‑end to know if you're profitable – spreadsheet merges and accountant emails delay real‑time insight into cash and margins.",
+    icon: BarChart3,
+  },
+  {
+    title: "Clear Paper Trails",
+    description: "Unclear paper trails when clients part‑pay or change an invoice – tracking edits and balances across emails leaves you exposed during audits or disputes.",
+    icon: History,
   },
 ];
 
@@ -105,44 +98,59 @@ export default function FeaturesSection() {
             Everything you need
           </h2>
           <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
-            Powerful features for modern expense management
+            Everything your business needs
           </p>
           <p className="mt-6 text-lg leading-8 text-gray-600 dark:text-gray-300">
-            From receipt capture to advanced analytics, we've built every feature 
-            with privacy and efficiency in mind.
+            From receipts to invoices to P&L reports, manage your entire business 
+            financial flow in one powerful app.
           </p>
         </div>
 
         {/* Main features grid */}
         <div className="mx-auto mt-16 max-w-7xl">
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {features.map((feature, index) => (
               <motion.div
                 key={feature.title}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
+                whileHover={{ y: -8, scale: 1.02 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 viewport={{ once: true }}
+                className="group cursor-pointer"
               >
-                <ReceiptCard className="h-full">
-                  {/* Background decoration */}
-                  <div className="absolute top-4 right-4 h-16 w-16 rounded-full bg-gradient-to-br from-purple-400/10 to-blue-400/10 blur-2xl" />
+                <div className="relative h-full overflow-hidden rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-xl transition-all duration-300">
+                  {/* Gradient background */}
+                  <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br ${
+                    index === 0 ? 'from-blue-50 via-purple-50 to-indigo-50 dark:from-blue-950/20 dark:via-purple-950/20 dark:to-indigo-950/20' :
+                    index === 1 ? 'from-purple-50 via-blue-50 to-purple-50 dark:from-purple-950/20 dark:via-blue-950/20 dark:to-purple-950/20' :
+                    index === 2 ? 'from-indigo-50 via-purple-50 to-blue-50 dark:from-indigo-950/20 dark:via-purple-950/20 dark:to-blue-950/20' :
+                    index === 3 ? 'from-green-50 via-emerald-50 to-teal-50 dark:from-green-950/20 dark:via-emerald-950/20 dark:to-teal-950/20' :
+                    'from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-950/20 dark:via-indigo-950/20 dark:to-purple-950/20'
+                  }`} />
                   
-                  <div className="relative">
-                    {/* Icon */}
-                    <div className={`inline-flex rounded-lg p-3 ${feature.bgColor}`}>
-                      <feature.icon className={`h-6 w-6 ${feature.color}`} />
+                  {/* Floating elements */}
+                  <div className="absolute top-6 right-6 h-12 w-12 rounded-full bg-gradient-to-br from-purple-400/20 to-blue-400/20 blur-xl group-hover:scale-150 transition-transform duration-700" />
+                  <div className="absolute bottom-6 left-6 h-8 w-8 rounded-full bg-gradient-to-br from-blue-400/20 to-indigo-400/20 blur-lg group-hover:scale-125 transition-transform duration-500" />
+                  
+                  <div className="relative p-8">
+                    {/* Icon with enhanced styling */}
+                    <div className={`inline-flex rounded-2xl p-4 mb-6 ${feature.bgColor} group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
+                      <feature.icon className={`h-8 w-8 ${feature.color} group-hover:scale-110 transition-transform duration-300`} />
                     </div>
 
-                    {/* Content */}
-                    <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">
+                    {/* Enhanced content */}
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors duration-300">
                       {feature.title}
                     </h3>
-                    <p className="mt-2 text-gray-600 dark:text-gray-300">
+                    <p className="text-gray-600 dark:text-gray-300 leading-relaxed group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors duration-300">
                       {feature.description}
                     </p>
+
+                    {/* Animated bottom border */}
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-600 to-blue-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left" />
                   </div>
-                </ReceiptCard>
+                </div>
               </motion.div>
             ))}
           </div>
@@ -152,7 +160,7 @@ export default function FeaturesSection() {
         <div className="mx-auto mt-20 max-w-7xl">
           <div className="rounded-2xl bg-gray-50 dark:bg-gray-900/50 p-8 ring-1 ring-gray-200 dark:ring-gray-800">
             <h3 className="text-center text-lg font-semibold text-gray-900 dark:text-white mb-8">
-              Plus everything else you'd expect
+              The headaches Flowvya eliminates for good
             </h3>
             <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
               {additionalFeatures.map((feature, index) => (

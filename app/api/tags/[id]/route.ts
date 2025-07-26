@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getTenantIdWithFallback } from "@/lib/api-tenant";
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -10,8 +11,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // For now, use default tenant ID until auth is fully set up
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    // Get the current tenant ID for the authenticated user
+    const tenantId = await getTenantIdWithFallback();
 
     // Get the tag with category info
     const { data, error } = await supabase
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         )
       `)
       .eq('id', tagId)
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .single();
 
     if (error) {
@@ -63,8 +64,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // For now, use default tenant ID until auth is fully set up
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    // Get the current tenant ID for the authenticated user
+    const tenantId = await getTenantIdWithFallback();
 
     // Update the tag
     const { data, error } = await supabase
@@ -77,7 +78,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         updated_at: new Date().toISOString()
       })
       .eq('id', tagId)
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .select(`
         id,
         name,
@@ -122,15 +123,15 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // For now, use default tenant ID until auth is fully set up
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    // Get the current tenant ID for the authenticated user
+    const tenantId = await getTenantIdWithFallback();
 
     // Check if tag is being used
     const { data: usageData, error: usageError } = await supabase
       .from('tag')
       .select('usage_count, name')
       .eq('id', tagId)
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .single();
 
     if (usageError) {
@@ -146,7 +147,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       .from('tag')
       .delete()
       .eq('id', tagId)
-      .eq('tenant_id', defaultTenantId);
+      .eq('tenant_id', tenantId);
 
     if (error) {
       console.error('Error deleting tag:', error);

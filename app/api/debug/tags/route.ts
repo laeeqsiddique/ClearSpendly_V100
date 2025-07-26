@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getTenantIdWithFallback } from '@/lib/api-tenant';
 
 export async function GET(req: NextRequest) {
   try {
@@ -8,13 +9,13 @@ export async function GET(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    const tenantId = await getTenantIdWithFallback();
 
     // Check if tag_category table exists and has data
     const { data: categories, error: catError } = await supabase
       .from('tag_category')
       .select('*')
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .limit(5);
 
     console.log('Tag categories:', { catError, categories });
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
     const { data: tags, error: tagError } = await supabase
       .from('tag')
       .select('*')
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .limit(5);
 
     console.log('Tags:', { tagError, tags });
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
     const { data: itemTags, error: itemTagError } = await supabase
       .from('receipt_item_tag')
       .select('*')
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .limit(5);
 
     console.log('Receipt item tags:', { itemTagError, itemTags });

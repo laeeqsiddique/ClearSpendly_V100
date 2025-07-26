@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   try {
+    // Check authentication
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
-    // For now, use default tenant ID until auth is fully set up
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
-    console.log('Receipts dashboard using tenant_id:', defaultTenantId);
+    const supabase = await createClient();
+    console.log('Receipts dashboard using authenticated user:', user.id);
 
     // Use provided date range or default to current month
     const now = new Date();
@@ -26,18 +27,17 @@ export async function GET(req: NextRequest) {
     const previousPeriodEnd = new Date(currentPeriodStart.getTime() - 1); // Day before current period
     const previousPeriodStart = new Date(previousPeriodEnd.getTime() - periodDuration);
 
-    // Get receipts for the selected period
+    // Get receipts for the selected period (RLS handles tenant filtering)
     const { data: currentPeriodReceipts, error: currentError } = await supabase
       .from('receipt')
-      .select('total_amount, vendor_id, receipt_date, tenant_id')
-      .eq('tenant_id', defaultTenantId)
+      .select('total_amount, vendor_id, receipt_date')
       .gte('receipt_date', currentPeriodStart.toISOString().split('T')[0])
       .lte('receipt_date', currentPeriodEnd.toISOString().split('T')[0]);
     
     console.log('Receipts query result:', { 
       count: currentPeriodReceipts?.length, 
       dateRange: [currentPeriodStart.toISOString().split('T')[0], currentPeriodEnd.toISOString().split('T')[0]],
-      sampleReceipt: currentPeriodReceipts?.[0] 
+      userId: user.id
     });
 
     if (currentError) {
@@ -49,7 +49,6 @@ export async function GET(req: NextRequest) {
     const { data: previousPeriodReceipts, error: previousError } = await supabase
       .from('receipt')
       .select('total_amount')
-      .eq('tenant_id', defaultTenantId)
       .gte('receipt_date', previousPeriodStart.toISOString().split('T')[0])
       .lte('receipt_date', previousPeriodEnd.toISOString().split('T')[0]);
 
@@ -87,11 +86,10 @@ export async function GET(req: NextRequest) {
     const uniqueVendorIds = new Set(currentPeriodReceipts?.map(r => r.vendor_id) || []);
     const uniqueVendors = uniqueVendorIds.size;
     
-    // Get previous period vendor count for comparison
+    // Get previous period vendor count for comparison (RLS handles tenant filtering)
     const { data: previousPeriodVendors } = await supabase
       .from('receipt')
       .select('vendor_id')
-      .eq('tenant_id', defaultTenantId)
       .gte('receipt_date', previousPeriodStart.toISOString().split('T')[0])
       .lte('receipt_date', previousPeriodEnd.toISOString().split('T')[0]);
     
@@ -136,7 +134,7 @@ export async function GET(req: NextRequest) {
               name
             )
           `)
-          .eq('tenant_id', defaultTenantId);
+;
         tagBreakdown = data || [];
       }
     } catch (error) {
@@ -164,7 +162,7 @@ export async function GET(req: NextRequest) {
               name
             )
           `)
-          .eq('tenant_id', defaultTenantId);
+;
         receiptTags = data || [];
       }
     } catch (error) {
@@ -242,7 +240,6 @@ export async function GET(req: NextRequest) {
       const { data: vendors } = await supabase
         .from('receipt')
         .select('vendor_id')
-        .eq('tenant_id', defaultTenantId)
         .gte('receipt_date', currentPeriodStart.toISOString().split('T')[0])
         .lte('receipt_date', currentPeriodEnd.toISOString().split('T')[0]);
 

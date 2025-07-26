@@ -14,15 +14,28 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Upload, CalendarDays } from "lucide-react";
+import { Upload, CalendarDays, Plus } from "lucide-react";
 import Link from "next/link";
 import AIChatAgent from '@/components/ai-chat-agent';
 
 export function DashboardWithAI() {
-  // Date range state
+  // Initialize dates for "this-month" preset to prevent flicker
+  const initializeThisMonthDates = () => {
+    const today = new Date();
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const formatDate = (date: Date) => date.toISOString().split('T')[0];
+    return {
+      startDate: formatDate(monthStart),
+      endDate: formatDate(today)
+    };
+  };
+
+  const { startDate: initialStartDate, endDate: initialEndDate } = initializeThisMonthDates();
+
+  // Date range state - initialize with actual dates to prevent flicker
   const [dateRange, setDateRange] = useState<string>('this-month');
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
+  const [startDate, setStartDate] = useState<string>(initialStartDate);
+  const [endDate, setEndDate] = useState<string>(initialEndDate);
   
   // Handle date preset changes
   const handleDateRangeChange = (preset: string) => {
@@ -80,11 +93,6 @@ export function DashboardWithAI() {
         break;
     }
   };
-  
-  // Initialize date range on component mount
-  useEffect(() => {
-    handleDateRangeChange('this-month');
-  }, []);
 
   return (
     <section className="flex flex-col items-start justify-start p-6 w-full bg-gradient-to-br from-purple-50 via-white to-blue-50 min-h-screen">
@@ -94,18 +102,26 @@ export function DashboardWithAI() {
           <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
             <div className="flex flex-col items-start justify-center gap-2">
               <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                Receipt Dashboard
+                Expense Overview
               </h1>
               <p className="text-muted-foreground">
-                Track your spending, manage receipts, and get AI-powered insights.
+                Track your spending, manage expenses & receipts, and get AI-powered insights.
               </p>
             </div>
-            <Button size="sm" asChild className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
-              <Link href="/dashboard/upload">
-                <Upload className="h-4 w-4 mr-2" />
-                Upload Receipt
-              </Link>
-            </Button>
+            <div className="flex gap-2">
+              <Button size="sm" asChild className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+                <Link href="/dashboard/upload">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Add Receipt
+                </Link>
+              </Button>
+              <Button size="sm" variant="outline" asChild>
+                <Link href="/dashboard/add-expense">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Manual Expense
+                </Link>
+              </Button>
+            </div>
           </div>
           
           {/* Date Range Filter */}

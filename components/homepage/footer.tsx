@@ -22,8 +22,8 @@ const navigation = {
   ],
   support: [
     { name: "Help Center", href: "/help" },
-    { name: "Status", href: "https://status.clearspendly.com" },
-    { name: "API Status", href: "https://api-status.clearspendly.com" },
+    { name: "Status", href: "https://status.flowvya.com" },
+    { name: "API Status", href: "https://api-status.flowvya.com" },
     { name: "Contact Support", href: "/support" },
   ],
 };
@@ -31,22 +31,22 @@ const navigation = {
 const social = [
   {
     name: "Twitter",
-    href: "https://twitter.com/clearspendly",
+    href: "https://twitter.com/flowvya",
     icon: Twitter,
   },
   {
     name: "GitHub",
-    href: "https://github.com/clearspendly",
+    href: "https://github.com/flowvya",
     icon: Github,
   },
   {
     name: "LinkedIn",
-    href: "https://linkedin.com/company/clearspendly",
+    href: "https://linkedin.com/company/flowvya",
     icon: Linkedin,
   },
   {
     name: "Email",
-    href: "mailto:hello@clearspendly.com",
+    href: "mailto:hello@flowvya.com",
     icon: Mail,
   },
 ];
@@ -64,12 +64,12 @@ export default function FooterSection() {
             <div className="flex items-center gap-2">
               <Receipt className="h-8 w-8 text-purple-600" />
               <span className="text-xl font-bold text-gray-900 dark:text-white">
-                ClearSpendly
+                Flowvya
               </span>
             </div>
             <p className="text-sm leading-6 text-gray-600 dark:text-gray-400">
-              Transform receipts into actionable insights. Privacy-first expense 
-              management powered by AI.
+              Track. Bill. Get Paid. One Flow. Complete financial management 
+              for contractors and freelancers.
             </p>
             <div className="flex space-x-6">
               {social.map((item) => (
@@ -166,7 +166,7 @@ export default function FooterSection() {
         <div className="mt-16 border-t border-gray-900/10 dark:border-white/10 pt-8 sm:mt-20 lg:mt-24">
           <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
             <p className="text-xs leading-5 text-gray-500 dark:text-gray-400">
-              &copy; {new Date().getFullYear()} ClearSpendly, Inc. All rights reserved.
+              &copy; {new Date().getFullYear()} Flowvya, Inc. All rights reserved.
             </p>
             <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
               <span>Built with privacy in mind</span>

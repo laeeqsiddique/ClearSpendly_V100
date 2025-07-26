@@ -3,6 +3,7 @@ import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@/lib/supabase/server";
+import { getTenantIdWithFallback } from "@/lib/api-tenant";
 
 // Function to save receipt data to database
 async function saveReceiptToDatabase(receiptData: any, imageUrl?: string): Promise<string> {
@@ -12,8 +13,8 @@ async function saveReceiptToDatabase(receiptData: any, imageUrl?: string): Promi
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // For now, use a default tenant ID until auth is fully set up
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    // Get the current tenant ID for the authenticated user
+    const tenantId = await getTenantIdWithFallback();
     
     // Check if vendor exists, create if not
     let vendorId;
@@ -22,7 +23,7 @@ async function saveReceiptToDatabase(receiptData: any, imageUrl?: string): Promi
       .from('vendor')
       .select('id')
       .eq('normalized_name', normalizedName)
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .single();
     
     if (existingVendor) {
@@ -31,7 +32,7 @@ async function saveReceiptToDatabase(receiptData: any, imageUrl?: string): Promi
       const { data: newVendor, error: vendorError } = await supabase
         .from('vendor')
         .insert({
-          tenant_id: defaultTenantId,
+          tenant_id: tenantId,
           name: receiptData.vendor,
           normalized_name: normalizedName,
           category: receiptData.category || 'Other'
@@ -56,7 +57,7 @@ async function saveReceiptToDatabase(receiptData: any, imageUrl?: string): Promi
         currency_code: receiptData.currency || 'USD',
         total_amount: receiptData.totalAmount,
         tax_amount: receiptData.tax || 0,
-        image_url: imageUrl || null,
+        original_file_url: imageUrl || null,
         ocr_confidence: (receiptData.confidence || 75) / 100, // Convert percentage to decimal
         status: 'processed'
       })

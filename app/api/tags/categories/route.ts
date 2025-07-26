@@ -1,15 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getUser } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   try {
+    // Check authentication
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required. Please log in to access categories." }, { status: 401 });
+    }
+
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // For now, use default tenant ID until auth is fully set up
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    // Get user's tenant through membership
+    const { data: membership, error: membershipError } = await supabase
+      .from('membership')
+      .select('tenant_id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (membershipError || !membership) {
+      return NextResponse.json({ error: "No tenant access found" }, { status: 403 });
+    }
+
+    const tenantId = membership.tenant_id;
 
     const { data: categories, error } = await supabase
       .from('tag_category')
@@ -24,7 +41,7 @@ export async function GET(req: NextRequest) {
         created_at,
         updated_at
       `)
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .order('sort_order', { ascending: true });
 
     if (error) {
@@ -47,12 +64,29 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    // Check authentication
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required. Please log in to create categories." }, { status: 401 });
+    }
+
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    // Get user's tenant through membership
+    const { data: membership, error: membershipError } = await supabase
+      .from('membership')
+      .select('tenant_id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (membershipError || !membership) {
+      return NextResponse.json({ error: "No tenant access found" }, { status: 403 });
+    }
+
+    const tenantId = membership.tenant_id;
     const body = await req.json();
 
     const { name, description, color, required, multiple, sort_order } = body;
@@ -73,7 +107,7 @@ export async function POST(req: NextRequest) {
         required: required || false,
         multiple: multiple !== false, // Default to true
         sort_order: sort_order || 0,
-        tenant_id: defaultTenantId
+        tenant_id: tenantId
       })
       .select()
       .single();

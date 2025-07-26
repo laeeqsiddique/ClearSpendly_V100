@@ -9,7 +9,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 async function setupBasicTables() {
   console.log('Setting up basic tables for testing...');
   
-  // Default tenant ID
+  // TODO: Replace with dynamic tenant ID when running script for specific tenant
   const defaultTenantId = '00000000-0000-0000-0000-000000000001';
   
   try {

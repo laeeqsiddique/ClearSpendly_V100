@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getTenantIdWithFallback } from '@/lib/api-tenant';
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,8 +13,7 @@ export async function GET(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // For now, use default tenant ID until auth is fully set up
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    const tenantId = await getTenantIdWithFallback(req);
 
     // Build query with date filters
     let query = supabase
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
         created_at,
         vendor!inner(name)
       `)
-      .eq('tenant_id', defaultTenantId);
+      .eq('tenant_id', tenantId);
     
     if (startDate) {
       query = query.gte('receipt_date', startDate);

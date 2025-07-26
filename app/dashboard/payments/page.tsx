@@ -2,7 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle, 
+  CardDescription,
+  CardAction,
+  CardFooter
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +21,7 @@ import {
   Filter,
   DollarSign,
   Calendar,
+  CalendarDays,
   CreditCard,
   FileText,
   TrendingUp,
@@ -64,13 +73,59 @@ export default function PaymentsPage() {
   const [methodFilter, setMethodFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [dateRange, setDateRange] = useState("this-month");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
 
   const supabase = createClient();
 
   useEffect(() => {
+    updateDateRange(dateRange);
+  }, [dateRange]);
+
+  useEffect(() => {
     fetchPayments();
     fetchStats();
-  }, []);
+  }, [startDate, endDate]);
+
+  const updateDateRange = (range: string) => {
+    const today = new Date();
+    let start = new Date();
+    let end = new Date();
+
+    switch (range) {
+      case 'today':
+        start = today;
+        end = today;
+        break;
+      case 'this-week':
+        start = new Date(today.setDate(today.getDate() - today.getDay()));
+        end = new Date();
+        break;
+      case 'this-month':
+        start = new Date(today.getFullYear(), today.getMonth(), 1);
+        end = new Date();
+        break;
+      case 'last-month':
+        start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        end = new Date(today.getFullYear(), today.getMonth(), 0);
+        break;
+      case 'this-year':
+        start = new Date(today.getFullYear(), 0, 1);
+        end = new Date();
+        break;
+      default:
+        start = new Date(today.getFullYear(), today.getMonth(), 1);
+        end = new Date();
+    }
+
+    setStartDate(start.toISOString().split('T')[0]);
+    setEndDate(end.toISOString().split('T')[0]);
+  };
+
+  const handleDateRangeChange = (value: string) => {
+    setDateRange(value);
+  };
 
   const fetchPayments = async () => {
     try {
@@ -86,11 +141,20 @@ export default function PaymentsPage() {
 
       if (!membership) return;
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('payment_summary')
         .select('*')
-        .eq('tenant_id', membership.tenant_id)
-        .order('payment_date', { ascending: false });
+        .eq('tenant_id', membership.tenant_id);
+
+      // Apply date filters
+      if (startDate) {
+        query = query.gte('payment_date', startDate);
+      }
+      if (endDate) {
+        query = query.lte('payment_date', endDate);
+      }
+
+      const { data, error } = await query.order('payment_date', { ascending: false });
 
       if (error) throw error;
       setPayments(data || []);
@@ -188,86 +252,165 @@ export default function PaymentsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="container mx-auto py-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Payment Management
-            </h1>
-            <p className="text-muted-foreground">Track and manage all your payments</p>
+    <section className="flex flex-col items-start justify-start p-6 w-full bg-gradient-to-br from-purple-50 via-white to-blue-50 min-h-screen">
+      <div className="w-full">
+        <div className="flex flex-col gap-6">
+          {/* Header */}
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+            <div className="flex flex-col items-start justify-center gap-2">
+              <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                Payment Management
+              </h1>
+              <p className="text-muted-foreground">
+                Track and manage all your business payments and client transactions.
+              </p>
+            </div>
+            <Button 
+              onClick={() => router.push('/dashboard/payments/record')}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Record Payment
+            </Button>
           </div>
-          <Button 
-            onClick={() => router.push('/dashboard/payments/record')}
-            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Record Payment
-          </Button>
         </div>
+        
+        <div className="@container/main flex flex-1 flex-col gap-2">
+          <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+            
+            {/* Date Range Filter */}
+            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-end gap-4">
+                  <div className="flex items-center gap-2">
+                    <CalendarDays className="w-5 h-5 text-purple-600" />
+                    <span className="font-medium text-purple-800">Date Range:</span>
+                  </div>
+                  
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Select value={dateRange} onValueChange={handleDateRangeChange}>
+                      <SelectTrigger className="w-auto border-purple-200 focus:border-purple-500">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="today">Today</SelectItem>
+                        <SelectItem value="this-week">This Week</SelectItem>
+                        <SelectItem value="this-month">This Month</SelectItem>
+                        <SelectItem value="last-month">Last Month</SelectItem>
+                        <SelectItem value="this-year">This Year</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Received</p>
-                  <p className="text-2xl font-bold">${stats.total_received.toFixed(2)}</p>
-                </div>
-                <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <DollarSign className="w-6 h-6 text-green-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-2 @4xl/main:grid-cols-4">
+              <Card className="@container/card bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+                <CardHeader>
+                  <CardDescription className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-green-600" />
+                    Total Received (Selected Period)
+                  </CardDescription>
+                  <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                    ${stats.total_received.toFixed(2)}
+                  </CardTitle>
+                  <CardAction>
+                    <Badge variant="secondary">
+                      <CheckCircle />
+                      Cash received
+                    </Badge>
+                  </CardAction>
+                </CardHeader>
+                <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                  <div className="line-clamp-1 flex gap-2 font-medium">
+                    {payments.length} payments received
+                  </div>
+                  <div className="text-muted-foreground">
+                    Tracked in selected date range
+                  </div>
+                </CardFooter>
+              </Card>
 
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Pending Payments</p>
-                  <p className="text-2xl font-bold">${stats.total_pending.toFixed(2)}</p>
-                </div>
-                <div className="h-12 w-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <Clock className="w-6 h-6 text-yellow-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              <Card className="@container/card bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+                <CardHeader>
+                  <CardDescription className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-orange-600" />
+                    Pending Payments
+                  </CardDescription>
+                  <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+                    ${stats.total_pending.toFixed(2)}
+                  </CardTitle>
+                  <CardAction>
+                    <Badge variant="outline">
+                      Outstanding invoices
+                    </Badge>
+                  </CardAction>
+                </CardHeader>
+                <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                  <div className="line-clamp-1 flex gap-2 font-medium">
+                    Awaiting client payment
+                  </div>
+                  <div className="text-muted-foreground">
+                    Invoice balance due amounts
+                  </div>
+                </CardFooter>
+              </Card>
 
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Clients Paid</p>
-                  <p className="text-2xl font-bold">{stats.total_clients_paid}</p>
-                </div>
-                <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <User className="w-6 h-6 text-blue-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              <Card className="@container/card bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+                <CardHeader>
+                  <CardDescription className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-blue-600" />
+                    Unique Clients Paid
+                  </CardDescription>
+                  <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+                    {stats.total_clients_paid}
+                  </CardTitle>
+                  <CardAction>
+                    <Badge variant="outline">
+                      Active clients
+                    </Badge>
+                  </CardAction>
+                </CardHeader>
+                <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                  <div className="line-clamp-1 flex gap-2 font-medium">
+                    Clients who have paid
+                  </div>
+                  <div className="text-muted-foreground">
+                    Unique client relationships
+                  </div>
+                </CardFooter>
+              </Card>
 
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Average Payment</p>
-                  <p className="text-2xl font-bold">${stats.average_payment.toFixed(2)}</p>
-                </div>
-                <div className="h-12 w-12 bg-purple-100 rounded-full flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-purple-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              <Card className="@container/card bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+                <CardHeader>
+                  <CardDescription className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-purple-600" />
+                    Average Payment Amount
+                  </CardDescription>
+                  <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                    ${stats.average_payment.toFixed(2)}
+                  </CardTitle>
+                  <CardAction>
+                    <Badge variant="outline">
+                      Per transaction
+                    </Badge>
+                  </CardAction>
+                </CardHeader>
+                <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                  <div className="line-clamp-1 flex gap-2 font-medium">
+                    Payment size analysis
+                  </div>
+                  <div className="text-muted-foreground">
+                    Average across all payments
+                  </div>
+                </CardFooter>
+              </Card>
+            </div>
 
-        {/* Payments List */}
-        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            {/* Payments List */}
+            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
               <CardTitle>Recent Payments</CardTitle>
@@ -357,12 +500,35 @@ export default function PaymentsPage() {
                     </TableHeader>
                     <TableBody>
                       {paginatedPayments.map((payment) => (
-                        <TableRow key={payment.id} className="hover:bg-gray-50">
+                        <TableRow key={payment.id} className="hover:bg-muted/50 transition-colors">
                           <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Calendar className="w-4 h-4 text-gray-400" />
-                              {format(new Date(payment.payment_date), 'MMM dd, yyyy')}
-                            </div>
+                            {(() => {
+                              const dateStr = payment.payment_date;
+                              if (!dateStr) return "Invalid Date";
+                              
+                              if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                                const [year, month, day] = dateStr.split('-').map(Number);
+                                const localDate = new Date(year, month - 1, day);
+                                return localDate.toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric", 
+                                  year: "numeric"
+                                });
+                              }
+                              
+                              if (dateStr.includes('T')) {
+                                const datePart = dateStr.split('T')[0];
+                                const [year, month, day] = datePart.split('-').map(Number);
+                                const localDate = new Date(year, month - 1, day);
+                                return localDate.toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric"
+                                });
+                              }
+                              
+                              return format(new Date(dateStr), 'MMM dd, yyyy');
+                            })()}
                           </TableCell>
                           <TableCell>
                             {payment.client_name ? (
@@ -470,8 +636,10 @@ export default function PaymentsPage() {
               </>
             )}
           </CardContent>
-        </Card>
+            </Card>
+          </div>
+        </div>
       </div>
-    </div>
+    </section>
   );
 }

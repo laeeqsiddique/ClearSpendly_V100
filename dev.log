@@ -1,0 +1,25 @@
+
+> apple-pass@0.1.0 dev
+> next dev --turbopack
+
+ ⚠ Port 3000 is in use, using available port 3001 instead.
+   ▲ Next.js 15.3.1 (Turbopack)
+   - Local:        http://localhost:3001
+   - Network:      http://169.254.253.134:3001
+   - Environments: .env.local
+
+ ✓ Starting...
+ ○ Compiling middleware ...
+ ✓ Compiled middleware in 2.6s
+ ✓ Ready in 12.2s
+ ✓ Compiled middleware in 3ms
+ ✓ Compiled middleware in 8ms
+ ✓ Compiled middleware in 21ms
+ ✓ Compiled middleware in 3ms
+ ✓ Compiled middleware in 7ms
+ ✓ Compiled middleware in 10ms
+ ✓ Compiled middleware in 25ms
+ ✓ Compiled middleware in 42ms
+ ✓ Compiled middleware in 3ms
+ ✓ Compiled middleware in 6ms
+ ✓ Compiled middleware in 64ms

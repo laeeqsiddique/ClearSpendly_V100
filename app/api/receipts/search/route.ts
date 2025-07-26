@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   try {
+    // Check authentication
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const query = searchParams.get('q') || '';
     const startDate = searchParams.get('startDate');
@@ -15,13 +22,8 @@ export async function GET(req: NextRequest) {
     const tagCategory = searchParams.get('tagCategory'); // Filter by tag category
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 100;
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
-    // For now, use default tenant ID until auth is fully set up
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    const supabase = await createClient();
+    console.log('Receipt search using authenticated user:', user.id);
 
     // Build the query with tag support
     let receiptsQuery;
@@ -40,6 +42,9 @@ export async function GET(req: NextRequest) {
           ocr_confidence,
           ocr_status,
           created_at,
+          receipt_type,
+          manual_entry_reason,
+          business_purpose,
           vendor!inner(
             id,
             name,
@@ -52,8 +57,7 @@ export async function GET(req: NextRequest) {
               category_id
             )
           )
-        `)
-        .eq('tenant_id', defaultTenantId);
+        `);
     } else {
       // Normal query without tag joins
       receiptsQuery = supabase
@@ -68,13 +72,15 @@ export async function GET(req: NextRequest) {
           ocr_confidence,
           ocr_status,
           created_at,
+          receipt_type,
+          manual_entry_reason,
+          business_purpose,
           vendor!inner(
             id,
             name,
             category
           )
-        `)
-        .eq('tenant_id', defaultTenantId);
+        `);
     }
 
     // Apply filters

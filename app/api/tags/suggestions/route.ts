@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getTenantIdWithFallback } from "@/lib/api-tenant";
 
 export async function GET(req: NextRequest) {
   try {
@@ -20,8 +21,8 @@ export async function GET(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // For now, use default tenant ID until auth is fully set up
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    // Get the current tenant ID for the authenticated user
+    const tenantId = await getTenantIdWithFallback();
 
     let dbQuery = supabase
       .from('tag')
@@ -37,7 +38,7 @@ export async function GET(req: NextRequest) {
           color
         )
       `)
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .ilike('name', `%${query}%`);
 
     // Filter by category if specified

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getTenantIdWithFallback } from '@/lib/api-tenant';
 
 export async function GET(req: NextRequest) {
   try {
@@ -8,13 +9,13 @@ export async function GET(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    const tenantId = await getTenantIdWithFallback();
 
     // Get all receipts with their totals
     const { data: receipts, error: receiptError } = await supabase
       .from('receipt')
       .select('id, receipt_date, total_amount, vendor(name)')
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .order('receipt_date', { ascending: false });
 
     const receiptTotal = receipts?.reduce((sum, r) => sum + (r.total_amount || 0), 0) || 0;
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
           tenant_id
         )
       `)
-      .eq('receipt.tenant_id', defaultTenantId);
+      .eq('receipt.tenant_id', tenantId);
 
     const itemTotal = items?.reduce((sum, item) => sum + (item.total_price || 0), 0) || 0;
 

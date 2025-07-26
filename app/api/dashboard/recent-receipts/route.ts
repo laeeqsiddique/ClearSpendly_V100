@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getTenantIdWithFallback } from '@/lib/api-tenant';
 
 export async function GET(req: NextRequest) {
   try {
@@ -8,8 +9,7 @@ export async function GET(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // For now, use default tenant ID until auth is set up
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    const tenantId = await getTenantIdWithFallback(req);
 
     // Fetch recent receipts with vendor information
     const { data: receipts, error } = await supabase
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
           id
         )
       `)
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .order('receipt_date', { ascending: false })
       .limit(10);
 

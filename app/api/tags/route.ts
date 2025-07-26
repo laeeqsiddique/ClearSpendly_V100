@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getUser } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   try {
@@ -8,13 +9,29 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get('search') || '';
     const limit = parseInt(searchParams.get('limit') || '50');
 
+    // Check authentication
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required. Please log in to access tags." }, { status: 401 });
+    }
+
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // For now, use default tenant ID until auth is fully set up
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    // Get user's tenant through membership
+    const { data: membership, error: membershipError } = await supabase
+      .from('membership')
+      .select('tenant_id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (membershipError || !membership) {
+      return NextResponse.json({ error: "No tenant access found" }, { status: 403 });
+    }
+
+    const tenantId = membership.tenant_id;
 
     let query = supabase
       .from('tag')
@@ -33,7 +50,7 @@ export async function GET(req: NextRequest) {
           multiple
         )
       `)
-      .eq('tenant_id', defaultTenantId);
+      .eq('tenant_id', tenantId);
 
     // Filter by category if specified
     if (categoryId) {
@@ -70,12 +87,29 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    // Check authentication
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required. Please log in to create tags." }, { status: 401 });
+    }
+
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    // Get user's tenant through membership
+    const { data: membership, error: membershipError } = await supabase
+      .from('membership')
+      .select('tenant_id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (membershipError || !membership) {
+      return NextResponse.json({ error: "No tenant access found" }, { status: 403 });
+    }
+
+    const tenantId = membership.tenant_id;
     const body = await req.json();
 
     const { name, description, categoryId, color } = body;
@@ -92,7 +126,7 @@ export async function POST(req: NextRequest) {
       .from('tag_category')
       .select('id, color')
       .eq('id', categoryId)
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .single();
 
     if (categoryError || !category) {
@@ -109,7 +143,7 @@ export async function POST(req: NextRequest) {
         description: description?.trim() || null,
         category_id: categoryId,
         color: color || category.color, // Use category color as default
-        tenant_id: defaultTenantId,
+        tenant_id: tenantId,
         created_by: null // TODO: Add user ID when auth is implemented
       })
       .select(`

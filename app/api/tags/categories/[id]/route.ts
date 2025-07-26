@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getTenantIdWithFallback } from "@/lib/api-tenant";
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { name, description, color, required, multiple } = await req.json();
-    const categoryId = params.id;
+    const { id: categoryId } = await params;
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // For now, use default tenant ID until auth is fully set up
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    // Get the current tenant ID for the authenticated user
+    const tenantId = await getTenantIdWithFallback();
 
     // Update the category
     const { data, error } = await supabase
@@ -26,7 +27,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         updated_at: new Date().toISOString()
       })
       .eq('id', categoryId)
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .select()
       .single();
 
@@ -48,24 +49,24 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const categoryId = params.id;
+    const { id: categoryId } = await params;
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // For now, use default tenant ID until auth is fully set up
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    // Get the current tenant ID for the authenticated user
+    const tenantId = await getTenantIdWithFallback();
 
-    // Check if category exists and is not a system category
+    // Check if category exists
     const { data: categoryData, error: categoryError } = await supabase
       .from('tag_category')
-      .select('name, system')
+      .select('name')
       .eq('id', categoryId)
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .single();
 
     if (categoryError) {
@@ -76,20 +77,12 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       );
     }
 
-    // Prevent deletion of system categories
-    if (categoryData.system) {
-      return NextResponse.json(
-        { error: 'System categories cannot be deleted' },
-        { status: 403 }
-      );
-    }
-
     // Check for associated tags
     const { data: tagsData, error: tagsError } = await supabase
       .from('tag')
       .select('id')
       .eq('category_id', categoryId)
-      .eq('tenant_id', defaultTenantId);
+      .eq('tenant_id', tenantId);
 
     if (tagsError) {
       console.error('Error checking category tags:', tagsError);
@@ -104,7 +97,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       .from('tag_category')
       .delete()
       .eq('id', categoryId)
-      .eq('tenant_id', defaultTenantId);
+      .eq('tenant_id', tenantId);
 
     if (error) {
       console.error('Error deleting tag category:', error);

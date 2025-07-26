@@ -523,8 +523,8 @@ export default function EditInvoicePage() {
 
   if (loadingInvoice) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-        <div className="container mx-auto py-6">
+      <div className="flex flex-col items-start justify-start p-6 w-full bg-gradient-to-br from-blue-50 via-white to-purple-50 min-h-screen">
+        <div className="w-full">
           <div className="animate-pulse space-y-4">
             <div className="h-8 bg-gray-200 rounded w-1/3"></div>
             <div className="h-64 bg-gray-200 rounded"></div>
@@ -537,22 +537,13 @@ export default function EditInvoicePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="container mx-auto py-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push('/dashboard/invoices')}
-              className="bg-white/80 backdrop-blur-sm"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Invoices
-            </Button>
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+      <div className="@container/main flex flex-1 flex-col gap-2">
+        <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-6">
+          {/* Header */}
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+            <div className="flex flex-col items-start justify-center gap-2">
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   Edit Invoice
                 </h1>
                 <Badge 
@@ -573,29 +564,28 @@ export default function EditInvoicePage() {
                 Update your invoice details • {invoiceData.invoice_number}
               </p>
             </div>
+            
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => router.push('/dashboard/invoices')} className="bg-white/80 backdrop-blur-sm">
+                Cancel
+              </Button>
+              <Button onClick={handleSubmit} disabled={loading} className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800">
+                {loading ? (
+                  <>
+                    <Save className="w-4 h-4 mr-2 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    Update Invoice
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
-          
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => router.push('/dashboard/invoices')} className="bg-white/80 backdrop-blur-sm">
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit} disabled={loading} className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800">
-              {loading ? (
-                <>
-                  <Save className="w-4 h-4 mr-2 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 mr-2" />
-                  Update Invoice
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Side - Form */}
           <div className="space-y-6">
             {/* Client & Template Selection */}

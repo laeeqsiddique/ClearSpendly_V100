@@ -25,8 +25,8 @@ export default function Navbar() {
             <Receipt className="h-8 w-8 text-purple-600 group-hover:text-purple-700 transition-colors" />
             <div className="absolute -inset-1 bg-purple-200/50 rounded-full blur opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
-          <span className="text-xl font-bold text-gray-900 dark:text-white">
-            ClearSpendly
+          <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+            Flowvya
           </span>
         </Link>
 
@@ -89,8 +89,8 @@ export default function Navbar() {
               <div className="flex items-center justify-between">
                 <Link href="/" className="flex items-center gap-2">
                   <Receipt className="h-8 w-8 text-purple-600" />
-                  <span className="text-xl font-bold text-gray-900 dark:text-white">
-                    ClearSpendly
+                  <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                    Flowvya
                   </span>
                 </Link>
                 <Button

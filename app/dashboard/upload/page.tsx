@@ -64,6 +64,7 @@ interface UploadedReceipt {
   id: string;
   name: string;
   url: string;
+  imageUrl?: string; // For storing Supabase storage URL separately
   size: number;
   type: string;
   uploadedAt: Date;
@@ -188,12 +189,13 @@ export default function UploadPage() {
           throw new Error("Upload failed");
         }
 
-        const { url } = await response.json();
+        const { url, path, filename } = await response.json();
 
         const uploadedReceipt: UploadedReceipt = {
           id: crypto.randomUUID(),
           name: file.name,
           url,
+          imageUrl: url, // Store the Supabase storage URL
           size: file.size,
           type: file.type,
           uploadedAt: new Date(),
@@ -203,8 +205,8 @@ export default function UploadPage() {
         setUploadedReceipts((prev) => [uploadedReceipt, ...prev]);
         toast.success(`${file.name} uploaded successfully`);
         
-        // Process OCR with the original file for better quality
-        processReceiptOCR(uploadedReceipt.id, file);
+        // Process OCR with the original file for better quality and pass image URL
+        processReceiptOCR(uploadedReceipt.id, file, url);
       } catch (error) {
         console.error("Upload error:", error);
         toast.error(`Failed to upload ${file.name}`);
@@ -215,7 +217,7 @@ export default function UploadPage() {
     }
   };
 
-  const processReceiptOCR = async (receiptId: string, file: File) => {
+  const processReceiptOCR = async (receiptId: string, file: File, imageUrl?: string) => {
     const updateProgress = (step: string, progress: number) => {
       setOcrProgress(prev => ({
         ...prev,
@@ -296,7 +298,7 @@ export default function UploadPage() {
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ imageData }),
+            body: JSON.stringify({ imageData, imageUrl }),
           });
           
           if (!response.ok) {
@@ -609,55 +611,38 @@ export default function UploadPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      {/* Modern Header */}
-      <div className="px-8 py-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-2xl flex items-center justify-center shadow-lg">
-                <Receipt className="h-8 w-8 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                  Receipt Processing
+    <>
+      <section className="flex flex-col items-start justify-start p-6 w-full bg-gradient-to-br from-purple-50 via-white to-blue-50 min-h-screen">
+        <div className="w-full">
+          <div className="flex flex-col gap-6">
+            {/* Header */}
+            <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+              <div className="flex flex-col items-start justify-center gap-2">
+                <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                  Add Receipt
                 </h1>
-                <p className="text-gray-600 dark:text-gray-300 text-lg mt-1">
-                  Upload, extract, and categorize receipts with AI-powered precision
+                <p className="text-muted-foreground">
+                  Upload and scan receipts with AI-powered data extraction
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="bg-white dark:bg-gray-800 rounded-xl px-4 py-2 border border-gray-200 dark:border-gray-700 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">AI Ready</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Modern Upload Area */}
-      <div className="px-8 pb-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-            {/* Upload Zone */}
-            <div className="p-8">
-              <div className="grid lg:grid-cols-3 gap-8 items-center">
-                <div className="lg:col-span-2">
-                  <div
-                    className={`relative border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300 ${
-                      dragActive
-                        ? "border-purple-400 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/20 scale-105"
-                        : "border-gray-300 dark:border-gray-600 hover:border-purple-400 hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                    }`}
-                    onDragEnter={handleDrag}
-                    onDragLeave={handleDrag}
-                    onDragOver={handleDrag}
-                    onDrop={handleDrop}
-                  >
+            {/* Upload Area */}
+            <div className="bg-white/80 backdrop-blur-sm border-0 shadow-lg rounded-lg overflow-hidden">
+              <div className="p-6">
+                <div>
+                  <div>
+                    <div
+                      className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-all duration-300 ${
+                        dragActive
+                          ? "border-purple-400 bg-purple-50/50 scale-105"
+                          : "border-gray-300 hover:border-purple-400 hover:bg-gray-50"
+                      }`}
+                      onDragEnter={handleDrag}
+                      onDragLeave={handleDrag}
+                      onDragOver={handleDrag}
+                      onDrop={handleDrop}
+                    >
                     <Input
                       type="file"
                       accept="image/*,application/pdf"
@@ -668,22 +653,22 @@ export default function UploadPage() {
                     />
                     
                     <div className="space-y-4">
-                      <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
+                      <div className="w-16 h-16 bg-purple-600 rounded-lg flex items-center justify-center mx-auto">
                         {uploading ? (
-                          <div className="animate-spin rounded-full h-10 w-10 border-4 border-white border-t-transparent"></div>
+                          <div className="animate-spin rounded-full h-8 w-8 border-4 border-white border-t-transparent"></div>
                         ) : (
-                          <Upload className="h-10 w-10 text-white" />
+                          <Upload className="h-8 w-8 text-white" />
                         )}
                       </div>
                       
                       <div className="space-y-2">
-                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                        <h3 className="text-lg font-semibold text-gray-900">
                           {dragActive ? "Drop your receipts here" : "Upload your receipts"}
                         </h3>
-                        <p className="text-gray-600 dark:text-gray-300">
+                        <p className="text-muted-foreground">
                           Drag and drop or click to select files
                         </p>
-                        <div className="flex items-center justify-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+                        <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <FileImage className="h-4 w-4" />
                             <span>PNG, JPG, PDF</span>
@@ -699,92 +684,43 @@ export default function UploadPage() {
                   </div>
 
                   {uploading && (
-                    <div className="mt-6 bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4">
+                    <div className="mt-6 bg-gray-50 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <Brain className="h-5 w-5 text-purple-600 animate-pulse" />
-                          <span className="font-medium text-gray-900 dark:text-white">Processing with AI...</span>
+                          <span className="font-medium text-gray-900">Processing with AI...</span>
                         </div>
-                        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{Math.round(uploadProgress)}%</span>
+                        <span className="text-sm font-medium text-muted-foreground">{Math.round(uploadProgress)}%</span>
                       </div>
                       <Progress value={uploadProgress} className="h-2" />
                     </div>
                   )}
-                </div>
-
-                {/* Modern Features */}
-                <div className="space-y-6">
-                  <div>
-                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Powered by AI</h4>
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
-                          <Check className="h-4 w-4 text-green-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900 dark:text-white">Universal File Support</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-300">Images + PDFs with smart processing</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                          <Check className="h-4 w-4 text-blue-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900 dark:text-white">Auto Categorization</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-300">Intelligent expense sorting</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
-                          <Check className="h-4 w-4 text-purple-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900 dark:text-white">100% Private</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-300">Never leaves your browser</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center">
-                          <Check className="h-4 w-4 text-amber-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900 dark:text-white">Price Tracking</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-300">Anomaly detection</p>
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Modern Receipt Grid */}
-      {uploadedReceipts.length > 0 && (
-        <div className="px-8 pb-8">
-          <div className="max-w-6xl mx-auto">
-            <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-              <div className="p-8">
-                <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
-                      <Receipt className="h-6 w-6 text-white" />
+          {/* Receipt Grid */}
+          {uploadedReceipts.length > 0 && (
+            <div className="bg-white/80 backdrop-blur-sm border-0 shadow-lg rounded-lg overflow-hidden">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
+                      <Receipt className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                      <h3 className="text-xl font-bold text-gray-900">
                         Processed Receipts
                       </h3>
-                      <p className="text-gray-600 dark:text-gray-300">
+                      <p className="text-muted-foreground">
                         {uploadedReceipts.length} {uploadedReceipts.length === 1 ? 'receipt' : 'receipts'} ready for review
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">Total: </span>
-                    <span className="text-xl font-bold text-green-600">
+                    <span className="text-sm text-muted-foreground">Total: </span>
+                    <span className="text-lg font-bold text-green-600">
                       ${uploadedReceipts.reduce((sum, receipt) => 
                         sum + (receipt.extractedData?.totalAmount || 0), 0
                       ).toFixed(2)}
@@ -792,17 +728,17 @@ export default function UploadPage() {
                   </div>
                 </div>
                 
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {uploadedReceipts.map((receipt) => (
                     <div 
                       key={receipt.id} 
                       data-receipt-id={receipt.id}
-                      className={`group bg-gray-50 dark:bg-gray-900/50 rounded-2xl overflow-hidden hover:shadow-lg transition-all duration-300 border ${
+                      className={`group bg-white rounded-lg overflow-hidden hover:shadow-md transition-all duration-300 border ${
                         selectedReceipt?.id === receipt.id 
-                          ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-lg ring-2 ring-purple-200 dark:ring-purple-800 transform scale-105' 
-                          : 'border-gray-200 dark:border-gray-700'
+                          ? 'border-purple-500 bg-purple-50 shadow-md ring-1 ring-purple-200 transform scale-105' 
+                          : 'border-gray-200'
                       }`}>
-                      <div className="aspect-[4/3] relative bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">
+                      <div className="aspect-[4/3] relative bg-gray-100">
                         {receipt.type.startsWith('image/') ? (
                           <Image
                             src={receipt.url}
@@ -813,34 +749,34 @@ export default function UploadPage() {
                           />
                         ) : (
                           <div className="flex items-center justify-center h-full">
-                            <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center">
-                              <FileImage className="h-8 w-8 text-red-600" />
+                            <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                              <FileImage className="h-6 w-6 text-red-600" />
                             </div>
                           </div>
                         )}
                         
-                        {/* Modern Status Badge */}
-                        <div className="absolute top-3 left-3 flex flex-col gap-2">
+                        {/* Status Badge */}
+                        <div className="absolute top-2 left-2 flex flex-col gap-1">
                           {selectedReceipt?.id === receipt.id && (
-                            <div className="bg-purple-500 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2 shadow-lg animate-pulse">
+                            <div className="bg-purple-500 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1 animate-pulse">
                               <PenTool className="h-3 w-3" />
                               Editing
                             </div>
                           )}
                           {receipt.ocrStatus === 'processing' && (
-                            <div className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2 shadow-lg">
+                            <div className="bg-blue-500 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1">
                               <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
                               Processing
                             </div>
                           )}
                           {receipt.ocrStatus === 'completed' && selectedReceipt?.id !== receipt.id && (
-                            <div className="bg-green-500 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2 shadow-lg">
+                            <div className="bg-green-500 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1">
                               <Check className="h-3 w-3" />
                               Ready
                             </div>
                           )}
                           {receipt.ocrStatus === 'failed' && (
-                            <div className="bg-red-500 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2 shadow-lg">
+                            <div className="bg-red-500 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1">
                               <X className="h-3 w-3" />
                               Failed
                             </div>
@@ -849,9 +785,9 @@ export default function UploadPage() {
 
                         {/* Progress Indicator */}
                         {receipt.ocrStatus === 'processing' && ocrProgress[receipt.id] && (
-                          <div className="absolute bottom-3 left-3 right-3">
-                            <div className="bg-white/95 backdrop-blur-sm rounded-lg p-3 shadow-lg">
-                              <div className="flex items-center justify-between mb-2">
+                          <div className="absolute bottom-2 left-2 right-2">
+                            <div className="bg-white/95 backdrop-blur-sm rounded-md p-2">
+                              <div className="flex items-center justify-between mb-1">
                                 <span className="text-xs font-medium text-gray-800">
                                   {ocrProgress[receipt.id].step}
                                 </span>
@@ -859,9 +795,9 @@ export default function UploadPage() {
                                   {ocrProgress[receipt.id].progress}%
                                 </span>
                               </div>
-                              <div className="w-full bg-gray-200 rounded-full h-1.5">
+                              <div className="w-full bg-gray-200 rounded-full h-1">
                                 <div 
-                                  className="bg-blue-500 h-1.5 rounded-full transition-all duration-300 ease-out"
+                                  className="bg-blue-500 h-1 rounded-full transition-all duration-300 ease-out"
                                   style={{ width: `${ocrProgress[receipt.id].progress}%` }}
                                 ></div>
                               </div>
@@ -873,18 +809,18 @@ export default function UploadPage() {
                           size="sm"
                           variant="secondary"
                           onClick={() => removeFile(receipt.id)}
-                          className="absolute top-3 right-3 h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 hover:bg-white shadow-lg"
+                          className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 hover:bg-white"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3 w-3" />
                         </Button>
                       </div>
 
-                      <div className="p-6 space-y-4">
+                      <div className="p-4 space-y-3">
                         <div>
-                          <h4 className="font-semibold text-gray-900 dark:text-white truncate" title={receipt.name}>
+                          <h4 className="font-semibold text-gray-900 truncate" title={receipt.name}>
                             {receipt.name}
                           </h4>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                          <p className="text-sm text-muted-foreground">
                             {formatFileSize(receipt.size)}
                           </p>
                         </div>
@@ -893,19 +829,19 @@ export default function UploadPage() {
                           <div className="space-y-2">
                             <div className="flex items-center gap-2">
                               <Store className="h-4 w-4 text-purple-600" />
-                              <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                              <span className="text-sm font-medium text-gray-900 truncate">
                                 {receipt.extractedData.vendor}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
                               <DollarSign className="h-4 w-4 text-green-600" />
-                              <span className="text-lg font-bold text-green-600">
+                              <span className="text-base font-medium text-green-600">
                                 ${receipt.extractedData.totalAmount.toFixed(2)}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
                               <Tag className="h-4 w-4 text-blue-600" />
-                              <span className="text-sm text-gray-600 dark:text-gray-300">
+                              <span className="text-sm text-muted-foreground">
                                 {receipt.extractedData.tags?.length ? `${receipt.extractedData.tags.length} tags` : 'No tags'}
                               </span>
                             </div>
@@ -925,7 +861,7 @@ export default function UploadPage() {
                             <Button
                               size="sm"
                               onClick={() => openEditModal(receipt)}
-                              className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+                              className="flex-1 bg-purple-600 hover:bg-purple-700"
                             >
                               <Edit className="h-4 w-4 mr-1" />
                               Review
@@ -938,12 +874,13 @@ export default function UploadPage() {
                 </div>
               </div>
             </div>
+          )}
           </div>
         </div>
-      )}
+      </section>
 
-      {/* Modern Side Panel */}
-      {selectedReceipt && (
+    {/* Side Panel */}
+    {selectedReceipt && (
         <div className="fixed inset-0 z-50 flex">
           {/* Backdrop - only covers the left side */}
           <div className="flex-1 bg-black/20" onClick={closeEditModal} />
@@ -1182,10 +1119,10 @@ export default function UploadPage() {
             </div>
           </div>
         </div>
-      )}
-      
-      {/* AI Chat Agent */}
-      <AIChatAgent />
-    </div>
+    )}
+    
+    {/* AI Chat Agent */}
+    <AIChatAgent />
+    </>
   );
 }

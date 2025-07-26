@@ -166,7 +166,7 @@ export function SectionCards({ startDate, endDate }: SectionCardsProps = {}) {
         <CardHeader>
           <CardDescription className="flex items-center gap-2">
             <IconReceipt className="h-4 w-4 text-purple-600" />
-            Receipts Processed
+            Entries Processed
           </CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
             {stats.receiptsProcessed}
@@ -183,9 +183,9 @@ export function SectionCards({ startDate, endDate }: SectionCardsProps = {}) {
             {stats.receiptsFullyTagged} fully tagged • {stats.receiptsNeedReview} need review
           </div>
           <div className="text-muted-foreground">
-            {stats.receiptsProcessed === 0 ? 'No receipts this period' : 
-             stats.receiptsNeedReview === 0 ? 'All receipts categorized ✓' : 
-             'Some receipts need tags'}
+            {stats.receiptsProcessed === 0 ? 'No entries this period' : 
+             stats.receiptsNeedReview === 0 ? 'All entries categorized ✓' : 
+             'Some entries need tags'}
           </div>
         </CardFooter>
       </Card>

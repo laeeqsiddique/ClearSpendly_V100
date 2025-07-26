@@ -26,26 +26,14 @@ export async function GET(request: NextRequest) {
     const previousEnd = new Date(currentStart);
     previousEnd.setDate(previousEnd.getDate() - 1);
 
-    // Get tenant_id for the user, but also try hardcoded one as fallback
-    const { data: membership } = await supabase
-      .from('membership')
-      .select('tenant_id')
-      .eq('user_id', user.id)
-      .single();
+    // With RLS properly implemented, we don't need to manually get tenant_id
+    // The RLS policies will automatically filter based on user's membership
+    console.log('Analytics dashboard using authenticated user:', user.id);
 
-    if (!membership) {
-      return NextResponse.json({ error: "No tenant found" }, { status: 404 });
-    }
-
-    let tenant_id = membership.tenant_id;
-    const hardcodedTenantId = '00000000-0000-0000-0000-000000000001';
-    console.log('User tenant_id:', tenant_id, 'Hardcoded tenant_id:', hardcodedTenantId);
-
-    // Fetch current period revenue
+    // Fetch current period revenue (RLS handles tenant filtering)
     const { data: currentRevenue } = await supabase
       .from('payment')
       .select('amount')
-      .eq('tenant_id', tenant_id)
       .gte('payment_date', fromDate)
       .lte('payment_date', toDate);
 
@@ -53,58 +41,22 @@ export async function GET(request: NextRequest) {
     const { data: previousRevenue } = await supabase
       .from('payment')
       .select('amount')
-      .eq('tenant_id', tenant_id)
       .gte('payment_date', format(previousStart, 'yyyy-MM-dd'))
       .lte('payment_date', format(previousEnd, 'yyyy-MM-dd'));
 
-    // Fetch current period expenses - try user tenant first, then hardcoded
-    let { data: currentExpenses } = await supabase
+    // Fetch current period expenses (RLS handles tenant filtering)
+    const { data: currentExpenses } = await supabase
       .from('receipt')
       .select('total_amount')
-      .eq('tenant_id', tenant_id)
       .gte('receipt_date', fromDate)
       .lte('receipt_date', toDate);
     
-    // If no data with user tenant, try hardcoded tenant
-    if (!currentExpenses || currentExpenses.length === 0) {
-      console.log('No expenses found for user tenant, trying hardcoded tenant');
-      
-      // Try receipt table first
-      const { data: hardcodedExpenses } = await supabase
-        .from('receipt')
-        .select('total_amount')
-        .eq('tenant_id', hardcodedTenantId)
-        .gte('receipt_date', fromDate)
-        .lte('receipt_date', toDate);
-      
-      if (hardcodedExpenses && hardcodedExpenses.length > 0) {
-        currentExpenses = hardcodedExpenses;
-        tenant_id = hardcodedTenantId; // Use hardcoded tenant for subsequent queries
-        console.log('Found expenses in receipt table with hardcoded tenant:', hardcodedExpenses.length);
-      } else {
-        // Try receipt_item table as last resort
-        const { data: receiptItems } = await supabase
-          .from('receipt_item')
-          .select('total_price, created_at')
-          .eq('tenant_id', hardcodedTenantId)
-          .gte('created_at', fromDate)
-          .lte('created_at', toDate + 'T23:59:59');
-        
-        if (receiptItems && receiptItems.length > 0) {
-          currentExpenses = receiptItems.map(item => ({ total_amount: item.total_price }));
-          tenant_id = hardcodedTenantId;
-          console.log('Found expenses in receipt_item table:', receiptItems.length);
-        }
-      }
-    }
-    
-    console.log('Final expenses result:', { count: currentExpenses?.length || 0, tenant_id });
+    console.log('Expenses query result:', { count: currentExpenses?.length || 0 });
 
     // Fetch previous period expenses
     const { data: previousExpenses } = await supabase
       .from('receipt')
       .select('total_amount')
-      .eq('tenant_id', tenant_id)
       .gte('receipt_date', format(previousStart, 'yyyy-MM-dd'))
       .lte('receipt_date', format(previousEnd, 'yyyy-MM-dd'));
 
@@ -112,7 +64,6 @@ export async function GET(request: NextRequest) {
     const { data: outstandingInvoices } = await supabase
       .from('invoice')
       .select('balance_due')
-      .eq('tenant_id', tenant_id)
       .gt('balance_due', 0);
 
     // Calculate metrics
@@ -153,7 +104,6 @@ export async function GET(request: NextRequest) {
           )
         )
       `)
-      .eq('tenant_id', tenant_id)
       .limit(10);
 
     // Process client data to calculate metrics
@@ -226,8 +176,7 @@ export async function GET(request: NextRequest) {
         const { data: receipts } = await supabase
           .from('receipt')
           .select('category, total_amount')
-          .eq('tenant_id', tenant_id)
-          .gte('receipt_date', fromDate)
+              .gte('receipt_date', fromDate)
           .lte('receipt_date', toDate);
         
         if (receipts && receipts.length > 0) {
@@ -236,22 +185,6 @@ export async function GET(request: NextRequest) {
             acc[category] = (acc[category] || 0) + (receipt.total_amount || 0);
             return acc;
           }, {});
-        } else if (tenant_id === hardcodedTenantId) {
-          // If using hardcoded tenant, also try receipt_item table
-          const { data: receiptItems } = await supabase
-            .from('receipt_item')
-            .select('category, total_price')
-            .eq('tenant_id', tenant_id)
-            .gte('created_at', fromDate)
-            .lte('created_at', toDate + 'T23:59:59');
-          
-          if (receiptItems && receiptItems.length > 0) {
-            expensesByCategory = receiptItems.reduce((acc: any, item) => {
-              const category = item.category || 'Uncategorized';
-              acc[category] = (acc[category] || 0) + (item.total_price || 0);
-              return acc;
-            }, {});
-          }
         }
       } else {
         // Convert to expected format
@@ -266,8 +199,7 @@ export async function GET(request: NextRequest) {
       const { data: receipts } = await supabase
         .from('receipt')
         .select('category, total_amount')
-        .eq('tenant_id', tenant_id)
-        .gte('receipt_date', fromDate)
+          .gte('receipt_date', fromDate)
         .lte('receipt_date', toDate);
       
       if (receipts && receipts.length > 0) {
@@ -283,13 +215,11 @@ export async function GET(request: NextRequest) {
     const { data: overdueInvoices } = await supabase
       .from('invoice')
       .select('id')
-      .eq('tenant_id', tenant_id)
       .eq('status', 'overdue');
 
     const { data: unprocessedReceipts } = await supabase
       .from('receipt')
       .select('id')
-      .eq('tenant_id', tenant_id)
       .eq('ocr_status', 'pending');
 
     const heroMetrics = {

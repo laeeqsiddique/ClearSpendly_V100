@@ -52,7 +52,7 @@ interface EmailData {
   amount_paid?: number;
 }
 
-class EmailTemplateGenerator {
+export class EmailTemplateGenerator {
   private template: EmailTemplateConfig;
   private data: EmailData;
 

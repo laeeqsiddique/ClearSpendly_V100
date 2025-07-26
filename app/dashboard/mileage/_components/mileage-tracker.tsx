@@ -141,7 +141,7 @@ export function MileageTracker() {
       {/* Date Filter Header */}
       <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
         <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-end gap-4">
             <div className="flex items-center gap-2">
               <CalendarDays className="w-5 h-5 text-purple-600" />
               <span className="font-medium text-purple-800">Date Range:</span>

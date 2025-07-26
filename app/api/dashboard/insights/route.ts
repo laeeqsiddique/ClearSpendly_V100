@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getTenantIdWithFallback } from '@/lib/api-tenant';
 
 interface Insight {
   type: 'increase' | 'decrease' | 'anomaly' | 'achievement' | 'warning';
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    const tenantId = await getTenantIdWithFallback(req);
     const insights: Insight[] = [];
 
     // Get current and previous period dates
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
           name
         )
       `)
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .gte('receipt_item.receipt.receipt_date', currentPeriodStart.toISOString().split('T')[0])
       .lte('receipt_item.receipt.receipt_date', currentPeriodEnd.toISOString().split('T')[0]);
 
@@ -66,7 +67,7 @@ export async function GET(req: NextRequest) {
           name
         )
       `)
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .gte('receipt_item.receipt.receipt_date', previousPeriodStart.toISOString().split('T')[0])
       .lte('receipt_item.receipt.receipt_date', previousPeriodEnd.toISOString().split('T')[0]);
 
@@ -136,7 +137,7 @@ export async function GET(req: NextRequest) {
     const { data: recentReceipts } = await supabase
       .from('receipt')
       .select('*, vendor!inner(name)')
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .gte('receipt_date', currentPeriodStart.toISOString().split('T')[0])
       .lte('receipt_date', currentPeriodEnd.toISOString().split('T')[0])
       .order('total_amount', { ascending: false })
@@ -146,7 +147,7 @@ export async function GET(req: NextRequest) {
     const { data: historicalReceipts } = await supabase
       .from('receipt')
       .select('total_amount')
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .lt('receipt_date', currentPeriodStart.toISOString().split('T')[0])
       .limit(100);
 
@@ -175,7 +176,7 @@ export async function GET(req: NextRequest) {
     const { data: untaggedCount } = await supabase
       .from('receipt')
       .select('id', { count: 'exact', head: true })
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .gte('receipt_date', currentPeriodStart.toISOString().split('T')[0])
       .lte('receipt_date', currentPeriodEnd.toISOString().split('T')[0])
       .not('id', 'in', `(select receipt_id from receipt_tag)`)
@@ -184,7 +185,7 @@ export async function GET(req: NextRequest) {
     const { data: totalCount } = await supabase
       .from('receipt')
       .select('id', { count: 'exact', head: true })
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .gte('receipt_date', currentPeriodStart.toISOString().split('T')[0])
       .lte('receipt_date', currentPeriodEnd.toISOString().split('T')[0]);
 
@@ -216,7 +217,7 @@ export async function GET(req: NextRequest) {
     const { data: currentTotal } = await supabase
       .from('receipt')
       .select('total_amount.sum()')
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .gte('receipt_date', currentPeriodStart.toISOString().split('T')[0])
       .lte('receipt_date', currentPeriodEnd.toISOString().split('T')[0])
       .single();
@@ -224,7 +225,7 @@ export async function GET(req: NextRequest) {
     const { data: previousTotal } = await supabase
       .from('receipt')
       .select('total_amount.sum()')
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .gte('receipt_date', previousPeriodStart.toISOString().split('T')[0])
       .lte('receipt_date', previousPeriodEnd.toISOString().split('T')[0])
       .single();

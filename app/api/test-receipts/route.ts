@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
+import { getTenantIdWithFallback } from '@/lib/api-tenant';
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,8 +12,8 @@ export async function GET(request: NextRequest) {
 
     const supabase = await createClient();
     
-    // Use default tenant ID for now (consistent with receipts dashboard)
-    const tenant_id = '00000000-0000-0000-0000-000000000001';
+    // Get proper tenant ID
+    const tenant_id = await getTenantIdWithFallback();
 
     // Get all receipts for this tenant
     const { data: receipts, error } = await supabase

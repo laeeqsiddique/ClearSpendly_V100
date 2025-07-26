@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getTenantIdWithFallback } from '@/lib/api-tenant';
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,14 +15,13 @@ export async function GET(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // For now, use default tenant ID until auth is fully set up
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    const tenantId = await getTenantIdWithFallback(req);
 
     // First, check if we have any tagged items at all
     const { data: taggedItemsCheck, error: checkError } = await supabase
       .from('receipt_item_tag')
       .select('id')
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .limit(1);
 
     console.log('Tagged items check:', { checkError, hasData: taggedItemsCheck?.length > 0 });
@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
           )
         )
       `)
-      .eq('tenant_id', defaultTenantId);
+      .eq('tenant_id', tenantId);
     
     if (startDate) {
       itemTagQuery = itemTagQuery.gte('receipt_item.receipt.receipt_date', startDate);
@@ -100,7 +100,7 @@ export async function GET(req: NextRequest) {
           )
         )
       `)
-      .eq('tenant_id', defaultTenantId);
+      .eq('tenant_id', tenantId);
     
     if (startDate) {
       receiptTagQuery = receiptTagQuery.gte('receipt.receipt_date', startDate);
@@ -267,7 +267,7 @@ export async function GET(req: NextRequest) {
     let allReceiptsQuery = supabase
       .from('receipt')
       .select('total_amount, receipt_date')
-      .eq('tenant_id', defaultTenantId);
+      .eq('tenant_id', tenantId);
     
     if (startDate) {
       allReceiptsQuery = allReceiptsQuery.gte('receipt_date', startDate);

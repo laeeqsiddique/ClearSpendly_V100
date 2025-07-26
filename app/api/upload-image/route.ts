@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { getUser } from "@/lib/auth";
+import { getTenantIdWithFallback } from "@/lib/api-tenant";
 
 export async function POST(req: NextRequest) {
   try {
+    // Check authentication
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+
     // Parse the form data
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
@@ -36,14 +45,68 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // For development, return a mock URL
-    // In production, this would upload to your storage service
-    const mockUrl = `data:${file.type};base64,${Buffer.from(await file.arrayBuffer()).toString('base64')}`;
-    
-    // Simulate processing time
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Get tenant ID for proper file organization
+    const tenantId = await getTenantIdWithFallback();
 
-    return NextResponse.json({ url: mockUrl });
+    // Create Supabase client
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    // Generate unique filename with tenant organization
+    const fileExtension = file.name.split('.').pop() || 'jpg';
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const uniqueFilename = `${timestamp}-${crypto.randomUUID()}.${fileExtension}`;
+    const filePath = `${tenantId}/${uniqueFilename}`;
+
+    // Convert File to ArrayBuffer for Supabase storage
+    const fileBuffer = await file.arrayBuffer();
+
+    // Upload to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from('receipts')
+      .upload(filePath, fileBuffer, {
+        contentType: file.type,
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (error) {
+      console.error('Supabase storage error:', error);
+      return NextResponse.json(
+        { error: "Failed to upload file to storage" },
+        { status: 500 }
+      );
+    }
+
+    // Generate a signed URL for the private file (valid for 1 hour)
+    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+      .from('receipts')
+      .createSignedUrl(filePath, 3600); // 1 hour expiry
+
+    if (signedUrlError) {
+      console.error('Error creating signed URL:', signedUrlError);
+      // Fallback to public URL (though it won't work for private buckets)
+      const { data: urlData } = supabase.storage
+        .from('receipts')
+        .getPublicUrl(filePath);
+      
+      return NextResponse.json({ 
+        url: urlData.publicUrl,
+        path: filePath,
+        filename: uniqueFilename
+      });
+    }
+
+    console.log('✅ Receipt image uploaded successfully:', filePath);
+
+    return NextResponse.json({ 
+      url: signedUrlData.signedUrl,
+      path: filePath,
+      filename: uniqueFilename
+    });
+
   } catch (error) {
     console.error("Upload error:", error);
     return NextResponse.json(

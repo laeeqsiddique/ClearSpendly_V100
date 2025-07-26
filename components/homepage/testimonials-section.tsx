@@ -1,6 +1,6 @@
 "use client";
 
-import { ReceiptCard } from "@/components/ui/receipt-card";
+// Removed receipt card import
 import { Star, Quote } from "lucide-react";
 import { motion } from "framer-motion";
 import Image from "next/image";
@@ -8,36 +8,36 @@ import { useEffect, useState } from "react";
 
 const testimonials = [
   {
-    content: "ClearSpendly transformed how we handle expenses. The AI categorization saves us hours every week, and the price anomaly detection has already caught several billing errors.",
+    content: "Flowvya replaced three separate apps for us. From scanning receipts to sending branded invoices to tracking P&L—everything flows seamlessly. Our cash flow visibility improved overnight.",
     author: "Sarah Chen",
-    role: "CFO at TechStart Inc",
-    company: "TechStart Inc",
+    role: "Freelance Marketing Consultant",
+    company: "Chen Creative Studio",
     rating: 5,
     image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
   },
   {
-    content: "The privacy-first approach sold us. Being able to process receipts locally means our sensitive financial data never leaves our servers. Game changer for compliance.",
-    author: "Michael Rodriguez",
-    role: "Head of Finance at SecureHealth",
-    company: "SecureHealth",
+    content: "The mileage templates are genius. I saved 4 hours last month just by not re-entering the same client routes. Plus the branded invoices make us look way more professional.",
+    author: "Marcus Thompson",
+    role: "Independent Contractor",
+    company: "Thompson Electrical",
     rating: 5,
-    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Michael",
+    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Marcus",
   },
   {
-    content: "Finally, a receipt management system that actually works! The natural language search is incredible - I can find any expense in seconds. Worth every penny.",
-    author: "Emily Watson",
-    role: "Operations Manager at GrowthCo",
-    company: "GrowthCo",
+    content: "Game changer for tax season. The Schedule C exports are perfectly formatted and my accountant loves getting everything organized. No more shoebox of receipts!",
+    author: "Lisa Rodriguez",
+    role: "Freelance Graphic Designer",
+    company: "Rodriguez Design Co",
     rating: 5,
-    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Emily",
+    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Lisa",
   },
 ];
 
 const stats = [
-  { value: "98%", label: "Customer Satisfaction" },
-  { value: "45min", label: "Average Time Saved Weekly" },
-  { value: "30%", label: "Cost Reduction" },
-  { value: "24/7", label: "Support Available" },
+  { value: "90%+", label: "Receipt Read Accuracy" },
+  { value: "6.5hrs", label: "Weekly Time Savings" },
+  { value: "3sec", label: "Average Processing" },
+  { value: "24/7", label: "Real-time P&L" },
 ];
 
 // Animated counter component
@@ -94,10 +94,10 @@ export default function TestimonialsSection() {
             Testimonials
           </h2>
           <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
-            Loved by finance teams everywhere
+            Trusted by business owners everywhere
           </p>
           <p className="mt-6 text-lg leading-8 text-gray-600 dark:text-gray-300">
-            Don't just take our word for it - hear from some of our satisfied customers
+            Real stories from business owners who streamlined their workflow with Flowvya
           </p>
         </div>
 
@@ -111,45 +111,56 @@ export default function TestimonialsSection() {
               transition={{ duration: 0.5, delay: index * 0.1 }}
               viewport={{ once: true }}
             >
-              <ReceiptCard className="h-full flex flex-col">
-                {/* Quote icon */}
-                <Quote className="absolute top-8 right-8 h-8 w-8 text-purple-200 dark:text-purple-800" />
+              <div className="relative h-full bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-8 shadow-sm hover:shadow-lg transition-all duration-300 group">
+                {/* Gradient overlay on hover */}
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-50/50 to-blue-50/50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 
-                {/* Rating */}
-                <div className="flex gap-1 mb-4">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-                  ))}
-                </div>
-
-                {/* Content */}
-                <blockquote className="flex-1">
-                  <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                    "{testimonial.content}"
-                  </p>
-                </blockquote>
-
-                {/* Author */}
-                <div className="mt-6 flex items-center gap-4">
-                  <div className="relative h-12 w-12 overflow-hidden rounded-full bg-gray-100">
-                    <Image
-                      src={testimonial.image}
-                      alt={testimonial.author}
-                      width={48}
-                      height={48}
-                      className="object-cover"
-                    />
+                {/* Content wrapper */}
+                <div className="relative z-10 h-full flex flex-col">
+                  {/* Quote icon */}
+                  <Quote className="h-8 w-8 text-purple-200 dark:text-purple-700 mb-4" />
+                  
+                  {/* Rating */}
+                  <div className="flex gap-1 mb-6">
+                    {[...Array(testimonial.rating)].map((_, i) => (
+                      <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                    ))}
                   </div>
-                  <div>
-                    <div className="font-semibold text-gray-900 dark:text-white">
-                      {testimonial.author}
+
+                  {/* Content */}
+                  <blockquote className="flex-1 mb-8">
+                    <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-lg">
+                      "{testimonial.content}"
+                    </p>
+                  </blockquote>
+
+                  {/* Author */}
+                  <div className="flex items-center gap-4 pt-6 border-t border-gray-100 dark:border-gray-800">
+                    <div className="relative h-14 w-14 overflow-hidden rounded-full bg-gradient-to-br from-purple-100 to-blue-100 dark:from-purple-900 dark:to-blue-900 p-0.5">
+                      <div className="h-full w-full rounded-full overflow-hidden bg-white dark:bg-gray-900">
+                        <Image
+                          src={testimonial.image}
+                          alt={testimonial.author}
+                          width={56}
+                          height={56}
+                          className="object-cover w-full h-full"
+                        />
+                      </div>
                     </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      {testimonial.role}
+                    <div>
+                      <div className="font-semibold text-gray-900 dark:text-white text-lg">
+                        {testimonial.author}
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        {testimonial.role}
+                      </div>
+                      <div className="text-xs text-purple-600 dark:text-purple-400 font-medium">
+                        {testimonial.company}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </ReceiptCard>
+              </div>
             </motion.div>
           ))}
         </div>
@@ -184,7 +195,7 @@ export default function TestimonialsSection() {
                     Live metrics
                   </motion.div>
                   <h3 className="text-3xl font-bold text-gray-900 dark:text-white">
-                    Trusted by businesses worldwide
+                    The numbers speak for themselves
                   </h3>
                   <p className="mt-2 text-lg text-gray-600 dark:text-purple-200">
                     Real results from real customers

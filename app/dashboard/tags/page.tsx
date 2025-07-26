@@ -77,6 +77,16 @@ interface TagData {
 }
 
 export default function TagsManagementPage() {
+  // Helper function to handle authentication errors
+  const handleAuthError = (response: Response) => {
+    if (response.status === 401) {
+      toast.error('Please sign in to continue');
+      window.location.href = '/sign-in?returnTo=' + encodeURIComponent(window.location.pathname);
+      return true;
+    }
+    return false;
+  };
+
   const [categories, setCategories] = useState<TagCategory[]>([]);
   const [tags, setTags] = useState<TagData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,6 +143,8 @@ export default function TagsManagementPage() {
       if (categoriesResponse.ok) {
         const categoriesResult = await categoriesResponse.json();
         setCategories(categoriesResult.data || []);
+      } else if (handleAuthError(categoriesResponse)) {
+        return;
       }
 
       // Load tags
@@ -140,6 +152,8 @@ export default function TagsManagementPage() {
       if (tagsResponse.ok) {
         const tagsResult = await tagsResponse.json();
         setTags(tagsResult.data || []);
+      } else if (handleAuthError(tagsResponse)) {
+        return;
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -163,15 +177,11 @@ export default function TagsManagementPage() {
         const result = await response.json();
         toast.success(`Category "${newCategory.name}" created successfully!`);
         loadData();
-        setCategoryDialogOpen(false);
-        setNewCategory({
-          name: "",
-          description: "",
-          color: "#6366f1",
-          required: false,
-          multiple: true
-        });
+        handleCategoryDialogChange(false);
       } else {
+        if (handleAuthError(response)) {
+          return;
+        }
         const error = await response.json();
         toast.error(`Failed to create category: ${error.error || 'Unknown error'}`);
       }
@@ -200,15 +210,7 @@ export default function TagsManagementPage() {
         const result = await response.json();
         toast.success(`Category "${newCategory.name}" updated successfully!`);
         loadData();
-        setCategoryDialogOpen(false);
-        setEditingCategory(null);
-        setNewCategory({
-          name: "",
-          description: "",
-          color: "#6366f1",
-          required: false,
-          multiple: true
-        });
+        handleCategoryDialogChange(false);
       } else {
         const error = await response.json();
         toast.error(`Failed to update category: ${error.error || 'Unknown error'}`);
@@ -265,16 +267,19 @@ export default function TagsManagementPage() {
     setDeleteCategoryDialogOpen(true);
   };
 
-  const handleCategoryDialogClose = () => {
-    setCategoryDialogOpen(false);
-    setEditingCategory(null);
-    setNewCategory({
-      name: "",
-      description: "",
-      color: "#6366f1",
-      required: false,
-      multiple: true
-    });
+  const handleCategoryDialogChange = (open: boolean) => {
+    setCategoryDialogOpen(open);
+    if (!open) {
+      // Only reset form when closing
+      setEditingCategory(null);
+      setNewCategory({
+        name: "",
+        description: "",
+        color: "#6366f1",
+        required: false,
+        multiple: true
+      });
+    }
   };
 
   const createTag = async () => {
@@ -292,13 +297,7 @@ export default function TagsManagementPage() {
         const result = await response.json();
         toast.success(`Tag "${newTag.name}" created successfully!`);
         loadData();
-        setTagDialogOpen(false);
-        setNewTag({
-          name: "",
-          description: "",
-          categoryId: "",
-          color: ""
-        });
+        handleTagDialogChange(false);
       } else {
         const error = await response.json();
         toast.error(`Failed to create tag: ${error.error || 'Unknown error'}`);
@@ -333,14 +332,7 @@ export default function TagsManagementPage() {
         const result = await response.json();
         toast.success(`Tag "${newTag.name}" updated successfully!`);
         loadData();
-        setTagDialogOpen(false);
-        setEditingTag(null);
-        setNewTag({
-          name: "",
-          description: "",
-          categoryId: "",
-          color: ""
-        });
+        handleTagDialogChange(false);
       } else {
         const error = await response.json();
         toast.error(`Failed to update tag: ${error.error || 'Unknown error'}`);
@@ -396,15 +388,18 @@ export default function TagsManagementPage() {
     setDeleteDialogOpen(true);
   };
 
-  const handleDialogClose = () => {
-    setTagDialogOpen(false);
-    setEditingTag(null);
-    setNewTag({
-      name: "",
-      description: "",
-      categoryId: "",
-      color: ""
-    });
+  const handleTagDialogChange = (open: boolean) => {
+    setTagDialogOpen(open);
+    if (!open) {
+      // Only reset form when closing
+      setEditingTag(null);
+      setNewTag({
+        name: "",
+        description: "",
+        categoryId: "",
+        color: ""
+      });
+    }
   };
 
   // Filter tags based on search and category
@@ -446,7 +441,7 @@ export default function TagsManagementPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Dialog open={categoryDialogOpen} onOpenChange={handleCategoryDialogClose}>
+          <Dialog open={categoryDialogOpen} onOpenChange={handleCategoryDialogChange}>
             <DialogTrigger asChild>
               <Button variant="outline" className="border-purple-200 hover:bg-purple-50">
                 <BookOpen className="h-4 w-4 mr-2" />
@@ -534,7 +529,7 @@ export default function TagsManagementPage() {
             </DialogContent>
           </Dialog>
 
-          <Dialog open={tagDialogOpen} onOpenChange={handleDialogClose}>
+          <Dialog open={tagDialogOpen} onOpenChange={handleTagDialogChange}>
             <DialogTrigger asChild>
               <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
                 <Tag className="h-4 w-4 mr-2" />

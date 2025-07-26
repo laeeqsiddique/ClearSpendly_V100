@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
+import { getTenantIdWithFallback } from '@/lib/api-tenant';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,6 +11,7 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createClient();
+    const tenantId = await getTenantIdWithFallback();
     
     // Check current user and membership
     const { data: membership } = await supabase
@@ -41,7 +43,7 @@ export async function GET(request: NextRequest) {
       membership: membership,
       allReceipts: allReceipts || [],
       tenantIds: tenantIds || [],
-      hardcodedTenantId: '00000000-0000-0000-0000-000000000001'
+      currentTenantId: tenantId
     });
 
   } catch (error) {

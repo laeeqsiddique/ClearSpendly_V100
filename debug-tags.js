@@ -10,6 +10,7 @@ async function debugTags() {
     process.env.SUPABASE_SERVICE_ROLE_KEY
   );
 
+  // TODO: Replace with dynamic tenant ID when running script for specific tenant
   const defaultTenantId = '00000000-0000-0000-0000-000000000001';
 
   console.log('🔍 Checking tag categories...');

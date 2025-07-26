@@ -48,6 +48,7 @@ import {
   Download,
   RefreshCw,
   X,
+  PenTool,
   Search,
   FileSpreadsheet,
   Tags,
@@ -58,7 +59,9 @@ import {
   Plus,
   CheckCircle2,
   Edit3,
-  Save
+  Save,
+  Image as ImageIcon,
+  ExternalLink
 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -66,6 +69,7 @@ import * as XLSX from 'xlsx';
 import { TagInput } from '@/components/ui/tag-input';
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 // Simple debounce function
 function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T {
@@ -93,6 +97,9 @@ interface Receipt {
   }>;
   status: string;
   items: number;
+  receipt_type?: 'scanned' | 'manual' | 'imported';
+  manual_entry_reason?: string;
+  business_purpose?: string;
 }
 
 interface ReceiptData {
@@ -105,6 +112,9 @@ interface ReceiptData {
   confidence: number;
   ocr_status: string;
   created_at: string;
+  receipt_type?: 'scanned' | 'manual' | 'imported';
+  manual_entry_reason?: string;
+  business_purpose?: string;
   vendor: {
     id: string;
     name: string;
@@ -233,6 +243,11 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
   const [editingTags, setEditingTags] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   
+  // Delete confirmation state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingReceiptId, setDeletingReceiptId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  
   // Available columns (all possible columns)
   const allAvailableColumns = [
     'Receipt ID', 'Receipt Date', 'Vendor Name', 'Vendor Category',
@@ -306,7 +321,10 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
           amount: receipt.total_amount,
           tags: receipt.tags || [],
           status: receipt.ocr_status || 'processed',
-          items: receipt.lineItems?.length || 0
+          items: receipt.lineItems?.length || 0,
+          receipt_type: receipt.receipt_type || 'scanned',
+          manual_entry_reason: receipt.manual_entry_reason,
+          business_purpose: receipt.business_purpose
         })) || [];
         
         // Calculate stats
@@ -363,6 +381,7 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
       if (response.ok) {
         const result = await response.json();
         console.log('Loaded receipt data:', result.data);
+        console.log('Raw receipt_date from API:', result.data.receipt_date);
         
         // Process line items to handle existing tags
         const processedLineItems = result.data.lineItems?.map((item: any) => ({
@@ -370,8 +389,17 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
           tag: item.tags && item.tags.length > 0 ? item.tags[0].id : undefined
         })) || [];
         
+        // Fix the receipt_date timezone issue
+        let correctedDate = result.data.receipt_date;
+        if (correctedDate && correctedDate.includes('T')) {
+          // If it's an ISO string, extract just the date part
+          correctedDate = correctedDate.split('T')[0];
+          console.log('Corrected date for display:', correctedDate);
+        }
+        
         setEditingReceiptData({
           ...result.data,
+          receipt_date: correctedDate,
           lineItems: processedLineItems
         });
         setEditingNotes(result.data.notes || "");
@@ -515,6 +543,66 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
     });
   };
 
+  const handleDeleteReceipt = (receiptId: string) => {
+    setDeletingReceiptId(receiptId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteReceipt = async () => {
+    if (!deletingReceiptId) return;
+    
+    const receipt = receipts.find(r => r.id === deletingReceiptId);
+    const entryType = receipt?.receipt_type === 'manual' ? 'expense' : 'receipt';
+    
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/receipts/${deletingReceiptId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        toast.success("Entry deleted successfully");
+        setShowDeleteModal(false);
+        setDeletingReceiptId(null);
+        // Refresh the receipts list
+        debouncedSearch(searchQuery, selectedTagIds, selectedTagCategory, 10);
+      } else {
+        const error = await response.json();
+        toast.error(error.message || "Failed to delete entry");
+      }
+    } catch (error) {
+      console.error('Error deleting receipt:', error);
+      toast.error("Failed to delete entry");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleViewImage = async (receiptId: string) => {
+    try {
+      const response = await fetch(`/api/receipts/${receiptId}/image`);
+      
+      if (!response.ok) {
+        const error = await response.json();
+        if (response.status === 404) {
+          toast.error("No image available for this entry");
+        } else {
+          toast.error(error.message || "Failed to load image");
+        }
+        return;
+      }
+
+      const result = await response.json();
+      
+      // Open image in new tab
+      window.open(result.imageUrl, '_blank');
+      
+    } catch (error) {
+      console.error('Error viewing image:', error);
+      toast.error("Failed to load image");
+    }
+  };
+
   const handleSaveReceipt = async () => {
     if (!editingReceiptData) return;
     
@@ -544,7 +632,7 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
     try {
       const updates = {
         vendor: editingReceiptData.vendor.name,
-        receipt_date: editingReceiptData.receipt_date,
+        receipt_date: editingReceiptData.receipt_date, // Date is already in YYYY-MM-DD format
         total_amount: editingReceiptData.total_amount,
         tax_amount: editingReceiptData.tax_amount,
         notes: editingNotes,
@@ -827,10 +915,10 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
           <div>
             <CardTitle className="flex items-center gap-2">
               <Receipt className="h-5 w-5" />
-              Recent Receipts
+              Expenses & Receipts
             </CardTitle>
             <CardDescription>
-              {stats.totalReceipts} receipts • ${stats.totalAmount.toFixed(2)} total
+              {stats.totalReceipts} entries • ${stats.totalAmount.toFixed(2)} total
               {(searchQuery || selectedTagIds.length > 0 || globalStartDate || globalEndDate) && (
                 <span className="text-purple-600 ml-2">(filtered)</span>
               )}
@@ -1436,6 +1524,7 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                         Tags
                       </div>
                     </TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Items</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-[100px]">Actions</TableHead>
@@ -1443,21 +1532,81 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                 </TableHeader>
                 <TableBody>
                   {receipts.map((receipt) => (
-                    <TableRow key={receipt.id} className="hover:bg-muted/50">
+                    <TableRow 
+                      key={receipt.id} 
+                      className={cn(
+                        "hover:bg-muted/50 transition-colors",
+                        receipt.receipt_type === 'manual' && "bg-gradient-to-r from-purple-50 to-blue-50 border-l-4 border-l-purple-400"
+                      )}
+                    >
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-100 to-blue-100 flex items-center justify-center">
-                            <Store className="h-4 w-4 text-purple-600" />
+                          <div className={cn(
+                            "w-10 h-10 rounded-full flex items-center justify-center shadow-sm",
+                            receipt.receipt_type === 'manual' 
+                              ? "bg-gradient-to-r from-purple-500 to-blue-500" 
+                              : "bg-gradient-to-r from-purple-100 to-blue-100"
+                          )}>
+                            {receipt.receipt_type === 'manual' ? (
+                              <PenTool className="h-5 w-5 text-white" />
+                            ) : (
+                              <Store className="h-4 w-4 text-purple-600" />
+                            )}
                           </div>
-                          {receipt.vendor}
+                          <div className="flex flex-col">
+                            <span>{receipt.vendor}</span>
+                            {receipt.receipt_type === 'manual' && receipt.manual_entry_reason && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200">
+                                  Manual Entry
+                                </span>
+                                <span 
+                                  className="text-xs text-gray-500" 
+                                  title={`Reason: ${receipt.manual_entry_reason.replace(/_/g, ' ')}`}
+                                >
+                                  • {receipt.manual_entry_reason.replace(/_/g, ' ')}
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        {new Date(receipt.date).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric"
-                        })}
+                        {(() => {
+                          // Fix timezone issue: parse date correctly to avoid day shift
+                          const dateStr = receipt.date;
+                          if (!dateStr) return "Invalid Date";
+                          
+                          // If it's in YYYY-MM-DD format, parse it as local date
+                          if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                            const [year, month, day] = dateStr.split('-').map(Number);
+                            const localDate = new Date(year, month - 1, day); // month is 0-indexed
+                            return localDate.toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric", 
+                              year: "numeric"
+                            });
+                          }
+                          
+                          // If it contains 'T', extract date part and parse as local
+                          if (dateStr.includes('T')) {
+                            const datePart = dateStr.split('T')[0];
+                            const [year, month, day] = datePart.split('-').map(Number);
+                            const localDate = new Date(year, month - 1, day);
+                            return localDate.toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric"
+                            });
+                          }
+                          
+                          // Fallback to regular parsing
+                          return new Date(dateStr).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric"
+                          });
+                        })()}
                       </TableCell>
                       <TableCell className="font-mono font-medium">
                         ${receipt.amount.toFixed(2)}
@@ -1491,27 +1640,75 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                         </div>
                       </TableCell>
                       <TableCell>
+                        <div className="flex items-center gap-2">
+                          {receipt.receipt_type === 'manual' ? (
+                            <>
+                              <div className="w-6 h-6 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center">
+                                <PenTool className="h-3 w-3 text-white" />
+                              </div>
+                              <span className="text-sm font-medium text-purple-700">Manual</span>
+                            </>
+                          ) : (
+                            <>
+                              <div className="w-6 h-6 rounded-full bg-gradient-to-r from-green-100 to-emerald-100 flex items-center justify-center">
+                                <Receipt className="h-3 w-3 text-green-600" />
+                              </div>
+                              <span className="text-sm font-medium text-green-700">Receipt</span>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
                         <span className="text-muted-foreground">
                           {receipt.items} item{receipt.items !== 1 ? 's' : ''}
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Badge 
-                          variant="secondary"
-                          className={statusColors[receipt.status as keyof typeof statusColors] || statusColors["processed"]}
-                        >
-                          {receipt.status}
-                        </Badge>
+                        {receipt.receipt_type === 'manual' ? (
+                          <Badge className="text-xs bg-gradient-to-r from-purple-500 to-blue-500 text-white border-0 shadow-sm">
+                            Manual Entry
+                          </Badge>
+                        ) : (
+                          <Badge 
+                            variant="secondary"
+                            className={statusColors[receipt.status as keyof typeof statusColors] || statusColors["processed"]}
+                          >
+                            {receipt.status}
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditReceipt(receipt.id)}
-                          className="h-8 w-8 p-0 hover:bg-purple-50"
-                        >
-                          <Edit3 className="h-4 w-4 text-purple-600" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          {(!receipt.receipt_type || receipt.receipt_type === 'scanned') && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewImage(receipt.id)}
+                              className="h-8 w-8 p-0 hover:bg-blue-50"
+                              title="View Image"
+                            >
+                              <ImageIcon className="h-4 w-4 text-blue-600" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditReceipt(receipt.id)}
+                            className="h-8 w-8 p-0 hover:bg-purple-50"
+                            title="Edit"
+                          >
+                            <Edit3 className="h-4 w-4 text-purple-600" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteReceipt(receipt.id)}
+                            className="h-8 w-8 p-0 hover:bg-red-50"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1528,18 +1725,18 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Edit3 className="h-5 w-5 text-purple-600" />
-              Edit Receipt
+              Edit Entry
             </DialogTitle>
             <DialogDescription>
-              Update receipt information, line items, and tags
+              Update entry information, line items, and tags
             </DialogDescription>
           </DialogHeader>
 
           {editingReceiptData && (
             <div className="space-y-6">
-              {/* Receipt Header Card */}
+              {/* Entry Header Card */}
               <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
-                <h3 className="font-medium text-gray-900">Receipt Information</h3>
+                <h3 className="font-medium text-gray-900">Entry Information</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="vendor">Vendor</Label>
@@ -1557,11 +1754,13 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                     <Input
                       id="receipt_date"
                       type="date"
-                      value={editingReceiptData.receipt_date ? editingReceiptData.receipt_date.split('T')[0] : ""}
-                      onChange={(e) => setEditingReceiptData({
-                        ...editingReceiptData,
-                        receipt_date: e.target.value
-                      })}
+                      value={editingReceiptData.receipt_date || ""}
+                      onChange={(e) => {
+                        setEditingReceiptData({
+                          ...editingReceiptData,
+                          receipt_date: e.target.value
+                        });
+                      }}
                     />
                   </div>
                   <div>
@@ -1593,9 +1792,9 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                 </div>
               </div>
 
-              {/* Receipt Tags Card */}
+              {/* Entry Tags Card */}
               <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
-                <h3 className="font-medium text-gray-900">Receipt Tags</h3>
+                <h3 className="font-medium text-gray-900">Entry Tags</h3>
                 <TagInput
                   selectedTags={editingTags}
                   onTagsChange={(newTags) => {
@@ -1619,7 +1818,7 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                     autoApplyHeaderTagsToLineItems(validTags);
                   }}
                   categories={tagCategories}
-                  placeholder="Add tags to this receipt..."
+                  placeholder="Add tags to this entry..."
                 />
               </div>
 
@@ -1629,7 +1828,7 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                 <Textarea
                   value={editingNotes}
                   onChange={(e) => setEditingNotes(e.target.value)}
-                  placeholder="Add notes about this receipt..."
+                  placeholder="Add notes about this entry..."
                   rows={3}
                 />
               </div>
@@ -1771,9 +1970,103 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
               >
                 <Save className="h-4 w-4 mr-2" />
-                {saving ? "Saving..." : "Save Receipt"}
+                {saving ? "Saving..." : "Save Changes"}
               </Button>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="h-5 w-5" />
+              Confirm Deletion
+            </DialogTitle>
+            <DialogDescription>
+              {(() => {
+                const receipt = receipts.find(r => r.id === deletingReceiptId);
+                const entryType = receipt?.receipt_type === 'manual' ? 'expense' : 'receipt';
+                return `Are you sure you want to delete this ${entryType}? This action cannot be undone.`;
+              })()}
+            </DialogDescription>
+          </DialogHeader>
+
+          {deletingReceiptId && (() => {
+            const receipt = receipts.find(r => r.id === deletingReceiptId);
+            if (!receipt) return null;
+            
+            return (
+              <div className="bg-gray-50 rounded-lg p-4 my-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-100 to-blue-100 flex items-center justify-center">
+                    {receipt.receipt_type === 'manual' ? (
+                      <PenTool className="h-5 w-5 text-blue-600" />
+                    ) : (
+                      <Store className="h-5 w-5 text-purple-600" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900">{receipt.vendor}</div>
+                    <div className="text-sm text-gray-500">
+                      {(() => {
+                        const dateStr = receipt.date;
+                        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                          const [year, month, day] = dateStr.split('-').map(Number);
+                          const localDate = new Date(year, month - 1, day);
+                          return localDate.toLocaleDateString();
+                        }
+                        if (dateStr.includes('T')) {
+                          const datePart = dateStr.split('T')[0];
+                          const [year, month, day] = datePart.split('-').map(Number);
+                          const localDate = new Date(year, month - 1, day);
+                          return localDate.toLocaleDateString();
+                        }
+                        return new Date(dateStr).toLocaleDateString();
+                      })()} • ${receipt.amount.toFixed(2)}
+                    </div>
+                    {receipt.receipt_type === 'manual' && receipt.manual_entry_reason && (
+                      <div className="text-xs text-blue-600 mt-1">
+                        Manual: {receipt.manual_entry_reason.replace(/_/g, ' ')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteModal(false);
+                setDeletingReceiptId(null);
+              }}
+              disabled={deleting}
+              className="border-gray-200 hover:bg-gray-50"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmDeleteReceipt}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleting ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </>
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

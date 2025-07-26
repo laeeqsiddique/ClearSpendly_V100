@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getTenantIdWithFallback } from '@/lib/api-tenant';
 
 export async function GET(req: NextRequest) {
   try {
@@ -8,7 +9,7 @@ export async function GET(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    const tenantId = await getTenantIdWithFallback();
 
     // Get the tag that's being used in receipt_item_tag
     const { data: tagDetails, error: tagError } = await supabase
@@ -52,7 +53,7 @@ export async function GET(req: NextRequest) {
           )
         )
       `)
-      .eq('tenant_id', defaultTenantId)
+      .eq('tenant_id', tenantId)
       .limit(3);
 
     console.log('Tagged receipt items:', { itemError, itemCount: taggedReceiptItems?.length });

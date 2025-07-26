@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getTenantIdWithFallback } from "@/lib/api-tenant";
 
 // Simple Levenshtein distance calculation for fuzzy matching
 function levenshteinDistance(str1: string, str2: string): number {
@@ -63,14 +64,14 @@ export async function GET(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // For now, use default tenant ID until auth is fully set up
-    const defaultTenantId = '00000000-0000-0000-0000-000000000001';
+    // Get the current tenant ID for the authenticated user
+    const tenantId = await getTenantIdWithFallback();
 
     // Get all vendors for this tenant
     const { data: vendors, error } = await supabase
       .from('vendor')
       .select('id, name, normalized_name, category')
-      .eq('tenant_id', defaultTenantId);
+      .eq('tenant_id', tenantId);
 
     if (error) {
       console.error('Error fetching vendors:', error);
