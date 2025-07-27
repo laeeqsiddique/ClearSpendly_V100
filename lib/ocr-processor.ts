@@ -814,7 +814,7 @@ export class OCRProcessor {
     return matrix[str2.length][str1.length];
   }
 
-  private async convertPdfToImage(pdfFile: File): Promise<string> {
+  public async convertPdfToImage(pdfFile: File): Promise<string> {
     try {
       const arrayBuffer = await pdfFile.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;

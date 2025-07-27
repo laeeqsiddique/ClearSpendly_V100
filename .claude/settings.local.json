@@ -8,7 +8,8 @@
       "Bash(mkdir:*)",
       "Bash(node:*)",
       "Bash(npx tsc:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npm install:*)"
     ],
     "deny": []
   }

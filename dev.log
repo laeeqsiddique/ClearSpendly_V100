@@ -41,3 +41,23 @@
  ✓ Compiled middleware in 9ms
  ✓ Compiled middleware in 4ms
  ✓ Compiled middleware in 9ms
+ ✓ Compiled middleware in 18ms
+   Reload env: .env.local
+ ✓ Compiled middleware in 7ms
+   Reload env: .env.local
+   Reload env: .env.local
+   Reload env: .env.local
+   Reload env: .env.local
+   Reload env: .env.local
+   Reload env: .env.local
+   Reload env: .env.local
+ ⚠ Found a change in next.config.ts. Restarting the server to apply the changes...
+   ▲ Next.js 15.3.1 (Turbopack)
+   - Local:        http://localhost:3001
+   - Network:      http://169.254.253.134:3001
+   - Environments: .env.local
+
+ ✓ Starting...
+ ○ Compiling middleware ...
+ ✓ Compiled middleware in 2.6s
+ ✓ Ready in 8s

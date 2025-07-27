@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { TagInput } from "@/components/ui/tag-input";
 import AIChatAgent from '@/components/ai-chat-agent';
+// Removed AI status debug - using simplified Vision API approach
 import { 
   Receipt, 
   Upload, 
@@ -70,6 +71,7 @@ interface UploadedReceipt {
   uploadedAt: Date;
   ocrStatus: 'pending' | 'processing' | 'completed' | 'failed';
   extractedData?: ExtractedData;
+  saved?: boolean; // Track if receipt has been saved to database
 }
 
 interface TagCategory {
@@ -241,31 +243,51 @@ export default function UploadPage() {
       try {
         updateProgress('Initializing browser OCR...', 10);
         const isPdf = file.type === 'application/pdf';
-        toast.info(isPdf ? 'Converting PDF and starting OCR processing...' : 'Starting browser-based OCR processing...');
+        // Starting processing silently
         
         // Dynamic import to avoid server-side issues
-        const { getOCRProcessor } = await import('@/lib/ocr-processor');
-        const ocrProcessor = getOCRProcessor();
+        const { SimplifiedOCRProcessor } = await import('@/lib/ai-ocr/enhanced-processor');
+        const ocrProcessor = new SimplifiedOCRProcessor(); // Uses OpenAI for AI enhancement
         
         if (isPdf) {
           updateProgress('Converting PDF to image...', 20);
           await new Promise(resolve => setTimeout(resolve, 500)); // Allow UI update
-          updateProgress('Extracting text from PDF...', 60);
+          updateProgress('Extracting text from PDF...', 40);
         } else {
           updateProgress('Preprocessing image...', 30);
           await new Promise(resolve => setTimeout(resolve, 500)); // Allow UI update
-          updateProgress('Extracting text...', 60);
+          updateProgress('Extracting text...', 40);
         }
         
+        // Smart processing with automatic AI enhancement
+        updateProgress('🧠 Processing with smart AI enhancement...', 50);
+        
         result = await ocrProcessor.processImage(file);
-        processingMethod = 'browser';
+        processingMethod = ocrProcessor.isAIEnabled() ? 'ai-enhanced' : 'browser';
         
         updateProgress('Analyzing results...', 90);
         
-        // If confidence is too low, try server-side processing
-        if (result.confidence < 50) {
-          updateProgress('Low confidence detected, switching to AI...', 95);
-          throw new Error('Low confidence, attempting server-side processing');
+        // Update progress with confidence level
+        const confidenceEmoji = result.confidence > 85 ? '🎯' : result.confidence > 70 ? '✓' : '⚠️';
+        updateProgress(`${confidenceEmoji} Processing complete (${result.confidence}% confidence)`, 95);
+        
+        // Special handling for PDFs - always use Vision API since OCR struggles with PDFs
+        if (file.type === 'application/pdf') {
+          console.log(`📄 PDF detected - forcing Vision API for better accuracy`);
+          updateProgress('PDF detected, using OpenAI Vision API...', 95);
+          throw new Error('PDF requires Vision API processing');
+        }
+        
+        // If confidence is too low OR few items detected, try server-side processing
+        const itemCount = result.lineItems?.length || 0;
+        const avgItemPrice = result.totalAmount / Math.max(itemCount, 1);
+        const shouldUseFallback = result.confidence < 75 || (itemCount <= 5 && avgItemPrice > 6);
+        
+        if (shouldUseFallback) {
+          const reason = result.confidence < 75 ? 'low confidence' : 'suspicious item count/pricing detected';
+          console.log(`🔍 Fallback trigger: ${itemCount} items, $${result.totalAmount} total, avg $${avgItemPrice.toFixed(2)} per item`);
+          updateProgress(`${reason.charAt(0).toUpperCase() + reason.slice(1)}, trying OpenAI Vision API...`, 95);
+          throw new Error(`${reason}, attempting server-side processing`);
         }
         
         updateProgress('Processing complete!', 100);
@@ -273,22 +295,50 @@ export default function UploadPage() {
         console.warn('Client-side OCR failed or low confidence, trying server-side:', clientError);
         
         try {
-          updateProgress('Connecting to AI server...', 20);
-          toast.info('Switching to AI-powered server processing...');
+          updateProgress('🔥 Upgrading to OpenAI Vision API...', 20);
           
           // Convert file to base64 for server processing
           updateProgress('Preparing image data...', 40);
-          const reader = new FileReader();
-          const base64Promise = new Promise<string>((resolve, reject) => {
-            reader.onload = () => {
-              const result = reader.result as string;
-              resolve(result);
-            };
-            reader.onerror = reject;
-          });
-          reader.readAsDataURL(file);
           
-          const imageData = await base64Promise;
+          let imageData: string;
+          
+          // If it's a PDF, we need to convert it to image first
+          if (file.type === 'application/pdf') {
+            console.log('📄 Converting PDF to image for Vision API...');
+            updateProgress('Converting PDF to image...', 45);
+            
+            try {
+              // Use the same PDF conversion as the OCR processor
+              const { SimplifiedOCRProcessor } = await import('@/lib/ai-ocr/enhanced-processor');
+              const tempProcessor = new SimplifiedOCRProcessor();
+              await tempProcessor.initialize();
+              
+              // Convert PDF to image (this returns a data URL)
+              imageData = await tempProcessor.convertPdfToImage(file);
+              console.log('✅ PDF converted to image for Vision API');
+              console.log('🔍 Converted image type:', imageData.substring(0, 50) + '...');
+              
+              // Verify it's actually an image now
+              if (!imageData.startsWith('data:image/')) {
+                throw new Error('PDF conversion did not produce a valid image');
+              }
+            } catch (pdfError) {
+              console.error('❌ PDF conversion failed:', pdfError);
+              throw new Error(`PDF conversion failed: ${pdfError.message}`);
+            }
+          } else {
+            // For regular images, just convert to base64
+            const reader = new FileReader();
+            const base64Promise = new Promise<string>((resolve, reject) => {
+              reader.onload = () => {
+                const result = reader.result as string;
+                resolve(result);
+              };
+              reader.onerror = reject;
+            });
+            reader.readAsDataURL(file);
+            imageData = await base64Promise;
+          }
           
           updateProgress('Sending to AI processor...', 60);
           
@@ -310,8 +360,8 @@ export default function UploadPage() {
           const serverResult = await response.json();
           if (serverResult.success) {
             result = serverResult.data;
-            processingMethod = serverResult.source === 'ollama' ? 'local-ai' : 'cloud-ai';
-            updateProgress('AI processing complete!', 100);
+            processingMethod = 'openai-vision';
+            updateProgress('🔥 OpenAI Vision API processing complete!', 100);
           } else {
             throw new Error('Server processing returned unsuccessful result');
           }
@@ -352,12 +402,19 @@ export default function UploadPage() {
         : '';
       
       const methodMsg = processingMethod === 'browser' 
-        ? ' (Browser OCR)'
-        : processingMethod === 'local-ai'
-        ? ' (Local AI)'
-        : ' (Cloud AI)';
+        ? ' (Smart OCR)'
+        : processingMethod === 'ai-enhanced'
+        ? ' (AI Enhanced)'
+        : processingMethod === 'openai-vision'
+        ? ' 🔥 (Vision AI)'
+        : ' (AI Processed)';
       
-      toast.success(`Receipt processed with ${Math.round(result.confidence)}% confidence!${confidenceMsg}${methodMsg} Click "Review & Edit" to verify data.`);
+      // Final success notification
+      updateProgress('✅ Receipt processed successfully!', 100);
+      
+      // Clean, concise success message
+      const shortMethodMsg = processingMethod === 'openai-vision' ? ' 🔥' : '';
+      toast.success(`Receipt processed${shortMethodMsg} - ${Math.round(result.confidence)}% confidence. Click "Review & Edit" to verify.`);
       
       // Clean up progress tracking
       setOcrProgress(prev => {
@@ -598,6 +655,167 @@ export default function UploadPage() {
     }
   };
 
+  const saveAllReceipts = async () => {
+    const completedReceipts = uploadedReceipts.filter(r => r.ocrStatus === 'completed' && r.extractedData);
+    
+    if (completedReceipts.length === 0) {
+      toast.error("No completed receipts to save");
+      return;
+    }
+
+    setSaving(true);
+    let savedCount = 0;
+    let errorCount = 0;
+
+    try {
+      for (const receipt of completedReceipts) {
+        try {
+          const extractedData = receipt.extractedData!;
+          
+          // Clean line items to ensure they're serializable
+          const cleanLineItems = extractedData.lineItems.map(item => ({
+            description: String(item.description || ''),
+            quantity: Number(item.quantity || 1),
+            unitPrice: Number(item.unitPrice || 0),
+            totalPrice: Number(item.totalPrice || 0),
+            category: 'Other', // Default category since we're using tags instead
+            tag: item.tag || undefined // Single tag ID
+          }));
+
+          // Prepare data for saving
+          const saveData = {
+            vendor: String(extractedData.vendor || ''),
+            date: String(extractedData.date || ''),
+            totalAmount: Number(extractedData.totalAmount || 0),
+            subtotal: Number(extractedData.subtotal || 0),
+            tax: Number(extractedData.tax || 0),
+            currency: 'USD',
+            category: 'Other', // Default vendor category
+            lineItems: cleanLineItems,
+            notes: String(extractedData.notes || ''),
+            tags: extractedData.tags?.map(tag => typeof tag === 'string' ? tag : tag.id) || [] // Include selected tag IDs
+          };
+
+          // Call the save-receipt API
+          const response = await fetch('/api/save-receipt', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              ...saveData,
+              imageUrl: receipt.imageUrl || 'placeholder',
+              confidence: 85, // Default confidence score
+              forceSave: true // Force save for bulk operations
+            }),
+          });
+
+          const result = await response.json();
+
+          if (!response.ok) {
+            throw new Error(result.error || 'Failed to save receipt');
+          }
+
+          // Update local state to mark as saved
+          setUploadedReceipts(prev =>
+            prev.map(r =>
+              r.id === receipt.id
+                ? { ...r, saved: true }
+                : r
+            )
+          );
+
+          savedCount++;
+        } catch (error) {
+          console.error(`Failed to save receipt ${receipt.name}:`, error);
+          errorCount++;
+        }
+      }
+
+      if (savedCount > 0) {
+        toast.success(`Successfully saved ${savedCount} ${savedCount === 1 ? 'receipt' : 'receipts'}!`);
+      }
+      
+      if (errorCount > 0) {
+        toast.error(`Failed to save ${errorCount} ${errorCount === 1 ? 'receipt' : 'receipts'}`);
+      }
+    } catch (error) {
+      console.error('Bulk save error:', error);
+      toast.error("Failed to save receipts");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveIndividualReceipt = async (receipt: UploadedReceipt) => {
+    if (!receipt.extractedData) return;
+    
+    setSaving(true);
+    try {
+      const extractedData = receipt.extractedData;
+      
+      // Clean line items to ensure they're serializable
+      const cleanLineItems = extractedData.lineItems.map(item => ({
+        description: String(item.description || ''),
+        quantity: Number(item.quantity || 1),
+        unitPrice: Number(item.unitPrice || 0),
+        totalPrice: Number(item.totalPrice || 0),
+        category: 'Other', // Default category since we're using tags instead
+        tag: item.tag || undefined // Single tag ID
+      }));
+
+      // Prepare data for saving
+      const saveData = {
+        vendor: String(extractedData.vendor || ''),
+        date: String(extractedData.date || ''),
+        totalAmount: Number(extractedData.totalAmount || 0),
+        subtotal: Number(extractedData.subtotal || 0),
+        tax: Number(extractedData.tax || 0),
+        currency: 'USD',
+        category: 'Other', // Default vendor category
+        lineItems: cleanLineItems,
+        notes: String(extractedData.notes || ''),
+        tags: extractedData.tags?.map(tag => typeof tag === 'string' ? tag : tag.id) || [] // Include selected tag IDs
+      };
+
+      // Call the save-receipt API
+      const response = await fetch('/api/save-receipt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...saveData,
+          imageUrl: receipt.imageUrl || 'placeholder',
+          confidence: 85, // Default confidence score
+          forceSave: true // Force save for individual operations
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to save receipt');
+      }
+
+      // Update local state to mark as saved
+      setUploadedReceipts(prev =>
+        prev.map(r =>
+          r.id === receipt.id
+            ? { ...r, saved: true }
+            : r
+        )
+      );
+
+      toast.success(`${receipt.extractedData.vendor} receipt saved successfully!`);
+    } catch (error) {
+      console.error('Save individual receipt error:', error);
+      toast.error("Failed to save receipt");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const removeFile = (id: string) => {
     setUploadedReceipts((prev) => prev.filter((file) => file.id !== id));
   };
@@ -625,6 +843,8 @@ export default function UploadPage() {
                   Upload and scan receipts with AI-powered data extraction
                 </p>
               </div>
+              
+              {/* AI processing now integrated seamlessly */}
             </div>
 
             {/* Upload Area */}
@@ -718,15 +938,47 @@ export default function UploadPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Total: </span>
-                    <span className="text-lg font-bold text-green-600">
-                      ${uploadedReceipts.reduce((sum, receipt) => 
-                        sum + (receipt.extractedData?.totalAmount || 0), 0
-                      ).toFixed(2)}
-                    </span>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">Total: </span>
+                      <span className="text-lg font-bold text-green-600">
+                        ${uploadedReceipts.reduce((sum, receipt) => 
+                          sum + (receipt.extractedData?.totalAmount || 0), 0
+                        ).toFixed(2)}
+                      </span>
+                    </div>
+                    {uploadedReceipts.some(r => r.ocrStatus === 'completed') && (
+                      <Button
+                        onClick={saveAllReceipts}
+                        disabled={saving}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        {saving ? "Saving..." : "Save All"}
+                      </Button>
+                    )}
                   </div>
                 </div>
+                
+                {/* Recommendation Message */}
+                {uploadedReceipts.some(r => r.ocrStatus === 'completed') && (
+                  <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center mt-0.5">
+                        <Sparkles className="h-3 w-3 text-blue-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium text-blue-900 mb-1">
+                          💡 Pro Tip: Review Before Saving
+                        </h4>
+                        <p className="text-sm text-blue-700">
+                          It's recommended to review and edit line items for accuracy before saving. 
+                          Click "Review" on each receipt to verify extracted data and add tags.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {uploadedReceipts.map((receipt) => (
@@ -858,14 +1110,25 @@ export default function UploadPage() {
                             View
                           </Button>
                           {receipt.ocrStatus === 'completed' && (
-                            <Button
-                              size="sm"
-                              onClick={() => openEditModal(receipt)}
-                              className="flex-1 bg-purple-600 hover:bg-purple-700"
-                            >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Review
-                            </Button>
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() => openEditModal(receipt)}
+                                className="flex-1 bg-purple-600 hover:bg-purple-700"
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Review
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => saveIndividualReceipt(receipt)}
+                                disabled={saving || receipt.saved}
+                                className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400"
+                              >
+                                <Save className="h-4 w-4 mr-1" />
+                                {receipt.saved ? "Saved" : "Save"}
+                              </Button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -883,24 +1146,26 @@ export default function UploadPage() {
     {selectedReceipt && (
         <div className="fixed inset-0 z-50 flex">
           {/* Backdrop - only covers the left side */}
-          <div className="flex-1 bg-black/20" onClick={closeEditModal} />
+          <div className="flex-1 bg-black/30 backdrop-blur-sm" onClick={closeEditModal} />
           
           {/* Side Panel */}
-          <div className="w-full max-w-2xl bg-white shadow-xl flex flex-col">
+          <div className="w-full max-w-2xl bg-gradient-to-br from-purple-50 via-white to-blue-50 shadow-2xl flex flex-col">
             {/* Header */}
-            <div className="px-6 py-4 border-b bg-gray-50">
+            <div className="px-6 py-6 border-b border-purple-100 bg-gradient-to-r from-purple-600 to-blue-600">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Receipt className="h-5 w-5 text-purple-600" />
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                    <Receipt className="h-6 w-6 text-white" />
+                  </div>
                   <div>
-                    <h2 className="text-lg font-semibold">Edit Receipt</h2>
-                    <p className="text-sm text-gray-600">
+                    <h2 className="text-xl font-bold text-white">Edit Receipt</h2>
+                    <p className="text-purple-100">
                       {editingData?.vendor || 'Unknown Vendor'} • {editingData?.date ? new Date(editingData.date).toLocaleDateString() : 'No Date'}
                     </p>
                   </div>
                 </div>
-                <Button variant="ghost" size="sm" onClick={closeEditModal}>
-                  <X className="h-4 w-4" />
+                <Button variant="ghost" size="sm" onClick={closeEditModal} className="text-white hover:bg-white/20">
+                  <X className="h-5 w-5" />
                 </Button>
               </div>
             </div>
@@ -910,56 +1175,78 @@ export default function UploadPage() {
               {editingData && (
                 <>
                   {/* Basic Info Card */}
-                  <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
-                    <h3 className="font-medium text-gray-900">Receipt Details</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="vendor" className="text-sm font-medium">Vendor</Label>
+                  <div className="bg-white/80 backdrop-blur-sm border border-purple-200 rounded-xl shadow-lg p-6 space-y-4">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
+                        <Store className="h-4 w-4 text-white" />
+                      </div>
+                      <h3 className="text-lg font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Receipt Details</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="vendor" className="text-sm font-medium text-purple-700 flex items-center gap-2">
+                          <Store className="h-4 w-4" />
+                          Vendor
+                        </Label>
                         <Input
                           id="vendor"
                           value={editingData.vendor}
                           onChange={(e) => setEditingData({...editingData, vendor: e.target.value})}
-                          className="mt-1"
+                          className="border-purple-200 focus:border-purple-500 focus:ring-purple-500"
                         />
                       </div>
-                      <div>
-                        <Label htmlFor="date" className="text-sm font-medium">Date</Label>
+                      <div className="space-y-2">
+                        <Label htmlFor="date" className="text-sm font-medium text-purple-700 flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          Date
+                        </Label>
                         <Input
                           id="date"
                           type="date"
                           value={editingData.date}
                           onChange={(e) => setEditingData({...editingData, date: e.target.value})}
-                          className="mt-1"
+                          className="border-purple-200 focus:border-purple-500 focus:ring-purple-500"
                         />
                       </div>
-                      <div>
-                        <Label htmlFor="total" className="text-sm font-medium">Total Amount</Label>
+                      <div className="space-y-2">
+                        <Label htmlFor="total" className="text-sm font-medium text-purple-700 flex items-center gap-2">
+                          <DollarSign className="h-4 w-4" />
+                          Total Amount
+                        </Label>
                         <Input
                           id="total"
                           type="number"
                           step="0.01"
                           value={editingData.totalAmount}
                           onChange={(e) => setEditingData({...editingData, totalAmount: parseFloat(e.target.value) || 0})}
-                          className="mt-1"
+                          className="border-purple-200 focus:border-purple-500 focus:ring-purple-500"
                         />
                       </div>
-                      <div>
-                        <Label htmlFor="tax" className="text-sm font-medium">Tax</Label>
+                      <div className="space-y-2">
+                        <Label htmlFor="tax" className="text-sm font-medium text-purple-700 flex items-center gap-2">
+                          <Receipt className="h-4 w-4" />
+                          Tax
+                        </Label>
                         <Input
                           id="tax"
                           type="number"
                           step="0.01"
                           value={editingData.tax}
                           onChange={(e) => setEditingData({...editingData, tax: parseFloat(e.target.value) || 0})}
-                          className="mt-1"
+                          className="border-purple-200 focus:border-purple-500 focus:ring-purple-500"
                         />
                       </div>
                     </div>
                   </div>
 
                   {/* Tags Card */}
-                  <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
-                    <h3 className="font-medium text-gray-900">Tags</h3>
+                  <div className="bg-white/80 backdrop-blur-sm border border-purple-200 rounded-xl shadow-lg p-6 space-y-4">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
+                        <Tag className="h-4 w-4 text-white" />
+                      </div>
+                      <h3 className="text-lg font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Tags</h3>
+                    </div>
                     <TagInput
                       selectedTags={selectedTags}
                       onTagsChange={(tags) => {
@@ -1009,17 +1296,22 @@ export default function UploadPage() {
                   </div>
 
                   {/* Line Items Card */}
-                  <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-medium text-gray-900">Line Items</h3>
-                      <Button onClick={addLineItem} size="sm" variant="outline">
+                  <div className="bg-white/80 backdrop-blur-sm border border-purple-200 rounded-xl shadow-lg p-6 space-y-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
+                          <Receipt className="h-4 w-4 text-white" />
+                        </div>
+                        <h3 className="text-lg font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Line Items</h3>
+                      </div>
+                      <Button onClick={addLineItem} size="sm" className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0">
                         <Plus className="h-4 w-4 mr-2" />
                         Add Item
                       </Button>
                     </div>
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {editingData.lineItems.map((item) => (
-                        <div key={item.id} className="border border-gray-200 rounded-lg p-3 space-y-3">
+                        <div key={item.id} className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-xl p-4 space-y-3 hover:shadow-md transition-all duration-200">
                           <div className="flex items-center justify-between">
                             <Input
                               value={item.description}
@@ -1031,13 +1323,14 @@ export default function UploadPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => removeLineItem(item.id)}
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
                             >
-                              <X className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
-                          <div className="grid grid-cols-3 gap-2">
+                          <div className="grid grid-cols-3 gap-3">
                             <div>
-                              <Label className="text-xs">Quantity</Label>
+                              <Label className="text-xs font-medium text-purple-700">Quantity</Label>
                               <Input
                                 type="number"
                                 value={item.quantity}
@@ -1046,7 +1339,7 @@ export default function UploadPage() {
                               />
                             </div>
                             <div>
-                              <Label className="text-xs">Unit Price</Label>
+                              <Label className="text-xs font-medium text-purple-700">Unit Price</Label>
                               <Input
                                 type="number"
                                 step="0.01"
@@ -1056,7 +1349,7 @@ export default function UploadPage() {
                               />
                             </div>
                             <div>
-                              <Label className="text-xs">Total</Label>
+                              <Label className="text-xs font-medium text-purple-700">Total</Label>
                               <Input
                                 type="number"
                                 step="0.01"
@@ -1067,7 +1360,7 @@ export default function UploadPage() {
                             </div>
                           </div>
                           <div>
-                            <Label className="text-xs">Tag (Choose one)</Label>
+                            <Label className="text-xs font-medium text-purple-700">Tag (Choose one)</Label>
                             <Select
                               value={item.tag || "none"}
                               onValueChange={(value) => updateLineItemTag(item.id, value === "none" ? undefined : value)}
@@ -1109,11 +1402,20 @@ export default function UploadPage() {
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t bg-gray-50 flex justify-between">
-              <Button variant="outline" onClick={closeEditModal}>
+            <div className="px-6 py-6 border-t border-purple-100 bg-gradient-to-r from-purple-50 to-blue-50 flex justify-between items-center">
+              <Button 
+                variant="outline" 
+                onClick={closeEditModal}
+                className="border-purple-300 text-purple-700 hover:bg-purple-50"
+              >
                 Cancel
               </Button>
-              <Button onClick={saveReceipt} disabled={saving}>
+              <Button 
+                onClick={saveReceipt} 
+                disabled={saving}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0 px-8"
+              >
+                <Save className="h-4 w-4 mr-2" />
                 {saving ? "Saving..." : "Save Receipt"}
               </Button>
             </div>

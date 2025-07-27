@@ -69,11 +69,6 @@ const navSections: NavSection[] = [
         icon: HomeIcon,
       },
       {
-        label: "All Expenses",
-        href: "/dashboard/receipts",
-        icon: List,
-      },
-      {
         label: "Add Receipt",
         href: "/dashboard/upload",
         icon: Upload,

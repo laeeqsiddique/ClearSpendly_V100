@@ -5,6 +5,68 @@ import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@/lib/supabase/server";
 import { getTenantIdWithFallback } from "@/lib/api-tenant";
 import { withPermission } from "@/lib/api-middleware";
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
+
+// Server-side PDF to image conversion
+async function convertPdfToImage(pdfDataUrl: string): Promise<string> {
+  try {
+    console.log('🔄 Starting server-side PDF conversion...');
+    
+    // Set up DOM environment for PDF.js
+    const { JSDOM } = await import('jsdom');
+    const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
+    
+    // Polyfill required globals for PDF.js
+    global.DOMMatrix = dom.window.DOMMatrix;
+    global.document = dom.window.document;
+    global.window = dom.window as any;
+    
+    // Extract base64 data from data URL
+    const base64Data = pdfDataUrl.split(',')[1];
+    const pdfBuffer = Buffer.from(base64Data, 'base64');
+    
+    // Load PDF document with server-side configuration
+    const pdf = await pdfjsLib.getDocument({
+      data: pdfBuffer,
+      verbosity: 0, // Reduce console noise
+      isEvalSupported: false,
+      useSystemFonts: true
+    }).promise;
+    console.log(`📄 PDF loaded: ${pdf.numPages} pages`);
+    
+    // Get first page
+    const page = await pdf.getPage(1);
+    
+    // Set up viewport with high resolution for better OCR
+    const scale = 2.0;
+    const viewport = page.getViewport({ scale });
+    
+    // Create canvas using node-canvas
+    const { createCanvas } = await import('canvas');
+    const canvas = createCanvas(viewport.width, viewport.height);
+    const context = canvas.getContext('2d');
+    
+    // Render PDF page to canvas
+    const renderContext = {
+      canvasContext: context,
+      viewport: viewport
+    };
+    
+    await page.render(renderContext).promise;
+    
+    // Convert canvas to data URL (PNG format)
+    const imageDataUrl = canvas.toDataURL('image/png', 1.0);
+    
+    console.log('✅ PDF converted to image successfully');
+    console.log(`📏 Image dimensions: ${viewport.width}x${viewport.height}`);
+    
+    return imageDataUrl;
+    
+  } catch (error) {
+    console.error('❌ Server-side PDF conversion failed:', error);
+    throw new Error(`Failed to convert PDF: ${error.message}`);
+  }
+}
 
 // Function to save receipt data to database
 async function saveReceiptToDatabase(receiptData: any, imageUrl?: string): Promise<string> {
@@ -193,7 +255,7 @@ Return ONLY the JSON object, no additional text.`;
 export async function POST(req: NextRequest) {
   return withPermission('receipts:create')(req, async (request, context) => {
     try {
-      const { imageUrl, imageData } = await request.json();
+      let { imageUrl, imageData } = await request.json();
 
       if (!imageUrl && !imageData) {
         return NextResponse.json({ error: "No image provided" }, { status: 400 });
@@ -203,17 +265,34 @@ export async function POST(req: NextRequest) {
     const isPdf = imageUrl?.includes('data:application/pdf') || imageData?.includes('data:application/pdf');
     
     if (isPdf) {
-      console.log('📄 PDF detected - browser OCR cannot process PDFs, using AI processing');
+      console.log('📄 PDF detected - converting to image for Vision API processing...');
+      
+      try {
+        // Convert PDF to image using server-side conversion
+        const pdfDataUrl = imageData || imageUrl;
+        const convertedImage = await convertPdfToImage(pdfDataUrl);
+        
+        // Replace the PDF data with converted image data
+        imageData = convertedImage;
+        imageUrl = undefined; // Clear the URL since we're using imageData now
+        
+        console.log('✅ PDF successfully converted to image for Vision API');
+      } catch (error) {
+        console.error('❌ PDF conversion failed:', error);
+        return NextResponse.json(
+          { error: `PDF conversion failed: ${error.message}. Please try converting to image format manually.` },
+          { status: 500 }
+        );
+      }
     }
 
-    // Check for available AI services (prioritize local/open source)
-    const hasOllama = process.env.OLLAMA_API_URL && process.env.OLLAMA_MODEL;
+    // Check for available AI services (focus on OpenAI Vision for best results)
     const hasOpenAI = process.env.OPENAI_API_KEY && 
                      process.env.OPENAI_API_KEY !== 'your_openai_api_key' &&
                      process.env.OPENAI_API_KEY.length > 0;
 
-    // Try Ollama first (local/privacy-first), then OpenAI as fallback
-    if (!hasOllama && !hasOpenAI) {
+    // Skip Ollama for now - focusing on OpenAI Vision API for better accuracy
+    if (!hasOpenAI) {
       console.warn('No AI service configured. Using mock data for demo.');
       
       // Generate unique mock data based on timestamp and image data
@@ -316,30 +395,13 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Try Ollama first if available
-    if (hasOllama) {
-      try {
-        console.log('Attempting OCR processing with Ollama...');
-        const ollamaResult = await processWithOllama(imageUrl || imageData);
-        if (ollamaResult) {
-          return NextResponse.json({
-            success: true,
-            data: ollamaResult,
-            source: "ollama"
-          });
-        }
-      } catch (error) {
-        console.warn('Ollama processing failed, falling back to OpenAI:', error);
-      }
-    }
-
-    // Fallback to OpenAI if Ollama fails or unavailable
-    if (!hasOpenAI) {
-      return NextResponse.json(
-        { error: "No AI service available for OCR processing" },
-        { status: 500 }
-      );
-    }
+    // Use OpenAI Vision API directly (best accuracy for receipts)
+    console.log('🔥 Using OpenAI Vision API for receipt processing...');
+    
+    // Debug: Check what we're actually sending
+    const finalImageData = imageData || imageUrl;
+    const imageType = finalImageData?.substring(0, 30) + '...';
+    console.log('🔍 Sending to Vision API:', imageType);
 
     // Receipt parsing prompt optimized for structured extraction
     const prompt = `You are a receipt parsing AI. Extract all information from this receipt image and return ONLY a valid JSON object with this exact structure:
@@ -364,12 +426,20 @@ export async function POST(req: NextRequest) {
   "confidence": number - 0-100 confidence score
 }
 
+CRITICAL RULES FOR ITEM EXTRACTION:
+1. Extract EACH item as a SEPARATE line item - do NOT combine similar items
+2. Use the EXACT prices shown on the receipt - do NOT calculate or divide prices
+3. If an item shows quantity > 1, use that quantity with the total price shown
+4. If multiple similar items have different prices, list them separately
+5. Read each line carefully - items on separate lines should be separate entries
+6. NEVER group items together or average prices
+
 Categories should be one of: "Office Supplies", "Travel & Transportation", "Meals & Entertainment", "Marketing & Advertising", "Professional Services", "Equipment & Software", "Utilities", "Rent & Facilities", "Insurance", "Training & Education", "Other"
 
 If you cannot read the receipt clearly, return confidence < 50. Return ONLY the JSON object, no additional text.`;
 
     const result = await generateText({
-      model: openai("gpt-4o"),
+      model: openai("gpt-4o-mini"), // Cheaper alternative: ~10x less expensive
       messages: [
         {
           role: "user",
@@ -377,13 +447,57 @@ If you cannot read the receipt clearly, return confidence < 50. Return ONLY the 
             { type: "text", text: prompt },
             {
               type: "image",
-              image: imageUrl || imageData,
+              image: imageData || imageUrl,
             },
           ],
         },
       ],
       maxTokens: 1000,
     });
+
+    // Log detailed cost information for monitoring
+    const usage = (result as any).usage;
+    console.log('🔍 Debug usage object:', JSON.stringify(usage, null, 2));
+    
+    if (usage) {
+      // Handle different usage object structures (AI SDK vs OpenAI direct)
+      const promptTokens = usage.promptTokens || usage.prompt_tokens || usage.input_tokens || 0;
+      const completionTokens = usage.completionTokens || usage.completion_tokens || usage.output_tokens || 0;
+      const totalTokens = usage.totalTokens || usage.total_tokens || (promptTokens + completionTokens);
+      
+      if (promptTokens > 0 || completionTokens > 0) {
+        // GPT-4o-mini pricing: $0.15 per 1M input tokens, $0.60 per 1M output tokens
+        const inputCost = (promptTokens / 1000000) * 0.15;
+        const outputCost = (completionTokens / 1000000) * 0.60;
+        const totalCost = inputCost + outputCost;
+        
+        console.log('\n💰 VISION API COST BREAKDOWN:');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log(`📊 Input tokens:     ${promptTokens.toLocaleString()}`);
+        console.log(`📝 Output tokens:    ${completionTokens.toLocaleString()}`);
+        console.log(`🔢 Total tokens:     ${totalTokens.toLocaleString()}`);
+        console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+        console.log(`💵 Input cost:       $${inputCost.toFixed(6)} ($0.15 per 1M tokens)`);
+        console.log(`💵 Output cost:      $${outputCost.toFixed(6)} ($0.60 per 1M tokens)`);
+        console.log(`💰 TOTAL COST:       $${totalCost.toFixed(4)}`);
+        console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+        
+        // Monthly projections
+        const monthly100 = totalCost * 100;
+        const monthly1000 = totalCost * 1000;
+        const monthly10000 = totalCost * 10000;
+        
+        console.log(`📈 Monthly projections:`);
+        console.log(`   100 receipts:     $${monthly100.toFixed(2)}`);
+        console.log(`   1,000 receipts:   $${monthly1000.toFixed(2)}`);
+        console.log(`   10,000 receipts:  $${monthly10000.toFixed(2)}`);
+        console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
+      } else {
+        console.log('⚠️ No token usage information available');
+      }
+    } else {
+      console.log('⚠️ No usage information in API response');
+    }
 
     // Parse the AI response
     let extractedData;
