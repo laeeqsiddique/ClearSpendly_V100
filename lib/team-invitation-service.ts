@@ -1,7 +1,7 @@
 import { Resend } from 'resend';
 import { createClient } from './supabase/server';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 interface TeamInvitationData {
   inviterName: string;
@@ -348,6 +348,11 @@ Learn More: https://flowvya.com
         html: this.generateInvitationEmailHTML(cleanData),
         text: this.generateInvitationEmailText(cleanData),
       };
+
+      if (!resend) {
+        console.warn('Resend API key not configured, email sending disabled');
+        throw new Error('Email service not configured');
+      }
 
       const response = await resend.emails.send(emailData);
       console.log('📧 Resend response:', JSON.stringify(response, null, 2));

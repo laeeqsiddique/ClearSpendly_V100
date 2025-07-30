@@ -31,7 +31,12 @@
       "Bash(railway variables:*)",
       "Bash(railway link:*)",
       "Bash(railway redeploy:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(cp:*)",
+      "Bash(timeout 30 npx next build --debug)",
+      "Bash(dir:*)",
+      "Bash(timeout 20 npm run dev)",
+      "Bash(git clean:*)"
     ],
     "deny": []
   }
