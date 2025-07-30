@@ -1,6 +1,6 @@
 {
   "name": "clearspendly",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "engines": {
     "node": "20.x",
@@ -149,4 +149,3 @@
     "typescript": "^5"
   }
 }
-FORCE_REBUILD=Wed, Jul 30, 2025  9:36:29 AM
