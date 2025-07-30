@@ -25,6 +25,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
 import { getPrimaryTenant } from "@/lib/tenant";
 
+export const dynamic = 'force-dynamic';
+
 // Helper function to get usage stats
 async function getUsageStats() {
   const user = await getUser();

@@ -1,0 +1,87 @@
+# Supabase configuration for PRODUCTION environment
+project_id = "clearspendly-production"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+# Production: Lower max_rows for security and performance
+max_rows = 500
+
+[auth]
+enabled = true
+# Production environment URL - update with your actual production domain
+site_url = "https://clearspendly.com"
+additional_redirect_urls = [
+    "https://clearspendly.com/auth/callback",
+    "https://app.clearspendly.com/auth/callback"
+]
+# Production: Longer JWT expiry for better UX
+jwt_expiry = 7200  # 2 hours
+enable_refresh_token_rotation = true
+# Production: Shorter reuse interval for security
+refresh_token_reuse_interval = 5
+# Production: Control signups more strictly
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+# Production: Require email confirmations for security
+enable_confirmations = true
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[realtime]
+enabled = true
+
+[storage]
+enabled = true
+# Production: Standard file size limit
+file_size_limit = "50MiB"
+
+[functions]
+# Configure for production region - choose closest to your users
+# region = "us-east-1"
+
+[analytics]
+enabled = true
+
+[functions.clearspendly]
+# Production: Always verify JWT for security
+verify_jwt = true
+
+# External auth providers for production
+[auth.external.google]
+enabled = false
+client_id = ""
+secret = ""
+redirect_uri = ""
+url = ""
+
+[auth.external.azure]
+enabled = false
+client_id = ""
+secret = ""
+redirect_uri = ""
+url = ""
+
+# Production-specific settings
+[experimental]
+# Production: Disable experimental features by default
+webhooks = false
+multitenancy = true  # Keep for your multi-tenant architecture
+
+# Custom production environment variables
+[env]
+ENVIRONMENT = "production"
+DEBUG_LEVEL = "error"  # Minimal logging in production
+ENABLE_DETAILED_LOGGING = "false"
+MIGRATION_TIMEOUT = "600"  # 10 minutes for production safety
+BACKUP_RETENTION_DAYS = "90"  # Longer retention for production
+ENABLE_PERFORMANCE_MONITORING = "true"
+RATE_LIMITING_ENABLED = "true"

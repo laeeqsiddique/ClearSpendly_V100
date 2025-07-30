@@ -1,6 +1,6 @@
 ## File: docs/PRD.md
 
-# ClearSpendly – Product Requirements Document (PRD)
+# Letyes – Product Requirements Document (PRD)
 
 ### 1. Purpose
 

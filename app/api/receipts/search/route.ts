@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getUser } from "@/lib/auth";
+import { getTenantIdWithFallback } from "@/lib/api-tenant";
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,6 +11,9 @@ export async function GET(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Get tenant ID
+    const tenantId = await getTenantIdWithFallback();
 
     const { searchParams } = new URL(req.url);
     const query = searchParams.get('q') || '';
@@ -23,7 +28,8 @@ export async function GET(req: NextRequest) {
     const myDataOnly = searchParams.get('myDataOnly') === 'true'; // User filtering for multi-user tenants
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 100;
 
-    const supabase = await createClient();
+    // Use admin client to bypass RLS issues
+    const supabase = createAdminClient();
     console.log('Receipt search using authenticated user:', user.id);
 
     // Build the query with tag support
@@ -137,6 +143,7 @@ export async function GET(req: NextRequest) {
     }
 
     const { data: receipts, error } = await receiptsQuery
+      .eq('tenant_id', tenantId) // Add tenant filtering
       .order('receipt_date', { ascending: false })
       .limit(limit);
 

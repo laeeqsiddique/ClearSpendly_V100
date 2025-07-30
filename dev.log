@@ -61,3 +61,49 @@
  ○ Compiling middleware ...
  ✓ Compiled middleware in 2.6s
  ✓ Ready in 8s
+ ✓ Compiled middleware in 77ms
+ ✓ Compiled in 1ms
+ ✓ Compiled middleware in 31ms
+ ✓ Compiled in 2ms
+ ✓ Compiled middleware in 24ms
+ ✓ Compiled in 8ms
+ ✓ Compiled middleware in 33ms
+ ✓ Compiled in 1ms
+ ✓ Compiled middleware in 16ms
+ ✓ Compiled middleware in 7ms
+ ✓ Compiled middleware in 2ms
+ ✓ Compiled middleware in 9ms
+ ⚠ Found a change in next.config.ts. Restarting the server to apply the changes...
+   ▲ Next.js 15.3.1 (Turbopack)
+   - Local:        http://localhost:3001
+   - Network:      http://169.254.253.134:3001
+   - Environments: .env.local
+   - Experiments (use with caution):
+     ✓ optimizeCss
+
+ ✓ Starting...
+ ○ Compiling middleware ...
+ ✓ Compiled middleware in 2.3s
+ ✓ Ready in 10.4s
+ ⚠ Webpack is configured while Turbopack is not, which may cause problems.
+ ⚠ See instructions if you need to configure Turbopack:
+  https://nextjs.org/docs/app/api-reference/next-config-js/turbo
+
+ ⚠ Found a change in next.config.ts. Restarting the server to apply the changes...
+   ▲ Next.js 15.3.1 (Turbopack)
+   - Local:        http://localhost:3001
+   - Network:      http://169.254.253.134:3001
+   - Environments: .env.local
+   - Experiments (use with caution):
+     ✓ optimizeCss
+
+ ✓ Starting...
+ ○ Compiling middleware ...
+ ✓ Compiled middleware in 2.9s
+[Error: ENOENT: no such file or directory, open 'C:\Users\laeeq\WindSurf\ClearSpendly_V100\.next\static\development\_buildManifest.js.tmp.bd1jn4vc1go'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\laeeq\\WindSurf\\ClearSpendly_V100\\.next\\static\\development\\_buildManifest.js.tmp.bd1jn4vc1go'
+}
+[?25h

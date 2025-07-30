@@ -1,8 +1,8 @@
 -- Create tenant system tables
 -- This migration implements multi-tenancy for ClearSpendly
 
--- Enable RLS on auth.users if not already enabled
-ALTER TABLE auth.users ENABLE ROW LEVEL SECURITY;
+-- Note: RLS on auth.users is managed by Supabase
+-- ALTER TABLE auth.users ENABLE ROW LEVEL SECURITY;
 
 -- Create tenants table
 CREATE TABLE IF NOT EXISTS public.tenants (

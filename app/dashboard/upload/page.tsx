@@ -15,8 +15,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { TagInput } from "@/components/ui/tag-input";
-import AIChatAgent from '@/components/ai-chat-agent';
-// Removed AI status debug - using simplified Vision API approach
 import { 
   Receipt, 
   Upload, 
@@ -38,7 +36,15 @@ import {
 import Image from "next/image";
 import { useCallback, useState, useEffect } from "react";
 import { toast } from "sonner";
-// Dynamic import of OCR processor to avoid server-side issues
+import dynamic from "next/dynamic";
+
+// Railway-specific: Dynamic imports to prevent server-side execution during build
+const AIChatAgent = dynamic(() => import('@/components/ai-chat-agent'), {
+  ssr: false,
+  loading: () => null
+});
+
+// Railway-specific: Type-only import to prevent server-side bundling issues
 import type { ExtractedReceiptData } from "@/lib/ocr-processor";
 
 interface ExtractedLineItem {
@@ -72,6 +78,7 @@ interface UploadedReceipt {
   ocrStatus: 'pending' | 'processing' | 'completed' | 'failed';
   extractedData?: ExtractedData;
   saved?: boolean; // Track if receipt has been saved to database
+  dbReceiptId?: string; // Database receipt ID for updates
 }
 
 interface TagCategory {
@@ -245,8 +252,11 @@ export default function UploadPage() {
         const isPdf = file.type === 'application/pdf';
         // Starting processing silently
         
-        // Dynamic import to avoid server-side issues
-        const { SimplifiedOCRProcessor } = await import('@/lib/ai-ocr/enhanced-processor');
+        // Railway-specific: Dynamic import with error handling to avoid server-side issues
+        const { SimplifiedOCRProcessor } = await import('@/lib/ai-ocr/enhanced-processor').catch(err => {
+          console.warn('Failed to load OCR processor, falling back to server processing:', err);
+          throw new Error('Client OCR unavailable');
+        });
         const ocrProcessor = new SimplifiedOCRProcessor(); // Uses OpenAI for AI enhancement
         
         if (isPdf) {
@@ -308,8 +318,11 @@ export default function UploadPage() {
             updateProgress('Converting PDF to image...', 45);
             
             try {
-              // Use the same PDF conversion as the OCR processor
-              const { SimplifiedOCRProcessor } = await import('@/lib/ai-ocr/enhanced-processor');
+              // Railway-specific: Use the same PDF conversion as the OCR processor with error handling
+              const { SimplifiedOCRProcessor } = await import('@/lib/ai-ocr/enhanced-processor').catch(err => {
+                console.error('Failed to load OCR processor for PDF conversion:', err);
+                throw new Error('PDF processor unavailable');
+              });
               const tempProcessor = new SimplifiedOCRProcessor();
               await tempProcessor.initialize();
               
@@ -563,6 +576,22 @@ export default function UploadPage() {
   const saveReceipt = async () => {
     if (!editingData || !selectedReceipt) return;
     
+    // Prevent duplicate saves
+    if (saving) {
+      toast.warning("Please wait for the current save to complete");
+      return;
+    }
+
+    // Validate date is not in the future
+    const receiptDate = new Date(editingData.date + 'T00:00:00');
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // End of today
+    
+    if (receiptDate > today) {
+      toast.error("Receipt date cannot be in the future");
+      return;
+    }
+    
     setSaving(true);
     try {
       // Clean line items to ensure they're serializable
@@ -591,17 +620,25 @@ export default function UploadPage() {
 
       console.log('Saving receipt data:', saveData);
 
+      // Generate a unique request ID to prevent duplicate submissions
+      const requestId = `${selectedReceipt.id}-${Date.now()}`;
+
       // Call the save-receipt API
       const response = await fetch('/api/save-receipt', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-Request-ID': requestId,
         },
         body: JSON.stringify({
           ...saveData,
           imageUrl: selectedReceipt.imageUrl || 'placeholder',
           confidence: 85, // Default confidence score
-          forceSave: false // Can be set to true to bypass similar vendor warnings
+          forceSave: false, // Can be set to true to bypass similar vendor warnings
+          requestId, // Include in body as well for extra safety
+          isUpdate: selectedReceipt.saved, // Flag to indicate this is an update
+          uploadReceiptId: selectedReceipt.id, // Original upload receipt ID for reference
+          dbReceiptId: selectedReceipt.dbReceiptId, // Database receipt ID for updates
         }),
       });
 
@@ -620,12 +657,17 @@ export default function UploadPage() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'X-Request-ID': requestId + '-force',
           },
           body: JSON.stringify({
             ...saveData,
             imageUrl: selectedReceipt.imageUrl || 'placeholder',
             confidence: 85,
-            forceSave: true
+            forceSave: true,
+            requestId: requestId + '-force',
+            isUpdate: selectedReceipt.saved,
+            uploadReceiptId: selectedReceipt.id,
+            dbReceiptId: selectedReceipt.dbReceiptId,
           }),
         });
         
@@ -639,7 +681,12 @@ export default function UploadPage() {
       setUploadedReceipts(prev =>
         prev.map(receipt =>
           receipt.id === selectedReceipt.id
-            ? { ...receipt, extractedData: { ...editingData, tags: selectedTags }, saved: true }
+            ? { 
+                ...receipt, 
+                extractedData: { ...editingData, tags: selectedTags.map(tag => typeof tag === 'string' ? tag : tag.id) }, 
+                saved: true,
+                dbReceiptId: result.data?.receiptId || receipt.dbReceiptId // Store the database receipt ID
+              }
             : receipt
         )
       );
@@ -656,10 +703,29 @@ export default function UploadPage() {
   };
 
   const saveAllReceipts = async () => {
-    const completedReceipts = uploadedReceipts.filter(r => r.ocrStatus === 'completed' && r.extractedData);
+    const completedReceipts = uploadedReceipts.filter(r => r.ocrStatus === 'completed' && r.extractedData && !r.saved);
     
     if (completedReceipts.length === 0) {
-      toast.error("No completed receipts to save");
+      const alreadySavedCount = uploadedReceipts.filter(r => r.saved).length;
+      if (alreadySavedCount > 0) {
+        toast.info("All completed receipts have already been saved");
+      } else {
+        toast.error("No completed receipts to save");
+      }
+      return;
+    }
+
+    // Check for future dates in any receipt
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    
+    const futureReceipts = completedReceipts.filter(receipt => {
+      const receiptDate = new Date(receipt.extractedData!.date + 'T00:00:00');
+      return receiptDate > today;
+    });
+
+    if (futureReceipts.length > 0) {
+      toast.error(`Cannot save ${futureReceipts.length} receipt(s) with future dates. Please edit them first.`);
       return;
     }
 
@@ -749,6 +815,22 @@ export default function UploadPage() {
 
   const saveIndividualReceipt = async (receipt: UploadedReceipt) => {
     if (!receipt.extractedData) return;
+    
+    // Check if already saved
+    if (receipt.saved) {
+      toast.info("This receipt has already been saved");
+      return;
+    }
+    
+    // Validate date is not in the future
+    const receiptDate = new Date(receipt.extractedData.date + 'T00:00:00');
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    
+    if (receiptDate > today) {
+      toast.error("Receipt date cannot be in the future. Please edit the receipt first.");
+      return;
+    }
     
     setSaving(true);
     try {
@@ -947,7 +1029,7 @@ export default function UploadPage() {
                         ).toFixed(2)}
                       </span>
                     </div>
-                    {uploadedReceipts.some(r => r.ocrStatus === 'completed') && (
+                    {uploadedReceipts.some(r => r.ocrStatus === 'completed' && !r.saved) && (
                       <Button
                         onClick={saveAllReceipts}
                         disabled={saving}
@@ -961,7 +1043,7 @@ export default function UploadPage() {
                 </div>
                 
                 {/* Recommendation Message */}
-                {uploadedReceipts.some(r => r.ocrStatus === 'completed') && (
+                {uploadedReceipts.some(r => r.ocrStatus === 'completed' && !r.saved) && (
                   <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <div className="flex items-start gap-3">
                       <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center mt-0.5">
@@ -1160,7 +1242,7 @@ export default function UploadPage() {
                   <div>
                     <h2 className="text-xl font-bold text-white">Edit Receipt</h2>
                     <p className="text-purple-100">
-                      {editingData?.vendor || 'Unknown Vendor'} • {editingData?.date ? new Date(editingData.date).toLocaleDateString() : 'No Date'}
+                      {editingData?.vendor || 'Unknown Vendor'} • {editingData?.date ? new Date(editingData.date + 'T00:00:00').toLocaleDateString() : 'No Date'}
                     </p>
                   </div>
                 </div>

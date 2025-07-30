@@ -70,6 +70,43 @@ export async function POST(req: NextRequest) {
     // Check if this is a force save (ignoring warnings)
     const forceSave = receiptData.forceSave === true;
     const tags = receiptData.tags || []; // Extract tags array
+    const isUpdate = receiptData.isUpdate === true;
+    const dbReceiptId = receiptData.dbReceiptId;
+
+    // If this is an update and we have a dbReceiptId, redirect to the PATCH endpoint
+    if (isUpdate && dbReceiptId) {
+      console.log('Redirecting to update existing receipt:', dbReceiptId);
+      
+      // Create the update payload for the PATCH endpoint
+      const updatePayload = {
+        vendor: receiptData.vendor,
+        receipt_date: receiptData.date,
+        total_amount: receiptData.totalAmount,
+        tax_amount: receiptData.tax || 0,
+        notes: receiptData.notes || '',
+        tags: tags,
+        lineItems: receiptData.lineItems?.map((item: any) => ({
+          id: item.id, // This might not exist for new items
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+          total_price: item.totalPrice,
+          tags: item.tag ? [item.tag] : []
+        })) || []
+      };
+
+      // Call the existing PATCH endpoint internally
+      const updateUrl = new URL(`/api/receipts/${dbReceiptId}`, request.url);
+      const updateRequest = new Request(updateUrl, {
+        method: 'PATCH',
+        headers: request.headers,
+        body: JSON.stringify(updatePayload)
+      });
+
+      // Import and call the PATCH handler
+      const { PATCH } = await import('@/app/api/receipts/[id]/route');
+      return await PATCH(updateRequest, { params: Promise.resolve({ id: dbReceiptId }) });
+    }
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

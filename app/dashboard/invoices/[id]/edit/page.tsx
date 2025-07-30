@@ -894,5 +894,6 @@ export default function EditInvoicePage() {
         </div>
       </div>
     </div>
+    </div>
   );
 }

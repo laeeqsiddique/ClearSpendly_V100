@@ -179,14 +179,45 @@ export default function Onboarding() {
       const { data: { user } } = await supabase.auth.getUser();
       console.log('Current user:', user?.id);
       
-      // Mark onboarding as completed in user metadata
+      if (!user) {
+        toast.error('Authentication error. Please sign in again.');
+        router.push('/sign-in');
+        return;
+      }
+      
+      // CRITICAL FIX: Setup tenant and membership FIRST
+      console.log('Setting up tenant and membership...');
+      const setupResponse = await fetch('/api/setup-tenant', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!setupResponse.ok) {
+        const errorData = await setupResponse.json();
+        console.error('Setup tenant failed:', errorData);
+        toast.error(`Failed to setup your account: ${errorData.error || 'Unknown error'}`);
+        return;
+      }
+
+      const setupData = await setupResponse.json();
+      console.log('Tenant setup successful:', setupData);
+      
+      if (!setupData.success) {
+        console.error('Setup response indicates failure:', setupData);
+        toast.error('Account setup was not successful');
+        return;
+      }
+      
+      // Now mark onboarding as completed in user metadata
       const { data: updateData, error } = await supabase.auth.updateUser({
         data: { onboarding_completed: true }
       });
 
       if (error) {
         console.error('Error updating user metadata:', error);
-        toast.error('Failed to complete onboarding');
+        toast.error('Failed to complete onboarding setup');
         return;
       }
       
@@ -201,15 +232,31 @@ export default function Onboarding() {
       
       console.log('Session refreshed:', sessionData?.user?.user_metadata);
       
-      toast.success('Welcome to ClearSpendly!');
+      // Double-check the user's membership was created successfully before redirecting
+      const { data: finalCheck } = await supabase
+        .from('membership')
+        .select('tenant_id')
+        .eq('user_id', user.id)
+        .single();
       
-      // Use window.location for a hard redirect to ensure middleware runs fresh
-      setTimeout(() => {
-        window.location.href = '/dashboard';
-      }, 500); // Small delay to ensure metadata is propagated
+      if (!finalCheck) {
+        console.error('Membership check failed after setup - waiting longer');
+        toast.success('Welcome to ClearSpendly! Finalizing your account setup...');
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 3000); // Wait longer if membership isn't immediately available
+      } else {
+        console.log('Membership verified:', finalCheck.tenant_id);
+        toast.success('Welcome to ClearSpendly! Setting up your dashboard...');
+        
+        // Use window.location for a hard redirect to ensure middleware runs fresh
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 1000); // Shorter delay if everything is confirmed
+      }
     } catch (error) {
       console.error('Error completing onboarding:', error);
-      toast.error('Something went wrong');
+      toast.error(`Something went wrong: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -218,6 +265,40 @@ export default function Onboarding() {
   const handleSkip = async () => {
     setLoading(true);
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast.error('Authentication error. Please sign in again.');
+        router.push('/sign-in');
+        return;
+      }
+      
+      // CRITICAL FIX: Setup tenant and membership FIRST even when skipping
+      console.log('Setting up tenant and membership (skip)...');
+      const setupResponse = await fetch('/api/setup-tenant', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!setupResponse.ok) {
+        const errorData = await setupResponse.json();
+        console.error('Setup tenant failed (skip):', errorData);
+        toast.error(`Failed to setup your account: ${errorData.error || 'Unknown error'}`);
+        return;
+      }
+
+      const setupData = await setupResponse.json();
+      console.log('Tenant setup successful (skip):', setupData);
+      
+      if (!setupData.success) {
+        console.error('Setup response indicates failure (skip):', setupData);
+        toast.error('Account setup was not successful');
+        return;
+      }
+
       // Mark onboarding as completed even when skipping
       const { error } = await supabase.auth.updateUser({
         data: { onboarding_completed: true }
@@ -230,11 +311,19 @@ export default function Onboarding() {
       // Force a session refresh
       await supabase.auth.refreshSession();
       
+      toast.success('Account setup complete!');
+      
       // Use window.location for a hard redirect
-      window.location.href = '/dashboard';
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 1000);
     } catch (error) {
       console.error('Error skipping onboarding:', error);
-      router.push('/dashboard'); // Fallback to regular navigation
+      toast.error(`Something went wrong: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Still try to redirect as fallback
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 2000);
     } finally {
       setLoading(false);
     }
@@ -279,7 +368,7 @@ export default function Onboarding() {
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
               ) : null}
-              Skip onboarding
+              Skip to dashboard
             </Button>
             
             <div className="flex gap-2">

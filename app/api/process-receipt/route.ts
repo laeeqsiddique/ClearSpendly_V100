@@ -5,66 +5,22 @@ import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@/lib/supabase/server";
 import { getTenantIdWithFallback } from "@/lib/api-tenant";
 import { withPermission } from "@/lib/api-middleware";
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
 
-// Server-side PDF to image conversion
+// Configure this route to use Node.js runtime instead of Edge
+export const runtime = 'nodejs';
+
+// PDF to image conversion - graceful fallback since pdf2pic doesn't work in production
 async function convertPdfToImage(pdfDataUrl: string): Promise<string> {
   try {
-    console.log('🔄 Starting server-side PDF conversion...');
+    console.log('🔄 PDF conversion requested...');
     
-    // Set up DOM environment for PDF.js
-    const { JSDOM } = await import('jsdom');
-    const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
-    
-    // Polyfill required globals for PDF.js
-    global.DOMMatrix = dom.window.DOMMatrix;
-    global.document = dom.window.document;
-    global.window = dom.window as any;
-    
-    // Extract base64 data from data URL
-    const base64Data = pdfDataUrl.split(',')[1];
-    const pdfBuffer = Buffer.from(base64Data, 'base64');
-    
-    // Load PDF document with server-side configuration
-    const pdf = await pdfjsLib.getDocument({
-      data: pdfBuffer,
-      verbosity: 0, // Reduce console noise
-      isEvalSupported: false,
-      useSystemFonts: true
-    }).promise;
-    console.log(`📄 PDF loaded: ${pdf.numPages} pages`);
-    
-    // Get first page
-    const page = await pdf.getPage(1);
-    
-    // Set up viewport with high resolution for better OCR
-    const scale = 2.0;
-    const viewport = page.getViewport({ scale });
-    
-    // Create canvas using node-canvas
-    const { createCanvas } = await import('canvas');
-    const canvas = createCanvas(viewport.width, viewport.height);
-    const context = canvas.getContext('2d');
-    
-    // Render PDF page to canvas
-    const renderContext = {
-      canvasContext: context,
-      viewport: viewport
-    };
-    
-    await page.render(renderContext).promise;
-    
-    // Convert canvas to data URL (PNG format)
-    const imageDataUrl = canvas.toDataURL('image/png', 1.0);
-    
-    console.log('✅ PDF converted to image successfully');
-    console.log(`📏 Image dimensions: ${viewport.width}x${viewport.height}`);
-    
-    return imageDataUrl;
+    // In production, we'll return an error suggesting manual conversion
+    // This is because pdf2pic requires native binaries that aren't available in most cloud environments
+    throw new Error('PDF processing requires manual conversion. Please convert your PDF to an image (PNG/JPG) using a PDF viewer or online converter, then upload the image.');
     
   } catch (error) {
-    console.error('❌ Server-side PDF conversion failed:', error);
-    throw new Error(`Failed to convert PDF: ${error.message}`);
+    console.error('❌ PDF conversion not available:', error);
+    throw error;
   }
 }
 
@@ -114,7 +70,7 @@ async function saveReceiptToDatabase(receiptData: any, imageUrl?: string): Promi
     const { data: receipt, error: receiptError } = await supabase
       .from('receipt')
       .insert({
-        tenant_id: defaultTenantId,
+        tenant_id: tenantId,
         vendor_id: vendorId,
         receipt_date: receiptData.date,
         currency_code: receiptData.currency || 'USD',

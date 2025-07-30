@@ -2,7 +2,14 @@ import { OCRProcessor, ExtractedReceiptData, LineItem } from '@/lib/ocr-processo
 import { OpenAIReceiptParser } from './openai-parser';
 import { ParsedReceipt, EnhancedReceiptData } from './types';
 import { calculateConfidence } from './utils';
-import { createWorker } from 'tesseract.js';
+
+// Conditional import for client-side only
+let createWorker: any = null;
+if (typeof window !== 'undefined') {
+  import('tesseract.js').then(module => {
+    createWorker = module.createWorker;
+  }).catch(err => console.warn('Tesseract.js not available:', err));
+}
 
 export class SimplifiedOCRProcessor extends OCRProcessor {
   private aiParser: OpenAIReceiptParser | null = null;
@@ -127,7 +134,7 @@ ${structuredText}`;
     let lineItems: LineItem[] = ocrResult.lineItems;
     if (useAIItems) {
       lineItems = aiResult.items.map(item => ({
-        id: crypto.randomUUID(),
+        id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substr(2, 9),
         description: item.desc,
         quantity: item.quantity || 1,
         unitPrice: item.unit_price || item.price,

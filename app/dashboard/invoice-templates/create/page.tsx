@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -112,7 +112,7 @@ interface TemplateSettings {
   is_default: boolean;
 }
 
-export default function CreateTemplatePage() {
+function CreateTemplateContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const templateId = searchParams.get('edit');
@@ -648,5 +648,20 @@ export default function CreateTemplatePage() {
         </div>
       </div>
     </section>
+  );
+}
+
+export default function CreateTemplatePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin h-8 w-8 border-4 border-purple-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    }>
+      <CreateTemplateContent />
+    </Suspense>
   );
 }

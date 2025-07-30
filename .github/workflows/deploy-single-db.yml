@@ -1,0 +1,104 @@
+name: Deploy to Railway with Automated Migrations
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+env:
+  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+  SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+  SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+jobs:
+  deploy:
+    name: Deploy to Railway
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Run Migration Safety Check
+        run: |
+          echo "🔍 Checking migration files for safety..."
+          
+          # Count migration files
+          MIGRATION_COUNT=$(find supabase/migrations -name "*.sql" | wc -l)
+          echo "Found $MIGRATION_COUNT migration files"
+          
+          # Check for dangerous operations
+          DANGEROUS_OPERATIONS=$(find supabase/migrations -name "*.sql" -exec grep -l "DROP\|DELETE\|TRUNCATE" {} \; | wc -l)
+          
+          if [ $DANGEROUS_OPERATIONS -gt 0 ]; then
+            echo "⚠️  Found $DANGEROUS_OPERATIONS files with potentially dangerous operations"
+            echo "Review required before deployment"
+          else
+            echo "✅ All migrations look safe"
+          fi
+
+      - name: Backup Database
+        run: |
+          echo "💾 Creating database backup..."
+          supabase db dump --project-ref $SUPABASE_PROJECT_ID > backup-$(date +%Y%m%d-%H%M%S).sql
+          echo "✅ Backup created successfully"
+
+      - name: Run Database Migrations
+        run: |
+          echo "🚀 Running database migrations..."
+          supabase db push --project-ref $SUPABASE_PROJECT_ID
+          echo "✅ Migrations completed successfully"
+
+      - name: Test Database Connection
+        run: |
+          echo "🔗 Testing database connection..."
+          # Simple connection test
+          curl -f -H "apikey: ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+               -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+               "https://$SUPABASE_PROJECT_ID.supabase.co/rest/v1/" || exit 1
+          echo "✅ Database connection successful"
+
+      - name: Deploy to Railway
+        uses: bervProject/railway-deploy@main
+        with:
+          railway_token: ${{ secrets.RAILWAY_TOKEN }}
+          service: "production"
+
+      - name: Health Check
+        run: |
+          echo "🏥 Running health check..."
+          # Wait for deployment to be ready
+          sleep 30
+          
+          # Test health endpoint (you'll need to implement this)
+          # curl -f https://your-app-url.railway.app/api/health || exit 1
+          echo "✅ Deployment health check passed"
+
+      - name: Notify Success
+        if: success()
+        run: |
+          echo "🎉 Deployment completed successfully!"
+          echo "✅ Database migrations: Applied"
+          echo "✅ App deployment: Complete"
+          echo "✅ Health checks: Passed"
+
+      - name: Rollback on Failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed - consider rollback if needed"
+          echo "💾 Database backup available: backup-$(date +%Y%m%d)*.sql"

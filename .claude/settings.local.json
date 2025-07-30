@@ -9,7 +9,22 @@
       "Bash(node:*)",
       "Bash(npx tsc:*)",
       "Bash(npm run build:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(git push:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(ls:*)",
+      "Bash(rg:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npx next build:*)",
+      "Bash(timeout 30 npx next build --no-lint)",
+      "Bash(railway up:*)",
+      "Bash(rm:*)",
+      "Bash(timeout 10 npm run build)",
+      "Bash(timeout 300 npm run build)",
+      "Bash(CI=true NEXT_TELEMETRY_DISABLED=1 npm run build -- --debug)",
+      "Bash(railway status:*)",
+      "Bash(railway logs:*)",
+      "Bash(railway service:*)"
     ],
     "deny": []
   }

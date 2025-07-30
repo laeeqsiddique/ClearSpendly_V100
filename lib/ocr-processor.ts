@@ -1,9 +1,39 @@
-import { createWorker, PSM } from 'tesseract.js';
-import * as pdfjsLib from 'pdfjs-dist';
+// Enhanced conditional imports with proper loading management
+let createWorker: any = null;
+let PSM: any = null;
+let pdfjsLib: any = null;
+let loadingPromise: Promise<void> | null = null;
 
-// Configure PDF.js worker
-if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.mjs';
+// Static method to check if we're on client side
+function isClientSide(): boolean {
+  return typeof window !== 'undefined' && typeof document !== 'undefined';
+}
+
+// Enhanced async library loading with proper waiting
+async function ensureLibrariesLoaded(): Promise<void> {
+  if (!isClientSide()) {
+    throw new Error('OCR libraries only available on client side');
+  }
+  
+  if (loadingPromise) {
+    return loadingPromise;
+  }
+  
+  loadingPromise = Promise.all([
+    import('tesseract.js').then(module => {
+      createWorker = module.createWorker;
+      PSM = module.PSM;
+    }),
+    import('pdfjs-dist').then(module => {
+      pdfjsLib = module;
+      module.GlobalWorkerOptions.workerSrc = '/pdf.worker.mjs';
+    })
+  ]).then(() => void 0).catch(err => {
+    console.warn('Failed to load OCR libraries:', err);
+    throw new Error('OCR libraries failed to load');
+  });
+  
+  return loadingPromise;
 }
 
 export interface ExtractedReceiptData {
@@ -32,8 +62,28 @@ export class OCRProcessor {
   private worker: Tesseract.Worker | null = null;
   private initialized = false;
 
+  constructor() {
+    // Prevent instantiation on server side
+    if (!isClientSide()) {
+      throw new Error('OCRProcessor can only be instantiated on the client side');
+    }
+  }
+
   async initialize() {
     if (this.initialized) return;
+
+    // Double-check client-side environment
+    if (!isClientSide()) {
+      throw new Error('OCR processing is only available on the client side');
+    }
+
+    // Wait for libraries to load before proceeding
+    await ensureLibrariesLoaded();
+
+    // Wait for dynamic imports to complete
+    if (!createWorker || !PSM) {
+      throw new Error('Tesseract.js not loaded. Please try again.');
+    }
 
     try {
       this.worker = await createWorker('eng', 1, {
@@ -732,7 +782,7 @@ export class OCRProcessor {
       
       if (bestMatch) {
         items.push({
-          id: crypto.randomUUID(),
+          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substr(2, 9),
           ...bestMatch
         });
         console.log(`   ✅ Added item: ${bestMatch.description} - $${bestMatch.totalPrice.toFixed(2)} (${bestMatch.patternName})`);
@@ -815,6 +865,16 @@ export class OCRProcessor {
   }
 
   public async convertPdfToImage(pdfFile: File): Promise<string> {
+    // Check if we're on the server side
+    if (typeof window === 'undefined') {
+      throw new Error('PDF conversion is only available on the client side');
+    }
+
+    // Wait for dynamic imports to complete
+    if (!pdfjsLib) {
+      throw new Error('PDF.js not loaded. Please try again.');
+    }
+
     try {
       const arrayBuffer = await pdfFile.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -996,7 +1056,7 @@ export class OCRProcessor {
       if (match) {
         const [, desc, qty, unitPrice, totalPrice] = match;
         items.push({
-          id: crypto.randomUUID(),
+          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substr(2, 9),
           description: desc.trim(),
           quantity: parseInt(qty),
           unitPrice: parseFloat(unitPrice),
@@ -1008,7 +1068,7 @@ export class OCRProcessor {
         if (match && !line.match(/^\d{12}/)) { // Skip UPC codes
           const [, desc, price] = match;
           items.push({
-            id: crypto.randomUUID(),
+            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substr(2, 9),
             description: desc.trim(),
             quantity: 1,
             unitPrice: parseFloat(price),
@@ -1047,7 +1107,7 @@ export class OCRProcessor {
       if (match) {
         const [, code, desc, price, taxCode] = match;
         items.push({
-          id: crypto.randomUUID(),
+          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substr(2, 9),
           description: desc.trim(),
           quantity: 1,
           unitPrice: parseFloat(price),
@@ -1059,7 +1119,7 @@ export class OCRProcessor {
         if (match && match[1].length > 5) { // Avoid short non-item lines
           const [, desc, price] = match;
           items.push({
-            id: crypto.randomUUID(),
+            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substr(2, 9),
             description: desc.trim(),
             quantity: 1,
             unitPrice: parseFloat(price),
@@ -1102,7 +1162,7 @@ export class OCRProcessor {
       if (itemMatch) {
         const [, itemNum, desc, price] = itemMatch;
         lastItem = {
-          id: crypto.randomUUID(),
+          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substr(2, 9),
           description: desc.trim(),
           quantity: 1,
           unitPrice: parseFloat(price),
@@ -1150,7 +1210,7 @@ export class OCRProcessor {
       if (match) {
         const [, dpci, desc, price, taxable] = match;
         items.push({
-          id: crypto.randomUUID(),
+          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substr(2, 9),
           description: desc.trim(),
           quantity: 1,
           unitPrice: parseFloat(price),
@@ -1162,7 +1222,7 @@ export class OCRProcessor {
         if (match && match[1].length > 5) {
           const [, desc, price] = match;
           items.push({
-            id: crypto.randomUUID(),
+            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substr(2, 9),
             description: desc.trim(),
             quantity: 1,
             unitPrice: parseFloat(price),

@@ -1481,7 +1481,6 @@ export default function ReceiptsPage() {
               </CardContent>
             </Card>
           )}
-        }
       </div>
 
       {/* Enhanced Image Viewer Modal */}

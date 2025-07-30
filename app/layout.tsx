@@ -1,8 +1,8 @@
 import { Toaster } from "@/components/ui/sonner";
 import type { Metadata } from "next";
 import { ThemeProvider } from "../components/provider";
+import AnalyticsWrapper from "@/components/analytics-wrapper";
 import "./globals.css";
-import { Analytics } from "@vercel/analytics/next";
 export const metadata: Metadata = {
   title: "ClearSpendly - AI-Powered Receipt Management",
   description:
@@ -50,7 +50,7 @@ export default function RootLayout({
         >
           {children}
           <Toaster />
-          <Analytics />
+          <AnalyticsWrapper />
         </ThemeProvider>
       </body>
     </html>

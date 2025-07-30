@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getTenantIdWithFallback } from "@/lib/api-tenant";
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -10,7 +10,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     );
 
     const tenantId = await getTenantIdWithFallback();
-    const receiptId = params.id;
+    const { id: receiptId } = await params;
 
     const { data: receiptTags, error } = await supabase
       .from('receipt_tag')
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     );
 
     const tenantId = await getTenantIdWithFallback();
-    const receiptId = params.id;
+    const { id: receiptId } = await params;
     const body = await req.json();
     const { tagIds } = body;
 
@@ -139,7 +139,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -147,7 +147,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     );
 
     const tenantId = await getTenantIdWithFallback();
-    const receiptId = params.id;
+    const { id: receiptId } = await params;
 
     const { error } = await supabase
       .from('receipt_tag')

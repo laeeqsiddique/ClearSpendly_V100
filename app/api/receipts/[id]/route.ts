@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { withPermission } from '@/lib/api-middleware';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   return withPermission('receipts:view')(request, async (req, context) => {
     try {
-      const supabase = await createClient();
-      const receiptId = params.id;
+      // Use admin client to bypass RLS for read operations
+      const supabase = createAdminClient();
+      const { id: receiptId } = await params;
       const tenantId = context.membership.tenant_id;
 
     // Get receipt with vendor and line items
@@ -79,12 +81,13 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   return withPermission('receipts:edit')(request, async (req, context) => {
     try {
-      const supabase = await createClient();
-      const receiptId = params.id;
+      // Use admin client to bypass RLS for edit operations
+      const supabase = createAdminClient();
+      const { id: receiptId } = await params;
       const body = await req.json();
       const tenantId = context.membership.tenant_id;
 
@@ -344,34 +347,68 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   return withPermission('receipts:delete')(request, async (req, context) => {
     try {
-      const supabase = await createClient();
+      // Use admin client to bypass RLS for delete operations
+      const supabase = createAdminClient();
       const tenantId = context.membership.tenant_id;
-      const receiptId = params.id;
+      const { id: receiptId } = await params;
+
+    // First verify the receipt belongs to this tenant and get the file URL
+    const { data: receipt, error: verifyError } = await supabase
+      .from('receipt')
+      .select('id, original_file_url')
+      .eq('id', receiptId)
+      .eq('tenant_id', tenantId)
+      .single();
+
+    if (verifyError || !receipt) {
+      return NextResponse.json(
+        { success: false, error: 'Receipt not found or access denied' },
+        { status: 404 }
+      );
+    }
 
     // Delete in the correct order due to foreign key constraints
     // 1. Delete receipt tags
     const { error: tagsError } = await supabase
       .from('receipt_tag')
       .delete()
-      .eq('receipt_id', receiptId);
+      .eq('receipt_id', receiptId)
+      .eq('tenant_id', tenantId);
 
     if (tagsError) {
       console.error('Error deleting receipt tags:', tagsError);
-      return NextResponse.json(
-        { success: false, error: 'Failed to delete receipt tags' },
-        { status: 400 }
-      );
+      // Continue even if tags deletion fails (they might not exist)
     }
 
-    // 2. Delete receipt items
+    // 2. Delete receipt item tags first
+    const { data: receiptItems } = await supabase
+      .from('receipt_item')
+      .select('id')
+      .eq('receipt_id', receiptId)
+      .eq('tenant_id', tenantId);
+
+    if (receiptItems && receiptItems.length > 0) {
+      const itemIds = receiptItems.map(item => item.id);
+      const { error: itemTagsError } = await supabase
+        .from('receipt_item_tag')
+        .delete()
+        .in('receipt_item_id', itemIds);
+
+      if (itemTagsError) {
+        console.error('Error deleting receipt item tags:', itemTagsError);
+      }
+    }
+
+    // 3. Delete receipt items
     const { error: itemsError } = await supabase
       .from('receipt_item')
       .delete()
-      .eq('receipt_id', receiptId);
+      .eq('receipt_id', receiptId)
+      .eq('tenant_id', tenantId);
 
     if (itemsError) {
       console.error('Error deleting receipt items:', itemsError);
@@ -381,11 +418,12 @@ export async function DELETE(
       );
     }
 
-    // 3. Delete the receipt itself
+    // 4. Delete the receipt itself
     const { error: receiptError } = await supabase
       .from('receipt')
       .delete()
-      .eq('id', receiptId);
+      .eq('id', receiptId)
+      .eq('tenant_id', tenantId);
 
     if (receiptError) {
       console.error('Error deleting receipt:', receiptError);
@@ -395,9 +433,38 @@ export async function DELETE(
       );
     }
 
+    // 5. Delete the image from storage bucket if it exists
+    if (receipt.original_file_url && receipt.original_file_url !== 'placeholder') {
+      try {
+        // Extract the file path from the URL
+        // The URL format is typically: https://[project].supabase.co/storage/v1/object/public/receipts/[tenant_id]/[filename]
+        const urlParts = receipt.original_file_url.split('/storage/v1/object/public/receipts/');
+        if (urlParts.length > 1) {
+          const filePath = urlParts[1];
+          console.log('Deleting image from storage:', filePath);
+          
+          const { error: storageError } = await supabase
+            .storage
+            .from('receipts')
+            .remove([filePath]);
+          
+          if (storageError) {
+            console.error('Error deleting image from storage:', storageError);
+            // Don't fail the whole operation if image deletion fails
+            // The image might have been already deleted or moved
+          } else {
+            console.log('Image deleted successfully from storage');
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing storage URL:', error);
+        // Continue even if we can't delete the image
+      }
+    }
+
       return NextResponse.json({
         success: true,
-        message: 'Receipt deleted successfully'
+        message: 'Receipt and associated image deleted successfully'
       });
 
     } catch (error) {

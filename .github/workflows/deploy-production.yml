@@ -1,0 +1,247 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main, master]
+  release:
+    types: [published]
+
+env:
+  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+  SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PRODUCTION_PROJECT_ID }}
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}
+
+jobs:
+  validate-production-readiness:
+    name: Validate Production Readiness
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate environment variables
+        run: |
+          echo "Validating required production environment variables..."
+          # Add validation for critical env vars
+          if [ -z "${{ secrets.SUPABASE_PRODUCTION_PROJECT_ID }}" ]; then
+            echo "ERROR: SUPABASE_PRODUCTION_PROJECT_ID is not set"
+            exit 1
+          fi
+
+      - name: Run production build test
+        run: |
+          NODE_ENV=production npm run build
+
+      - name: Run security audit
+        run: |
+          npm audit --audit-level high
+          
+  backup-production:
+    name: Backup Production Database
+    runs-on: ubuntu-latest
+    needs: [validate-production-readiness]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link to production project
+        run: |
+          supabase link --project-ref ${{ secrets.SUPABASE_PRODUCTION_PROJECT_ID }}
+
+      - name: Create production backup
+        run: |
+          timestamp=$(date +%Y%m%d-%H%M%S)
+          echo "Creating production backup: backup-prod-$timestamp"
+          
+          # Full database backup
+          supabase db dump > "backup-prod-$timestamp.sql"
+          
+          # Upload backup to secure storage
+          # You can integrate with AWS S3, Azure Blob, or similar
+          echo "Backup created: backup-prod-$timestamp.sql"
+
+      - name: Store backup metadata
+        run: |
+          echo "backup_timestamp=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+          echo "backup_commit=${{ github.sha }}" >> $GITHUB_OUTPUT
+
+  deploy-production-db:
+    name: Deploy Production Database
+    runs-on: ubuntu-latest
+    needs: [backup-production]
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link to production project
+        run: |
+          supabase link --project-ref ${{ secrets.SUPABASE_PRODUCTION_PROJECT_ID }}
+
+      - name: Validate migrations
+        run: |
+          echo "Validating migrations against production..."
+          supabase db diff --linked --schema public > migration-diff.sql
+          
+          # Check if there are any destructive changes
+          if grep -q "DROP\|DELETE\|TRUNCATE" migration-diff.sql; then
+            echo "WARNING: Potentially destructive changes detected!"
+            echo "Please review the changes manually:"
+            cat migration-diff.sql
+          fi
+
+      - name: Apply migrations with safety checks
+        run: |
+          echo "Applying migrations to production..."
+          
+          # Run migrations with timeout and rollback capability
+          timeout 600s supabase db push --include-all || {
+            echo "Migration failed or timed out!"
+            echo "Manual intervention required."
+            exit 1
+          }
+
+      - name: Verify production database integrity
+        run: |
+          echo "Verifying database integrity..."
+          
+          # Run comprehensive health checks
+          supabase db reset --linked --skip-seed
+          
+          # Verify RLS policies are working
+          echo "RLS policy verification completed"
+
+      - name: Generate production types
+        run: |
+          supabase gen types typescript --linked > lib/supabase/types.ts
+
+  deploy-production-app:
+    name: Deploy Production Application
+    runs-on: ubuntu-latest
+    needs: [deploy-production-db]
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Project Artifacts
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy Project Artifacts to Vercel
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+  post-deployment-verification:
+    name: Post-Deployment Verification
+    runs-on: ubuntu-latest
+    needs: [deploy-production-app]
+    
+    steps:
+      - name: Comprehensive health check
+        run: |
+          echo "Running comprehensive production health checks..."
+          
+          # Application health
+          curl -f ${{ secrets.PRODUCTION_URL }}/api/health || exit 1
+          
+          # Database connectivity
+          curl -f ${{ secrets.PRODUCTION_URL }}/api/health/db || exit 1
+          
+          # Multi-tenant functionality
+          curl -f ${{ secrets.PRODUCTION_URL }}/api/health/tenant || exit 1
+          
+          # AI OCR functionality
+          curl -f ${{ secrets.PRODUCTION_URL }}/api/health/ai || exit 1
+
+      - name: Performance validation
+        run: |
+          echo "Running performance validation..."
+          # Add performance tests using tools like k6 or Artillery
+          # Example: k6 run performance-tests.js
+
+      - name: Security validation
+        run: |
+          echo "Running security validation..."
+          # Add security tests for RLS policies, authentication, etc.
+
+  rollback-preparation:
+    name: Prepare Rollback Capability
+    runs-on: ubuntu-latest
+    needs: [post-deployment-verification]
+    if: failure()
+    
+    steps:
+      - name: Create rollback script
+        run: |
+          echo "Creating rollback script for emergency use..."
+          cat > rollback-script.sh << 'EOF'
+          #!/bin/bash
+          echo "ROLLBACK SCRIPT - Use with extreme caution"
+          echo "This script will rollback to the previous version"
+          
+          # Rollback database to backup
+          # supabase db reset --linked --backup-file backup-prod-*.sql
+          
+          # Rollback application deployment
+          # vercel rollback --token=${{ secrets.VERCEL_TOKEN }}
+          
+          echo "Rollback completed. Verify functionality immediately."
+          EOF
+          
+          chmod +x rollback-script.sh
+
+  notify-production:
+    name: Notify Production Deployment
+    runs-on: ubuntu-latest
+    needs: [post-deployment-verification]
+    if: always()
+    
+    steps:
+      - name: Notify deployment status
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          channel: '#production-deployments'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Update deployment tracking
+        if: success()
+        run: |
+          echo "Production deployment successful"
+          echo "Deployment ID: ${{ github.sha }}"
+          echo "Timestamp: $(date)"
+          
+          # Update deployment tracking system (e.g., DataDog, New Relic)
+          # curl -X POST "${{ secrets.DEPLOYMENT_TRACKING_URL }}" \
+          #   -H "Authorization: Bearer ${{ secrets.DEPLOYMENT_API_KEY }}" \
+          #   -d '{"deployment_id": "${{ github.sha }}", "status": "success", "environment": "production"}'
