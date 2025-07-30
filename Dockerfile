@@ -1,4 +1,4 @@
-# Production Dockerfile with comprehensive debugging
+# Production Dockerfile with error debugging
 FROM node:20-alpine AS base
 
 # Install system dependencies
@@ -8,54 +8,44 @@ RUN apk add --no-cache \
     make \
     g++ \
     git \
-    bash \
-    curl
+    bash
 
 # Set working directory
 WORKDIR /app
 
-# Create logs directory
-RUN mkdir -p /app/logs
-
-# Copy package files first
+# Copy package files
 COPY package*.json ./
 COPY .npmrc* ./
 
-# Log system information
-RUN echo "========================================" > /app/logs/build.log && \
-    echo "SYSTEM INFORMATION" >> /app/logs/build.log && \
-    echo "========================================" >> /app/logs/build.log && \
-    echo "Date: $(date)" >> /app/logs/build.log && \
-    echo "Node version: $(node --version)" >> /app/logs/build.log && \
-    echo "npm version: $(npm --version)" >> /app/logs/build.log && \
-    echo "OS: $(uname -a)" >> /app/logs/build.log && \
-    echo "" >> /app/logs/build.log
+# Debug: Show package.json contents
+RUN echo "=== PACKAGE.JSON CONTENTS ===" && \
+    cat package.json && \
+    echo "=== END PACKAGE.JSON ==="
 
-# Try npm install with detailed logging
-RUN echo "========================================" >> /app/logs/build.log && \
-    echo "NPM INSTALL ATTEMPT" >> /app/logs/build.log && \
-    echo "========================================" >> /app/logs/build.log && \
-    npm ci --verbose >> /app/logs/build.log 2>&1 || \
-    (echo "npm ci failed, trying npm install..." >> /app/logs/build.log && \
-     npm install --verbose >> /app/logs/build.log 2>&1) || \
-    (echo "npm install failed, showing error details..." >> /app/logs/build.log && \
-     cat /app/logs/build.log && \
+# Debug: Show system info
+RUN echo "=== SYSTEM INFO ===" && \
+    node --version && \
+    npm --version && \
+    echo "=== END SYSTEM INFO ==="
+
+# Try npm install with immediate output (not to file)
+RUN npm ci --verbose || \
+    (echo "=== NPM CI FAILED, TRYING NPM INSTALL ===" && \
+     npm install --verbose) || \
+    (echo "=== BOTH NPM COMMANDS FAILED ===" && \
+     npm config list && \
+     ls -la && \
      exit 1)
 
 # Copy source code
 COPY . .
 
 # Build the application
-RUN echo "========================================" >> /app/logs/build.log && \
-    echo "BUILD ATTEMPT" >> /app/logs/build.log && \
-    echo "========================================" >> /app/logs/build.log && \
-    npm run build >> /app/logs/build.log 2>&1 || \
-    (echo "Build failed, showing logs..." && cat /app/logs/build.log && exit 1)
+RUN npm run build
 
 # Production stage
 FROM node:20-alpine AS runner
 
-# Install runtime dependencies
 RUN apk add --no-cache libc6-compat
 
 WORKDIR /app
