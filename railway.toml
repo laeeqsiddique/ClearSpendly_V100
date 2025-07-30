@@ -1,7 +1,8 @@
 [build]
 builder = "dockerfile"
 dockerfilePath = "./Dockerfile"
-watchPatterns = ["package.json", "package-lock.json", "next.config.ts", "tsconfig.json", "Dockerfile", "components/**", "app/**", "lib/**"]
+# Remove restrictive watch patterns - deploy on ANY change
+# watchPatterns = ["package.json", "package-lock.json", "next.config.ts", "tsconfig.json", "Dockerfile", "components/**", "app/**", "lib/**"]
 
 [build.environment]
 NODE_ENV = "production"
