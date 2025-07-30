@@ -1,6 +1,5 @@
 [build]
-builder = "nixpacks"
-buildCommand = "npm ci --no-cache && npm run build"
+builder = "dockerfile"
 watchPatterns = ["package.json", "package-lock.json", "next.config.ts", "tsconfig.json"]
 
 [build.environment]
@@ -13,7 +12,7 @@ NODE_OPTIONS = "--max-old-space-size=4096"
 DISABLE_ESLINT_PLUGIN = "true"
 
 [deploy]
-startCommand = "npm run start"
+startCommand = "node server.js"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
