@@ -4,7 +4,7 @@ import { generateInvoicePDF } from './pdf-generator';
 import { EmailTemplateGenerator } from './email-template-generator';
 import { createClient } from './supabase/server';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 interface EmailSendOptions {
   to: string;
@@ -144,6 +144,15 @@ export class InvoiceEmailService {
       }
 
       // Send email
+      if (!resend) {
+        console.warn('Resend API key not configured, email sending disabled');
+        return {
+          success: false,
+          error: 'Email service not configured',
+          emailId: null
+        };
+      }
+
       const response = await resend.emails.send(emailData);
 
       if (response.error) {
