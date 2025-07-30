@@ -1,6 +1,6 @@
 [build]
 builder = "dockerfile"
-dockerfilePath = "Dockerfile"
+dockerfilePath = "./Dockerfile.production"
 watchPatterns = ["package.json", "package-lock.json", "next.config.ts", "Dockerfile"]
 
 [build.environment]
