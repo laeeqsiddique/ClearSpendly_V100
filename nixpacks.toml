@@ -1,14 +1,72 @@
-[phases.setup]
-nixPkgs = ["nodejs_20", "npm-9_x"]
+# Enhanced Nixpacks configuration for Railway
+# Fallback if Dockerfile fails
 
+[phases.setup]
+nixPkgs = [
+  "nodejs_20",
+  "npm-9_x",
+  "python3",
+  "gcc",
+  "gnumake",
+  "cairo",
+  "pango",
+  "libjpeg",
+  "giflib",
+  "librsvg",
+  "pixman",
+  "pkg-config",
+  "chromium"
+]
+
+# Install system dependencies
 [phases.install]
-cmds = ["npm ci --no-cache"]
+cmds = [
+  # Clean environment
+  "rm -rf node_modules package-lock.json",
+  
+  # Configure npm for reliability
+  "npm config set registry https://registry.npmjs.org/",
+  "npm config set fetch-retry-mintimeout 20000",
+  "npm config set fetch-retry-maxtimeout 120000",
+  "npm config set fetch-retries 5",
+  "npm config set fetch-timeout 300000",
+  "npm config set prefer-offline true",
+  "npm config set audit false",
+  "npm config set fund false",
+  "npm cache clean --force",
+  
+  # Install with multiple fallback strategies
+  "npm install --verbose --no-audit --no-fund --legacy-peer-deps || npm install --force --verbose --no-audit --no-fund || (npm install --ignore-scripts --verbose --no-audit --no-fund --legacy-peer-deps && npm rebuild)",
+  
+  # Verify installation
+  "node -e \"require('next'); require('react'); console.log('Core deps OK')\""
+]
 
 [phases.build]
-cmds = ["npm run build"]
+cmds = [
+  # Set build environment
+  "export NODE_ENV=production",
+  "export NEXT_TELEMETRY_DISABLED=1",
+  "export NODE_OPTIONS='--max-old-space-size=4096'",
+  "export SKIP_ENV_VALIDATION=1",
+  
+  # Build application
+  "npm run build || (echo 'Build failed' && ls -la && exit 1)",
+  
+  # Verify build
+  "test -d .next && test -f .next/BUILD_ID || (echo 'Build verification failed' && exit 1)"
+]
 
 [start]
-cmd = "npm start"
+cmd = "node server.js"
 
 [variables]
 NODE_VERSION = "20"
+NODE_ENV = "production"
+NEXT_TELEMETRY_DISABLED = "1"
+PORT = "3000"
+HOSTNAME = "0.0.0.0"
+
+# Puppeteer configuration
+PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
+PUPPETEER_EXECUTABLE_PATH = "/nix/store/chromium/bin/chromium"

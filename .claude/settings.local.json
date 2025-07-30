@@ -30,7 +30,8 @@
       "Bash(git add:*)",
       "Bash(railway variables:*)",
       "Bash(railway link:*)",
-      "Bash(railway redeploy:*)"
+      "Bash(railway redeploy:*)",
+      "Bash(chmod:*)"
     ],
     "deny": []
   }
