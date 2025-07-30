@@ -3,7 +3,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   reactStrictMode: false,
-  output: 'standalone',
+  // Temporarily disable standalone for debugging
+  // output: 'standalone',
   typescript: {
     ignoreBuildErrors: true,
   },
