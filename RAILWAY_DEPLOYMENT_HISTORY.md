@@ -61,11 +61,14 @@ RUN npm ci --legacy-peer-deps
 ```
 **Result**: Still failing with exit code 1
 
-## What We Need
-1. Detailed npm error logs from Railway
-2. Proper error handling in Dockerfile
-3. Production-grade solution without shortcuts
-4. Clear debugging strategy
+## Auto-Deployment Issue Fixed
+- **Problem**: Railway only watches specific file patterns for auto-deployment
+- **Symptom**: "No changed files matched patterns" when pushing changes
+- **Solution**: Updated railway.toml watchPatterns to include:
+  - tsconfig.json (for TypeScript configuration)
+  - components/** (for UI component changes)
+  - app/** (for Next.js app directory changes)
+  - lib/** (for utility library changes)
 
 ## Next Steps
 - Get expert to create bulletproof deployment solution
