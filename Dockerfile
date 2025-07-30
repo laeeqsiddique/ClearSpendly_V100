@@ -1,14 +1,24 @@
-# Production Dockerfile with error debugging
+# Production Dockerfile with canvas dependencies
 FROM node:20-alpine AS base
 
-# Install system dependencies
+# Install ALL required system dependencies for canvas
 RUN apk add --no-cache \
     libc6-compat \
     python3 \
     make \
     g++ \
     git \
-    bash
+    bash \
+    cairo-dev \
+    jpeg-dev \
+    pango-dev \
+    giflib-dev \
+    pixman-dev \
+    pangomm-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    pkgconfig \
+    build-base
 
 # Set working directory
 WORKDIR /app
@@ -17,25 +27,8 @@ WORKDIR /app
 COPY package*.json ./
 COPY .npmrc* ./
 
-# Debug: Show package.json contents
-RUN echo "=== PACKAGE.JSON CONTENTS ===" && \
-    cat package.json && \
-    echo "=== END PACKAGE.JSON ==="
-
-# Debug: Show system info
-RUN echo "=== SYSTEM INFO ===" && \
-    node --version && \
-    npm --version && \
-    echo "=== END SYSTEM INFO ==="
-
-# Try npm install with immediate output (not to file)
-RUN npm ci --verbose || \
-    (echo "=== NPM CI FAILED, TRYING NPM INSTALL ===" && \
-     npm install --verbose) || \
-    (echo "=== BOTH NPM COMMANDS FAILED ===" && \
-     npm config list && \
-     ls -la && \
-     exit 1)
+# Install dependencies
+RUN npm ci
 
 # Copy source code
 COPY . .
@@ -46,7 +39,17 @@ RUN npm run build
 # Production stage
 FROM node:20-alpine AS runner
 
-RUN apk add --no-cache libc6-compat
+# Install runtime dependencies for canvas
+RUN apk add --no-cache \
+    libc6-compat \
+    cairo \
+    jpeg \
+    pango \
+    giflib \
+    pixman \
+    pangomm \
+    libjpeg-turbo \
+    freetype
 
 WORKDIR /app
 

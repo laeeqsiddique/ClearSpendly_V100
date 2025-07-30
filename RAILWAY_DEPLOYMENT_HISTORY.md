@@ -35,11 +35,9 @@
 
 ### 5. Current Issue: npm install failures
 - **Error**: Exit code 1, Exit code 240 (EBUSY)
-- **Attempts**:
-  1. Multi-stage Dockerfile with cache mounts - Failed (EBUSY)
-  2. Simple Dockerfile with --no-cache - Failed (exit 1)
-  3. Added --legacy-peer-deps - Failed (exit 1)
-  4. Expert-optimized Dockerfile - Still failing
+- **Root Cause Found**: Canvas package requires system dependencies
+- **Specific Error**: `pkg-config: not found` and missing pixman-1 libraries
+- **Solution**: Added cairo, pango, jpeg, and other canvas dependencies to Dockerfile
 
 ## Failed Approaches
 
