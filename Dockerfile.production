@@ -1,246 +1,83 @@
-# Production Dockerfile for Railway with Enhanced Error Logging
-# Designed for Next.js 15.3.1 multi-tenant SaaS deployment
-# Features comprehensive error capture and diagnostic capabilities
-
-# Stage 1: Base image with all system dependencies
+# Production Dockerfile with comprehensive debugging
 FROM node:20-alpine AS base
 
-# Install system dependencies with error handling
+# Install system dependencies
 RUN apk add --no-cache \
     libc6-compat \
     python3 \
     make \
     g++ \
     git \
-    ca-certificates \
-    curl \
     bash \
-    # Canvas dependencies
-    cairo-dev \
-    jpeg-dev \
-    pango-dev \
-    giflib-dev \
-    pixman-dev \
-    # Puppeteer dependencies
-    chromium \
-    nss \
-    freetype \
-    freetype-dev \
-    harfbuzz \
-    ttf-freefont \
-    # Additional build tools
-    build-base \
-    libpng-dev \
-    # Debugging tools
-    strace \
-    lsof \
-    procps \
-    && echo "System dependencies installed successfully"
-
-# Configure npm for maximum reliability and debugging
-RUN npm config set registry https://registry.npmjs.org/ && \
-    npm config set loglevel verbose && \
-    npm config set progress false && \
-    npm config set fetch-retry-mintimeout 20000 && \
-    npm config set fetch-retry-maxtimeout 120000 && \
-    npm config set fetch-retries 5 && \
-    npm config set fetch-timeout 300000 && \
-    npm config set cache-min 3600 && \
-    npm config set prefer-offline true && \
-    npm config set audit false && \
-    npm config set fund false && \
-    npm config set update-notifier false && \
-    npm config set save-exact true && \
-    echo "npm configuration completed"
-
-# Stage 2: Dependency installation with comprehensive error capture
-FROM base AS deps
-
-WORKDIR /app
-
-# Create error log directory
-RUN mkdir -p /app/logs
-
-# Copy package files
-COPY package*.json ./
-
-# Log system information for debugging
-RUN echo "=== System Information ===" > /app/logs/system-info.log && \
-    echo "Node version: $(node --version)" >> /app/logs/system-info.log && \
-    echo "npm version: $(npm --version)" >> /app/logs/system-info.log && \
-    echo "OS: $(uname -a)" >> /app/logs/system-info.log && \
-    echo "Memory: $(free -h)" >> /app/logs/system-info.log && \
-    echo "Disk: $(df -h)" >> /app/logs/system-info.log && \
-    echo "npm config:" >> /app/logs/system-info.log && \
-    npm config list >> /app/logs/system-info.log 2>&1
-
-# Analyze package.json for potential issues
-RUN echo "=== Package Analysis ===" > /app/logs/package-analysis.log && \
-    node -e "
-    const pkg = require('./package.json');
-    console.log('Total dependencies:', Object.keys(pkg.dependencies || {}).length);
-    console.log('Total devDependencies:', Object.keys(pkg.devDependencies || {}).length);
-    console.log('Node engine:', pkg.engines?.node || 'not specified');
-    console.log('npm engine:', pkg.engines?.npm || 'not specified');
-    // Check for known problematic packages
-    const problematic = ['canvas', 'puppeteer', 'sharp', 'bcrypt'];
-    const found = problematic.filter(p => 
-        (pkg.dependencies && pkg.dependencies[p]) || 
-        (pkg.devDependencies && pkg.devDependencies[p])
-    );
-    if (found.length > 0) {
-        console.log('Native dependencies found:', found.join(', '));
-    }
-    " >> /app/logs/package-analysis.log 2>&1 || echo "Package analysis failed" >> /app/logs/package-analysis.log
-
-# Clean environment before install
-RUN echo "=== Pre-install Cleanup ===" > /app/logs/cleanup.log && \
-    rm -rf node_modules package-lock.json npm-shrinkwrap.json .npm && \
-    npm cache clean --force >> /app/logs/cleanup.log 2>&1 && \
-    echo "Cleanup completed" >> /app/logs/cleanup.log
-
-# Attempt npm install with comprehensive error logging
-RUN echo "=== npm Install Attempt 1: Standard ===" > /app/logs/npm-install.log && \
-    echo "Command: npm ci --no-audit --no-fund" >> /app/logs/npm-install.log && \
-    npm ci --no-audit --no-fund >> /app/logs/npm-install.log 2>&1 || \
-    (echo "Exit code: $?" >> /app/logs/npm-install.log && \
-     echo "\n=== npm Install Attempt 2: Legacy Peer Deps ===" >> /app/logs/npm-install.log && \
-     echo "Command: npm ci --legacy-peer-deps --no-audit --no-fund" >> /app/logs/npm-install.log && \
-     npm ci --legacy-peer-deps --no-audit --no-fund >> /app/logs/npm-install.log 2>&1) || \
-    (echo "Exit code: $?" >> /app/logs/npm-install.log && \
-     echo "\n=== npm Install Attempt 3: Fresh Install ===" >> /app/logs/npm-install.log && \
-     echo "Command: npm install --legacy-peer-deps --no-audit --no-fund" >> /app/logs/npm-install.log && \
-     npm install --legacy-peer-deps --no-audit --no-fund >> /app/logs/npm-install.log 2>&1) || \
-    (echo "Exit code: $?" >> /app/logs/npm-install.log && \
-     echo "\n=== npm Install Attempt 4: Force Install ===" >> /app/logs/npm-install.log && \
-     echo "Command: npm install --force --no-audit --no-fund" >> /app/logs/npm-install.log && \
-     npm install --force --no-audit --no-fund >> /app/logs/npm-install.log 2>&1) || \
-    (echo "Exit code: $?" >> /app/logs/npm-install.log && \
-     echo "\n=== All install attempts failed ===" >> /app/logs/npm-install.log && \
-     echo "Displaying error logs:" && \
-     cat /app/logs/npm-install.log && \
-     exit 1)
-
-# Log installed packages
-RUN echo "=== Installed Packages ===" > /app/logs/installed-packages.log && \
-    npm ls --depth=0 >> /app/logs/installed-packages.log 2>&1 || \
-    echo "Package listing failed" >> /app/logs/installed-packages.log
-
-# Verify critical dependencies
-RUN echo "=== Dependency Verification ===" > /app/logs/verification.log && \
-    node -e "
-    const deps = ['next', 'react', 'react-dom', '@supabase/supabase-js'];
-    deps.forEach(dep => {
-        try {
-            require.resolve(dep);
-            console.log('✓', dep, 'found');
-        } catch (e) {
-            console.log('✗', dep, 'missing');
-            process.exit(1);
-        }
-    });
-    " >> /app/logs/verification.log 2>&1 || \
-    (echo "Dependency verification failed" >> /app/logs/verification.log && \
-     cat /app/logs/verification.log && \
-     exit 1)
-
-# Stage 3: Build stage with error tracking
-FROM base AS builder
-
-WORKDIR /app
-
-# Copy dependencies and source
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/logs ./logs
-COPY . .
-
-# Set build environment
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_ENV=production
-ENV NODE_OPTIONS="--max-old-space-size=4096"
-ENV SKIP_ENV_VALIDATION=1
-
-# Log build environment
-RUN echo "=== Build Environment ===" > /app/logs/build-env.log && \
-    env | sort >> /app/logs/build-env.log
-
-# Attempt build with error capture
-RUN echo "=== Next.js Build ===" > /app/logs/build.log && \
-    echo "Starting build at: $(date)" >> /app/logs/build.log && \
-    npm run build >> /app/logs/build.log 2>&1 || \
-    (echo "Build failed with exit code: $?" >> /app/logs/build.log && \
-     echo "\n=== Build Error Details ===" >> /app/logs/build.log && \
-     # Check for common build issues
-     echo "\nChecking for TypeScript errors:" >> /app/logs/build.log && \
-     npx tsc --noEmit >> /app/logs/build.log 2>&1 || echo "TypeScript check failed" >> /app/logs/build.log && \
-     echo "\nChecking for missing dependencies:" >> /app/logs/build.log && \
-     npm ls >> /app/logs/build.log 2>&1 || echo "Dependency check failed" >> /app/logs/build.log && \
-     echo "\n.next directory contents:" >> /app/logs/build.log && \
-     ls -la .next >> /app/logs/build.log 2>&1 || echo "No .next directory" >> /app/logs/build.log && \
-     # Display all logs before failing
-     echo "\n=== DISPLAYING ALL ERROR LOGS ===" && \
-     for log in /app/logs/*.log; do \
-         echo "\n=== $log ===" && \
-         cat "$log" && \
-         echo "\n"; \
-     done && \
-     exit 1)
-
-# Verify build output
-RUN echo "=== Build Verification ===" > /app/logs/build-verification.log && \
-    test -d .next && echo ".next directory exists" >> /app/logs/build-verification.log || echo ".next directory missing" >> /app/logs/build-verification.log && \
-    test -f .next/BUILD_ID && echo "BUILD_ID exists" >> /app/logs/build-verification.log || echo "BUILD_ID missing" >> /app/logs/build-verification.log && \
-    ls -la .next >> /app/logs/build-verification.log 2>&1
-
-# Stage 4: Production runner
-FROM node:20-alpine AS runner
-
-# Install runtime dependencies only
-RUN apk add --no-cache \
-    libc6-compat \
-    cairo \
-    jpeg \
-    pango \
-    giflib \
-    pixman \
-    chromium \
-    nss \
-    freetype \
-    harfbuzz \
-    ttf-freefont \
-    # Add curl for health checks
     curl
 
+# Set working directory
 WORKDIR /app
 
-# Create app user
+# Create logs directory
+RUN mkdir -p /app/logs
+
+# Copy package files first
+COPY package*.json ./
+COPY .npmrc* ./
+
+# Log system information
+RUN echo "========================================" > /app/logs/build.log && \
+    echo "SYSTEM INFORMATION" >> /app/logs/build.log && \
+    echo "========================================" >> /app/logs/build.log && \
+    echo "Date: $(date)" >> /app/logs/build.log && \
+    echo "Node version: $(node --version)" >> /app/logs/build.log && \
+    echo "npm version: $(npm --version)" >> /app/logs/build.log && \
+    echo "OS: $(uname -a)" >> /app/logs/build.log && \
+    echo "" >> /app/logs/build.log
+
+# Try npm install with detailed logging
+RUN echo "========================================" >> /app/logs/build.log && \
+    echo "NPM INSTALL ATTEMPT" >> /app/logs/build.log && \
+    echo "========================================" >> /app/logs/build.log && \
+    npm ci --verbose >> /app/logs/build.log 2>&1 || \
+    (echo "npm ci failed, trying npm install..." >> /app/logs/build.log && \
+     npm install --verbose >> /app/logs/build.log 2>&1) || \
+    (echo "npm install failed, showing error details..." >> /app/logs/build.log && \
+     cat /app/logs/build.log && \
+     exit 1)
+
+# Copy source code
+COPY . .
+
+# Build the application
+RUN echo "========================================" >> /app/logs/build.log && \
+    echo "BUILD ATTEMPT" >> /app/logs/build.log && \
+    echo "========================================" >> /app/logs/build.log && \
+    npm run build >> /app/logs/build.log 2>&1 || \
+    (echo "Build failed, showing logs..." && cat /app/logs/build.log && exit 1)
+
+# Production stage
+FROM node:20-alpine AS runner
+
+# Install runtime dependencies
+RUN apk add --no-cache libc6-compat
+
+WORKDIR /app
+
+# Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nextjs -u 1001 -G nodejs
+    adduser -S nextjs -u 1001
 
-# Copy production files
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+# Copy built application
+COPY --from=base --chown=nextjs:nodejs /app/public ./public
+COPY --from=base --chown=nextjs:nodejs /app/.next ./.next
+COPY --from=base --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=base --chown=nextjs:nodejs /app/package.json ./package.json
+COPY --from=base --chown=nextjs:nodejs /app/server.js ./server.js
 
-# Copy logs for debugging (remove in final production)
-COPY --from=builder --chown=nextjs:nodejs /app/logs ./logs
-
-# Configure runtime
+# Set environment variables
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:3000/api/health || exit 1
 
 USER nextjs
 
 EXPOSE 3000
 
-# Start with error handling
-CMD ["sh", "-c", "node server.js || (echo 'Server failed to start' && ls -la && exit 1)"]
+CMD ["npm", "start"]
