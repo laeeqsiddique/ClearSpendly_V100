@@ -24,7 +24,13 @@
       "Bash(CI=true NEXT_TELEMETRY_DISABLED=1 npm run build -- --debug)",
       "Bash(railway status:*)",
       "Bash(railway logs:*)",
-      "Bash(railway service:*)"
+      "Bash(railway service:*)",
+      "Bash(git commit:*)",
+      "Bash(cat:*)",
+      "Bash(git add:*)",
+      "Bash(railway variables:*)",
+      "Bash(railway link:*)",
+      "Bash(railway redeploy:*)"
     ],
     "deny": []
   }

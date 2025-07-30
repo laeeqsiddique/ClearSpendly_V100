@@ -1,15 +1,19 @@
 [build]
 builder = "dockerfile"
-watchPatterns = ["package.json", "package-lock.json", "next.config.ts", "tsconfig.json"]
+dockerfilePath = "Dockerfile"
+watchPatterns = ["package.json", "package-lock.json", "next.config.ts", "Dockerfile"]
 
 [build.environment]
 NODE_ENV = "production"
 NEXT_TELEMETRY_DISABLED = "1"
 CI = "true"
-# Railway-specific build optimizations
 NODE_OPTIONS = "--max-old-space-size=4096"
-# Disable problematic features during build
 DISABLE_ESLINT_PLUGIN = "true"
+# Prevent npm audit during build for speed
+NPM_CONFIG_AUDIT = "false"
+NPM_CONFIG_FUND = "false"
+# Use specific Node.js version
+NIXPACKS_NODE_VERSION = "20"
 
 [deploy]
 startCommand = "node server.js"
@@ -17,14 +21,26 @@ healthcheckPath = "/api/health"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
+# Increase memory allocation for Railway
+numReplicas = 1
 
 [deploy.environment]
 NODE_ENV = "production"
 PORT = "3000"
 NEXT_TELEMETRY_DISABLED = "1"
-# Railway-specific runtime optimizations
 NODE_OPTIONS = "--max-old-space-size=2048"
+# Optimize for Railway infrastructure
+UV_THREADPOOL_SIZE = "4"
 
 [scaling]
 minReplicas = 1
-maxReplicas = 2
+maxReplicas = 3
+# CPU and memory scaling thresholds
+autoscaling = true
+cpuThreshold = 80
+memoryThreshold = 85
+
+# Railway-specific optimization settings
+[experimental]
+enableBuildCache = true
+incrementalBuilds = true

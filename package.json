@@ -3,8 +3,8 @@
   "version": "0.1.1",
   "private": true,
   "engines": {
-    "node": ">=20.0.0",
-    "npm": ">=9.0.0"
+    "node": "20.x",
+    "npm": ">=10.0.0"
   },
   "scripts": {
     "dev": "next dev --turbopack",
@@ -35,7 +35,10 @@
     "env:optimize": "node scripts/env-manager.js optimize",
     "env:templates": "node scripts/env-manager.js templates",
     "health:check": "curl -f http://localhost:3000/api/health",
-    "health:all": "curl -f http://localhost:3000/api/health && curl -f http://localhost:3000/api/health/db && curl -f http://localhost:3000/api/health/tenant && curl -f http://localhost:3000/api/health/ai"
+    "health:all": "curl -f http://localhost:3000/api/health && curl -f http://localhost:3000/api/health/db && curl -f http://localhost:3000/api/health/tenant && curl -f http://localhost:3000/api/health/ai",
+    "railway:build": "NODE_ENV=production NODE_OPTIONS='--max-old-space-size=4096' npm run build",
+    "railway:start": "NODE_ENV=production node server.js",
+    "postinstall": "echo 'Dependencies installed successfully for Railway deployment'"
   },
   "dependencies": {
     "@ai-sdk/openai": "^1.3.22",

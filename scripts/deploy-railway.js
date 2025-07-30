@@ -91,12 +91,38 @@ class RailwayDeployment {
     this.log('🏗️ Building Next.js application...');
     
     try {
-      execSync('npm run build', { stdio: 'inherit' });
+      // Use Railway-specific build command with memory optimization
+      execSync('npm run railway:build', { 
+        stdio: 'inherit',
+        env: { 
+          ...process.env, 
+          NODE_OPTIONS: '--max-old-space-size=4096',
+          NODE_ENV: 'production',
+          CI: 'true'
+        }
+      });
       this.log('✅ Build completed successfully');
       return true;
     } catch (error) {
       this.log(`❌ Build failed: ${error.message}`);
-      return false;
+      
+      // Fallback to standard build
+      this.log('🔄 Attempting fallback build...');
+      try {
+        execSync('npm run build', { 
+          stdio: 'inherit',
+          env: { 
+            ...process.env, 
+            NODE_OPTIONS: '--max-old-space-size=4096',
+            NODE_ENV: 'production'
+          }
+        });
+        this.log('✅ Fallback build completed successfully');
+        return true;
+      } catch (fallbackError) {
+        this.log(`❌ Fallback build also failed: ${fallbackError.message}`);
+        return false;
+      }
     }
   }
 
@@ -104,17 +130,70 @@ class RailwayDeployment {
     this.log('🚀 Deploying to Railway...');
     
     try {
-      // Deploy to Railway
-      const deployCommand = this.environment === 'staging'
-        ? 'railway up --service staging'
-        : 'railway up --service production';
-        
-      execSync(deployCommand, { stdio: 'inherit' });
+      // First, check if we're using Docker
+      const hasDockerfile = require('fs').existsSync('Dockerfile');
+      if (hasDockerfile) {
+        this.log('📦 Docker configuration detected, using Railway Docker deployment');
+      }
       
-      this.log('✅ Deployment to Railway completed');
+      // Deploy to Railway with optimized settings
+      const deployCommand = this.environment === 'staging'
+        ? 'railway up --service staging --detach'
+        : 'railway up --detach';
+        
+      this.log(`Executing: ${deployCommand}`);
+      execSync(deployCommand, { 
+        stdio: 'inherit',
+        env: { 
+          ...process.env,
+          RAILWAY_DOCKERFILE_PATH: 'Dockerfile'
+        }
+      });
+      
+      this.log('✅ Deployment to Railway initiated');
+      
+      // Wait for deployment to complete
+      this.log('⏳ Waiting for deployment to complete...');
+      await new Promise(resolve => setTimeout(resolve, 30000));
+      
+      // Check deployment status
+      try {
+        const status = execSync('railway status --json', { encoding: 'utf8' });
+        const statusData = JSON.parse(status);
+        
+        if (statusData.deployments && statusData.deployments.length > 0) {
+          const latestDeployment = statusData.deployments[0];
+          this.log(`📊 Latest deployment status: ${latestDeployment.status}`);
+          
+          if (latestDeployment.status === 'SUCCESS') {
+            this.log('✅ Deployment completed successfully');
+            return true;
+          } else if (latestDeployment.status === 'FAILED') {
+            this.log('❌ Deployment failed on Railway');
+            return false;
+          } else {
+            this.log('⏳ Deployment still in progress...');
+            return true; // Continue to health checks
+          }
+        }
+      } catch (statusError) {
+        this.log(`⚠️ Could not get deployment status: ${statusError.message}`);
+        // Continue anyway, health checks will verify
+      }
+      
       return true;
     } catch (error) {
       this.log(`❌ Railway deployment failed: ${error.message}`);
+      
+      // Additional debugging information
+      this.log('🔍 Debug information:');
+      try {
+        execSync('railway whoami', { stdio: 'inherit' });
+        execSync('railway status', { stdio: 'inherit' });
+      } catch (debugError) {
+        this.log(`Could not get debug info: ${debugError.message}`);
+      }
+      
       return false;
     }
   }
