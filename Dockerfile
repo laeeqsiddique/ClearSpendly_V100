@@ -1,4 +1,4 @@
-# Production Dockerfile with canvas dependencies
+# Fix component path resolution issues
 FROM node:20-alpine AS base
 
 # Install ALL required system dependencies for canvas
@@ -23,15 +23,11 @@ RUN apk add --no-cache \
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-COPY .npmrc* ./
-
-# Install dependencies
-RUN npm ci
-
-# Copy source code
+# Copy ALL source files first (needed for path resolution)
 COPY . .
+
+# Install dependencies (this needs source files for proper resolution)
+RUN npm ci
 
 # Build the application
 RUN npm run build
@@ -59,10 +55,8 @@ RUN addgroup -g 1001 -S nodejs && \
 
 # Copy built application
 COPY --from=base --chown=nextjs:nodejs /app/public ./public
-COPY --from=base --chown=nextjs:nodejs /app/.next ./.next
-COPY --from=base --chown=nextjs:nodejs /app/node_modules ./node_modules
-COPY --from=base --chown=nextjs:nodejs /app/package.json ./package.json
-COPY --from=base --chown=nextjs:nodejs /app/server.js ./server.js
+COPY --from=base --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=base --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Set environment variables
 ENV NODE_ENV=production
@@ -73,4 +67,4 @@ USER nextjs
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+CMD ["node", "server.js"]
