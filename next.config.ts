@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -53,8 +54,18 @@ const nextConfig: NextConfig = {
     ],
   },
   
-  // Simplified webpack configuration for Next.js 15.3.1 compatibility
+  // Enhanced webpack configuration for Next.js 15.3.1 with path alias support
   webpack: (config, { isServer }) => {
+    // Ensure path aliases are properly resolved
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': path.resolve(__dirname),
+      '@/components': path.resolve(__dirname, 'components'),
+      '@/lib': path.resolve(__dirname, 'lib'),
+      '@/app': path.resolve(__dirname, 'app'),
+      '@/types': path.resolve(__dirname, 'types'),
+    };
+
     // Server-side configuration
     if (isServer) {
       // Prevent client-side code from being bundled on server
