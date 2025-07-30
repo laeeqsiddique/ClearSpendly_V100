@@ -1,8 +1,8 @@
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2024-11-20.acacia',
-});
+}) : null;
 
 interface CreatePaymentLinkOptions {
   invoiceId: string;
@@ -26,13 +26,20 @@ interface PaymentLinkResult {
 
 export class StripeService {
   constructor() {
+    // Don't throw during build time, just warn
     if (!process.env.STRIPE_SECRET_KEY) {
-      throw new Error('Stripe secret key not configured');
+      console.warn('Stripe secret key not configured, payment features will be disabled');
     }
   }
 
   async createPaymentLink(options: CreatePaymentLinkOptions): Promise<PaymentLinkResult> {
     try {
+      if (!stripe) {
+        return {
+          success: false,
+          error: 'Stripe service not configured'
+        };
+      }
       const {
         invoiceId,
         amount,
@@ -134,6 +141,12 @@ export class StripeService {
 
   async updatePaymentLink(paymentLinkId: string, options: Partial<CreatePaymentLinkOptions>): Promise<PaymentLinkResult> {
     try {
+      if (!stripe) {
+        return {
+          success: false,
+          error: 'Stripe service not configured'
+        };
+      }
       // Note: Stripe payment links are mostly immutable after creation
       // We can only update limited fields like metadata
       const paymentLink = await stripe.paymentLinks.update(paymentLinkId, {
@@ -159,6 +172,7 @@ export class StripeService {
 
   async deactivatePaymentLink(paymentLinkId: string): Promise<{ success: boolean; error?: string }> {
     try {
+      if (!stripe) return { success: false, error: 'Stripe service not configured' };
       await stripe.paymentLinks.update(paymentLinkId, {
         active: false
       });
@@ -247,6 +261,7 @@ export class StripeService {
 
   async testStripeConfiguration(): Promise<{ success: boolean; error?: string }> {
     try {
+      if (!stripe) return { success: false, error: 'Stripe service not configured' };
       if (!process.env.STRIPE_SECRET_KEY) {
         return { success: false, error: 'Stripe secret key not configured' };
       }
