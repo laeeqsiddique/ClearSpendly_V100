@@ -35,7 +35,7 @@ export default function DashboardTopNav({ children }: { children: ReactNode }) {
             <SheetHeader>
               <Link prefetch={true} href="/" className="flex items-center gap-2">
                 <Receipt className="h-6 w-6 text-purple-600" />
-                <SheetTitle>ClearSpendly</SheetTitle>
+                <SheetTitle>Flowvya</SheetTitle>
               </Link>
             </SheetHeader>
             <div className="flex flex-col space-y-3 mt-[1rem]">

@@ -75,7 +75,7 @@ export default function Onboarding() {
 
   const steps = [
     {
-      title: "Welcome to ClearSpendly!",
+      title: "Welcome to Flowvya!",
       description: "Let's get you started with AI-powered receipt management",
       content: (
         <div className="text-center space-y-6">
@@ -88,7 +88,7 @@ export default function Onboarding() {
             </h3>
             <p className="text-muted-foreground">
               You're all set up with a free account that includes 10 receipts per month.
-              Let's explore what you can do with ClearSpendly.
+              Let's explore what you can do with Flowvya.
             </p>
           </div>
           <div className="flex flex-wrap gap-2 justify-center">
@@ -243,13 +243,13 @@ export default function Onboarding() {
       
       if (!finalCheck) {
         console.error('Membership check failed after setup - waiting longer');
-        toast.success('Welcome to ClearSpendly! Finalizing your account setup...');
+        toast.success('Welcome to Flowvya! Finalizing your account setup...');
         setTimeout(() => {
           window.location.href = '/dashboard';
         }, 3000); // Wait longer if membership isn't immediately available
       } else {
         console.log('Membership verified:', finalCheck.tenant_id);
-        toast.success('Welcome to ClearSpendly! Setting up your dashboard...');
+        toast.success('Welcome to Flowvya! Setting up your dashboard...');
         
         // Use window.location for a hard redirect to ensure middleware runs fresh
         setTimeout(() => {

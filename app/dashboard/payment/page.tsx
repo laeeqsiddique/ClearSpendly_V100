@@ -188,7 +188,7 @@ export default async function PaymentPage() {
                     </span>
                   </CardTitle>
                   <CardDescription>
-                    Unlock the full power of ClearSpendly
+                    Unlock the full power of Flowvya
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -259,7 +259,7 @@ export default async function PaymentPage() {
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Plan</span>
-                      <span className="font-medium">ClearSpendly Pro</span>
+                      <span className="font-medium">Flowvya Pro</span>
                     </div>
                     
                     <div className="flex justify-between items-center">

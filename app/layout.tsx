@@ -5,7 +5,7 @@ import { AnalyticsWrapper } from "@/components/analytics-wrapper";
 import { ErrorBoundary } from "@/components/error-boundary";
 import "./globals.css";
 export const metadata: Metadata = {
-  title: "ClearSpendly - AI-Powered Receipt Management",
+  title: "Flowvya - AI-Powered Receipt Management",
   description:
     "Transform receipts into actionable insights. Privacy-first expense management with AI-powered categorization, price anomaly detection, and smart analytics for modern businesses.",
   icons: {
@@ -16,17 +16,17 @@ export const metadata: Metadata = {
     apple: "/apple-icon",
   },
   openGraph: {
-    title: "ClearSpendly - AI-Powered Receipt Management",
+    title: "Flowvya - AI-Powered Receipt Management",
     description:
       "Transform receipts into actionable insights. Privacy-first expense management with AI-powered categorization and smart analytics.",
     url: "https://clearspendly.com",
-    siteName: "ClearSpendly",
+    siteName: "Flowvya",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "ClearSpendly - AI-Powered Receipt Management",
+        alt: "Flowvya - AI-Powered Receipt Management",
       },
     ],
     locale: "en-US",

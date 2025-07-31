@@ -4,10 +4,10 @@ import Link from "next/link";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "About ClearSpendly - Smart Expense Tracking",
-  description: "Learn about ClearSpendly's mission to simplify expense management with AI-powered receipt processing and intelligent categorization.",
+  title: "About Flowvya - Smart Expense Tracking",
+  description: "Learn about Flowvya's mission to simplify expense management with AI-powered receipt processing and intelligent categorization.",
   openGraph: {
-    title: "About ClearSpendly",
+    title: "About Flowvya",
     description: "Smart expense tracking made simple",
     type: "website",
   },
@@ -21,7 +21,7 @@ export default function About() {
           {/* Hero Section */}
           <div className="text-center mb-12">
             <h1 className="text-4xl font-bold tracking-tight mb-4">
-              About ClearSpendly
+              About Flowvya
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               Simplifying expense management with intelligent automation and 
@@ -36,7 +36,7 @@ export default function About() {
             </CardHeader>
             <CardContent className="prose dark:prose-invert max-w-none">
               <p>
-                ClearSpendly was created to eliminate the hassle of expense tracking. 
+                Flowvya was created to eliminate the hassle of expense tracking. 
                 We believe that managing business expenses should be effortless, accurate, 
                 and insightful. Our platform combines cutting-edge AI technology with 
                 intuitive design to transform how businesses handle their financial data.
@@ -127,7 +127,7 @@ export default function About() {
             <h2 className="text-2xl font-bold mb-4">Ready to Get Started?</h2>
             <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
               Join thousands of businesses that have streamlined their expense 
-              management with ClearSpendly.
+              management with Flowvya.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button asChild size="lg">

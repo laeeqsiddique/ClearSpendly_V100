@@ -18,7 +18,7 @@ export default function Chatbot() {
           <div className="flex flex-col items-start justify-between gap-3 rounded-lg border h-96 shadow-lg p-4">
             <div className="w-full">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">ClearSpendly Assistant</h3>
+                <h3 className="text-lg font-semibold">Flowvya Assistant</h3>
                 <X
                   className="w-4 h-4 hover:cursor-pointer"
                   onClick={() => setOpen(false)}

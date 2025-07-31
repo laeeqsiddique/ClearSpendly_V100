@@ -169,10 +169,10 @@ function SignUpContent() {
       <Card className="max-w-md w-full">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">
-            Join ClearSpendly
+            Join Flowvya
           </CardTitle>
           <CardDescription>
-            Create your account to start managing receipts with AI
+            Create your account to start flowing with Flowvya
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

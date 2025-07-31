@@ -708,7 +708,7 @@ export default function ReceiptsPage() {
       XLSX.utils.book_append_sheet(wb, tagAnalysisSheet, "Tag Analysis");
 
       // Generate filename with current date and filter info
-      let filename = `ClearSpendly_Receipts_${format(new Date(), 'yyyy-MM-dd')}`;
+      let filename = `Flowvya_Receipts_${format(new Date(), 'yyyy-MM-dd')}`;
       if (selectedTagIds.length > 0) {
         filename += `_FilteredBy${selectedTagIds.length}Tags`;
       }

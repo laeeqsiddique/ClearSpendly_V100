@@ -166,7 +166,7 @@ function SignInContent() {
             Welcome back
           </CardTitle>
           <CardDescription>
-            Sign in to your ClearSpendly account
+            Sign in to your Flowvya account
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
