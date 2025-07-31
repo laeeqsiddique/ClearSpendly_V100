@@ -8,8 +8,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id: categoryId } = await params;
 
     const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      process.env.SUPABASE_SERVICE_ROLE_KEY || ''
     );
 
     // Get the current tenant ID for the authenticated user
@@ -54,8 +54,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const { id: categoryId } = await params;
 
     const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      process.env.SUPABASE_SERVICE_ROLE_KEY || ''
     );
 
     // Get the current tenant ID for the authenticated user

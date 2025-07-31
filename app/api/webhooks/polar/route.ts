@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     const isValid = verifyWebhookSignature(
       body,
       signature,
-      process.env.POLAR_WEBHOOK_SECRET!
+      process.env.POLAR_WEBHOOK_SECRET || ''
     )
 
     if (!isValid) {

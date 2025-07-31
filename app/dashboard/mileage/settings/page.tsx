@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { IRSRateManagement } from "../_components/irs-rate-management";
 
 export default function MileageSettingsPage() {

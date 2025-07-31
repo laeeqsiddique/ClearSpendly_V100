@@ -19,19 +19,36 @@ export class SimplifiedOCRProcessor extends OCRProcessor {
   constructor() {
     super();
     
-    this.enableAI = process.env.NEXT_PUBLIC_ENABLE_AI_ENHANCEMENT === 'true';
-    this.confidenceThreshold = parseInt(process.env.NEXT_PUBLIC_AI_CONFIDENCE_THRESHOLD || '90');
+    // Check for AI enablement (allow both client and server-side flags)
+    this.enableAI = process.env.NEXT_PUBLIC_ENABLE_AI_ENHANCEMENT === 'true' || 
+                    process.env.ENABLE_AI_ENHANCEMENT === 'true' ||
+                    !!(process.env.NEXT_PUBLIC_OPENAI_API_KEY || process.env.OPENAI_API_KEY);
     
-    if (this.enableAI && process.env.NEXT_PUBLIC_OPENAI_API_KEY) {
+    this.confidenceThreshold = parseInt(
+      process.env.NEXT_PUBLIC_AI_CONFIDENCE_THRESHOLD || 
+      process.env.AI_CONFIDENCE_THRESHOLD || 
+      '90'
+    );
+    
+    // Try both client-side and server-side API keys
+    const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+    
+    if (this.enableAI && apiKey) {
       this.aiParser = new OpenAIReceiptParser({
-        apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
-        model: process.env.NEXT_PUBLIC_AI_MODEL || 'gpt-4o-mini',
+        apiKey: apiKey,
+        model: process.env.NEXT_PUBLIC_AI_MODEL || process.env.AI_MODEL || 'gpt-4o-mini',
         maxTokens: 400,
         temperature: 0.1
       });
-      console.log('✅ AI enhancement enabled with model:', process.env.NEXT_PUBLIC_AI_MODEL || 'gpt-4o-mini');
+      console.log('✅ AI enhancement enabled with model:', process.env.NEXT_PUBLIC_AI_MODEL || process.env.AI_MODEL || 'gpt-4o-mini');
+      console.log('🔑 Using API key source:', process.env.NEXT_PUBLIC_OPENAI_API_KEY ? 'NEXT_PUBLIC_OPENAI_API_KEY' : 'OPENAI_API_KEY');
     } else {
-      console.log('ℹ️ AI enhancement disabled or API key not found');
+      console.log('ℹ️ AI enhancement disabled. Reasons:', {
+        enableAI: this.enableAI,
+        hasPublicKey: !!process.env.NEXT_PUBLIC_OPENAI_API_KEY,
+        hasServerKey: !!process.env.OPENAI_API_KEY,
+        hasAnyKey: !!apiKey
+      });
     }
   }
 

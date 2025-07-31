@@ -98,9 +98,20 @@ function startServer() {
         
         // Log important environment variables (without sensitive data)
         console.log('> Configuration:');
+        console.log(`  - Railway: ${process.env.RAILWAY_ENVIRONMENT || 'Not on Railway'}`);
         console.log(`  - Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
-        console.log(`  - Supabase: ${process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Connected' : 'Not configured'}`);
+        console.log(`  - Supabase URL: ${process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Set' : 'NOT SET - THIS IS THE ISSUE!'}`);
+        console.log(`  - Supabase Key: ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Set' : 'NOT SET - THIS IS THE ISSUE!'}`);
+        console.log(`  - Service Role: ${process.env.SUPABASE_SERVICE_ROLE_KEY ? 'Set' : 'Not set'}`);
         console.log(`  - Auth: ${process.env.NEXT_PUBLIC_POLAR_CLIENT_ID ? 'Polar configured' : 'Not configured'}`);
+        
+        // Debug all NEXT_PUBLIC_ variables
+        console.log('> NEXT_PUBLIC_ variables:');
+        Object.keys(process.env).forEach(key => {
+          if (key.startsWith('NEXT_PUBLIC_')) {
+            console.log(`  - ${key}: ${process.env[key] ? 'Set' : 'NOT SET'}`);
+          }
+        });
         
         // Reset restart counter on successful start
         serverRestartCount = 0;

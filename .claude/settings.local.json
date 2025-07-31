@@ -36,7 +36,12 @@
       "Bash(timeout 30 npx next build --debug)",
       "Bash(dir:*)",
       "Bash(timeout 20 npm run dev)",
-      "Bash(git clean:*)"
+      "Bash(git clean:*)",
+      "Bash(railway open:*)",
+      "Bash(npm run validate-deployment:*)",
+      "Bash(nslookup:*)",
+      "Bash(npm ls:*)",
+      "Bash(npm run prepare:*)"
     ],
     "deny": []
   }

@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { TagInput } from "@/components/ui/tag-input";
+import { AIStatusDebug } from "@/components/debug/ai-status";
 import { 
   Receipt, 
   Upload, 
@@ -36,13 +39,6 @@ import {
 import Image from "next/image";
 import { useCallback, useState, useEffect } from "react";
 import { toast } from "sonner";
-import dynamic from "next/dynamic";
-
-// Railway-specific: Dynamic imports to prevent server-side execution during build
-const AIChatAgent = dynamic(() => import('@/components/ai-chat-agent'), {
-  ssr: false,
-  loading: () => null
-});
 
 // Railway-specific: Type-only import to prevent server-side bundling issues
 import type { ExtractedReceiptData } from "@/lib/ocr-processor";
@@ -253,10 +249,11 @@ export default function UploadPage() {
         // Starting processing silently
         
         // Railway-specific: Dynamic import with error handling to avoid server-side issues
-        const { SimplifiedOCRProcessor } = await import('@/lib/ai-ocr/enhanced-processor').catch(err => {
+        const module = await import('@/lib/ai-ocr/enhanced-processor').catch(err => {
           console.warn('Failed to load OCR processor, falling back to server processing:', err);
           throw new Error('Client OCR unavailable');
         });
+        const { SimplifiedOCRProcessor } = module;
         const ocrProcessor = new SimplifiedOCRProcessor(); // Uses OpenAI for AI enhancement
         
         if (isPdf) {
@@ -319,10 +316,11 @@ export default function UploadPage() {
             
             try {
               // Railway-specific: Use the same PDF conversion as the OCR processor with error handling
-              const { SimplifiedOCRProcessor } = await import('@/lib/ai-ocr/enhanced-processor').catch(err => {
+              const module = await import('@/lib/ai-ocr/enhanced-processor').catch(err => {
                 console.error('Failed to load OCR processor for PDF conversion:', err);
                 throw new Error('PDF processor unavailable');
               });
+              const { SimplifiedOCRProcessor } = module;
               const tempProcessor = new SimplifiedOCRProcessor();
               await tempProcessor.initialize();
               
@@ -928,6 +926,9 @@ export default function UploadPage() {
               
               {/* AI processing now integrated seamlessly */}
             </div>
+            
+            {/* Temporary AI Debug Status - Remove after debugging */}
+            <AIStatusDebug />
 
             {/* Upload Area */}
             <div className="bg-white/80 backdrop-blur-sm border-0 shadow-lg rounded-lg overflow-hidden">
@@ -1505,8 +1506,7 @@ export default function UploadPage() {
         </div>
     )}
     
-    {/* AI Chat Agent */}
-    <AIChatAgent />
+{/* AI Chat Agent - Temporarily disabled for build */}
     </>
   );
 }

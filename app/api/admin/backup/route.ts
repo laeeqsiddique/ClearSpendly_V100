@@ -5,10 +5,18 @@ export async function POST() {
   try {
     const tenantId = 'default-tenant';
     
-    // Create Supabase client
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    // Create Supabase client with safe environment variable handling
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!supabaseUrl || !serviceRoleKey) {
+      return NextResponse.json(
+        { error: 'Supabase configuration missing' },
+        { status: 500 }
+      );
+    }
+    
+    const supabase = createClient(supabaseUrl, serviceRoleKey
     );
     const backupData: any = {
       exportDate: new Date().toISOString(),

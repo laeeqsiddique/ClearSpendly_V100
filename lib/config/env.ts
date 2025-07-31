@@ -1,0 +1,57 @@
+// Centralized environment configuration
+// This helps manage environment variables across different deployment environments
+
+export const env = {
+  // Supabase Configuration
+  supabase: {
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+  },
+  
+  // OAuth Providers
+  oauth: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+    },
+  },
+  
+  // Deployment Environment
+  deployment: {
+    environment: process.env.NODE_ENV || 'development',
+    isProduction: process.env.NODE_ENV === 'production',
+    isRailway: !!process.env.RAILWAY_ENVIRONMENT,
+    railwayEnv: process.env.RAILWAY_ENVIRONMENT || '',
+    publicUrl: process.env.NEXT_PUBLIC_APP_URL || '',
+  },
+  
+  // Feature Flags
+  features: {
+    enableGoogleAuth: !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    enableEmailAuth: true, // Always enabled as fallback
+  },
+};
+
+// Helper function to check if Supabase is properly configured
+export function isSupabaseConfigured(): boolean {
+  return !!(env.supabase.url && env.supabase.anonKey);
+}
+
+// Helper function to get OAuth redirect URL
+export function getOAuthRedirectUrl(returnTo?: string): string {
+  const baseUrl = env.deployment.publicUrl || 
+    (typeof window !== 'undefined' ? window.location.origin : '');
+  
+  return `${baseUrl}/auth/callback${returnTo ? `?returnTo=${returnTo}` : ''}`;
+}
+
+// Log configuration issues in development only
+if (env.deployment.environment === 'development' && typeof window !== 'undefined') {
+  if (!isSupabaseConfigured()) {
+    console.warn('Supabase environment variables not configured:', {
+      hasUrl: !!env.supabase.url,
+      hasAnonKey: !!env.supabase.anonKey,
+    });
+  }
+}

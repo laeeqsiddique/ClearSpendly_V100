@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { getCurrentUserContext } from "@/lib/user-context";
 import { redirect } from "next/navigation";
 import TeamClientWrapper from "./_components/team-client-wrapper";

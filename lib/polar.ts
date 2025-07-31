@@ -4,7 +4,7 @@ let polar: any = null;
 try {
   const { PolarApi, Configuration } = require('@polar-sh/sdk');
   const configuration = new Configuration({
-    accessToken: process.env.POLAR_ACCESS_TOKEN!,
+    accessToken: process.env.POLAR_ACCESS_TOKEN || '',
   });
   polar = new PolarApi(configuration);
 } catch (error) {

@@ -28,8 +28,8 @@ async function convertPdfToImage(pdfDataUrl: string): Promise<string> {
 async function saveReceiptToDatabase(receiptData: any, imageUrl?: string): Promise<string> {
   try {
     const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      process.env.SUPABASE_SERVICE_ROLE_KEY || ''
     );
 
     // Get the current tenant ID for the authenticated user

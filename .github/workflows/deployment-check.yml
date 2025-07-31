@@ -1,0 +1,96 @@
+name: Deployment Safety Check
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  deployment-safety:
+    name: Validate Deployment Safety
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run deployment validation
+      run: node scripts/validate-deployment.js
+      
+    - name: Test build without env vars
+      run: |
+        # Remove critical environment variables
+        unset NEXT_PUBLIC_SUPABASE_URL
+        unset NEXT_PUBLIC_SUPABASE_ANON_KEY
+        unset OPENAI_API_KEY
+        unset STRIPE_SECRET_KEY
+        npm run build
+      env:
+        NODE_ENV: production
+        
+    - name: Test build with mock env vars
+      run: npm run build
+      env:
+        NODE_ENV: production
+        NEXT_PUBLIC_SUPABASE_URL: "https://mock.supabase.co"
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: "mock-key"
+        
+    - name: Check for build artifacts
+      run: |
+        if [ ! -d ".next" ]; then
+          echo "❌ Build artifacts not found"
+          exit 1
+        fi
+        echo "✅ Build artifacts verified"
+        
+    - name: Upload deployment report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: deployment-report
+        path: deployment-report.json
+        
+    - name: Comment deployment status
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          let report = { status: 'FAILED', checks: ['Build failed'] };
+          
+          try {
+            report = JSON.parse(fs.readFileSync('deployment-report.json', 'utf8'));
+          } catch (e) {
+            console.log('No deployment report found');
+          }
+          
+          const emoji = report.status === 'READY_FOR_DEPLOYMENT' ? '✅' : '❌';
+          const body = `## ${emoji} Deployment Safety Check
+          
+          **Status**: ${report.status}
+          
+          **Checks Performed**:
+          ${report.checks.map(check => `- ${check}`).join('\n')}
+          
+          **Timestamp**: ${report.timestamp || new Date().toISOString()}
+          
+          ${report.status === 'READY_FOR_DEPLOYMENT' 
+            ? '🚀 This PR is safe to deploy!' 
+            : '⚠️ Please fix deployment issues before merging.'}`;
+            
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: body
+          });

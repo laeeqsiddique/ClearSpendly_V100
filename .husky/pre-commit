@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running pre-commit deployment safety checks..."
+
+# Run deployment validation
+node scripts/validate-deployment.js
+
+if [ $? -ne 0 ]; then
+  echo "❌ Deployment validation failed - fix issues before committing"
+  exit 1
+fi
+
+echo "✅ Pre-commit checks passed!"

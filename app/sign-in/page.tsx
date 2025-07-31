@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,22 +17,39 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
+import { AuthErrorBoundary } from "@/components/error-boundary";
+import { LoadingButton, AuthLoadingState } from "@/components/loading-states";
+import { useAnalytics, analyticsEvents } from "@/components/analytics-wrapper";
+import { getOAuthRedirectUrl } from "@/lib/utils/auth-helpers";
 
 function SignInContent() {
   const [loading, setLoading] = useState(false);
+  const [authStep, setAuthStep] = useState<'idle' | 'connecting' | 'authenticating' | 'redirecting'>('idle');
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = searchParams.get("returnTo");
+  const analytics = useAnalytics();
 
   const supabase = createClient();
+  
+  // Debug: Log environment variable status (remove in production)
+  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+    console.log('Supabase URL present:', !!process.env.NEXT_PUBLIC_SUPABASE_URL);
+    console.log('Supabase Anon Key present:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  }
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setAuthStep('connecting');
+
+    // Track sign-in attempt
+    analytics?.trackEvent('sign_in_attempt', analyticsEvents.signInAttempt('email'));
 
     try {
+      setAuthStep('authenticating');
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -38,13 +57,20 @@ function SignInContent() {
 
       if (error) {
         toast.error(error.message);
+        analytics?.trackEvent('sign_in_error', analyticsEvents.signInError('email', error.message));
+        setAuthStep('idle');
       } else if (data.user) {
+        setAuthStep('redirecting');
         toast.success("Welcome back!");
+        analytics?.trackEvent('sign_in_success', analyticsEvents.signInSuccess('email'));
         router.push(returnTo || "/dashboard");
       }
     } catch (error) {
       console.error("Sign-in error:", error);
-      toast.error("Something went wrong. Please try again.");
+      const errorMessage = "Something went wrong. Please try again.";
+      toast.error(errorMessage);
+      analytics?.trackEvent('sign_in_error', analyticsEvents.signInError('email', errorMessage));
+      setAuthStep('idle');
     } finally {
       setLoading(false);
     }
@@ -52,25 +78,85 @@ function SignInContent() {
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
+    setAuthStep('connecting');
+
+    // Track Google sign-in attempt
+    analytics?.trackEvent('sign_in_attempt', analyticsEvents.signInAttempt('google'));
     
     try {
+      setAuthStep('authenticating');
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?returnTo=${returnTo || '/dashboard'}`,
+          redirectTo: getOAuthRedirectUrl(returnTo || '/dashboard'),
         },
       });
 
       if (error) {
-        toast.error(error.message);
+        console.error('OAuth error:', error);
+        
+        // Provide specific error messages based on error type
+        let userMessage = 'Google sign-in failed. ';
+        
+        // Check if it's a mock client error (missing environment variables)
+        if (error.code === 'MOCK_CLIENT_ERROR' || error.message.includes('service unavailable')) {
+          userMessage = 'Authentication service is currently unavailable. Please try email sign-in instead.';
+        } else if (error.message.includes('unauthorized_client')) {
+          userMessage += 'Google OAuth is not properly configured. Please use email sign-in instead.';
+        } else if (error.message.includes('access_denied')) {
+          userMessage += 'Access was denied. Please try again or use email sign-in.';
+        } else if (error.message.includes('popup_blocked')) {
+          userMessage += 'Popup was blocked. Please allow popups for this site and try again.';
+        } else if (error.message.includes('network')) {
+          userMessage += 'Please check your internet connection and try again.';
+        } else {
+          userMessage += 'Please try email sign-in instead.';
+        }
+        
+        toast.error(userMessage);
+        analytics?.trackEvent('sign_in_error', analyticsEvents.signInError('google', userMessage));
+        setAuthStep('idle');
         setLoading(false);
+      } else {
+        setAuthStep('redirecting'); 
+        // If no error, the redirect will happen automatically
       }
     } catch (error) {
       console.error("Google sign-in error:", error);
-      toast.error("Something went wrong. Please try again.");
+      
+      let errorMessage = "Something went wrong. Please try email sign-in instead.";
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Failed to fetch')) {
+          errorMessage = "Network error. Please check your connection and try again.";
+        } else if (error.message.includes('MOCK_CLIENT_ERROR')) {
+          errorMessage = "Authentication service is currently unavailable. Please try email sign-in instead.";
+        } else {
+          errorMessage = "Google sign-in is currently unavailable. Please use email sign-in instead.";
+        }
+      }
+      
+      toast.error(errorMessage);
+      analytics?.trackEvent('sign_in_error', analyticsEvents.signInError('google', errorMessage));
+      setAuthStep('idle');
       setLoading(false);
     }
   };
+
+  // Show detailed loading state during authentication steps
+  if (authStep !== 'idle') {
+    return (
+      <div className="flex flex-col justify-center items-center w-full h-screen p-4">
+        <AuthLoadingState 
+          step={authStep}
+          onRetry={() => {
+            setAuthStep('idle');
+            setLoading(false);
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col justify-center items-center w-full h-screen p-4">
@@ -109,13 +195,15 @@ function SignInContent() {
                 disabled={loading}
               />
             </div>
-            <Button 
+            <LoadingButton 
               type="submit" 
               className="w-full" 
-              disabled={loading || !email || !password}
+              isLoading={loading}
+              loadingText="Signing in..."
+              disabled={!email || !password}
             >
-              {loading ? "Signing in..." : "Sign In"}
-            </Button>
+              Sign In
+            </LoadingButton>
           </form>
 
           <div className="relative">
@@ -129,10 +217,11 @@ function SignInContent() {
             </div>
           </div>
 
-          <Button
+          <LoadingButton
             variant="outline"
             className="w-full"
-            disabled={loading}
+            isLoading={loading}
+            loadingText="Connecting to Google..."
             onClick={handleGoogleSignIn}
           >
             <svg
@@ -160,7 +249,7 @@ function SignInContent() {
               />
             </svg>
             Continue with Google
-          </Button>
+          </LoadingButton>
 
           <div className="text-center text-sm space-y-2">
             <div>
@@ -198,14 +287,16 @@ function SignInContent() {
 
 export default function SignIn() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex flex-col justify-center items-center w-full h-screen">
-          <div className="max-w-md w-full bg-gray-200 dark:bg-gray-800 animate-pulse rounded-lg h-96"></div>
-        </div>
-      }
-    >
-      <SignInContent />
-    </Suspense>
+    <AuthErrorBoundary>
+      <Suspense
+        fallback={
+          <div className="flex flex-col justify-center items-center w-full h-screen">
+            <div className="max-w-md w-full bg-gray-200 dark:bg-gray-800 animate-pulse rounded-lg h-96"></div>
+          </div>
+        }
+      >
+        <SignInContent />
+      </Suspense>
+    </AuthErrorBoundary>
   );
 }

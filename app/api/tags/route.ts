@@ -12,9 +12,9 @@ export async function GET(req: NextRequest) {
       const limit = parseInt(searchParams.get('limit') || '50');
 
       const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-      );
+      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+    );
 
       const tenantId = context.membership.tenant_id;
 
@@ -75,9 +75,9 @@ export async function POST(req: NextRequest) {
   return withPermission('tags:create')(req, async (request, context) => {
     try {
       const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-      );
+      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+    );
 
       const tenantId = context.membership.tenant_id;
       const body = await request.json();

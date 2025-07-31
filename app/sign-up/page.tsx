@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,6 +17,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState, useEffect } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
+import { AuthErrorBoundary } from "@/components/error-boundary";
 
 function SignUpContent() {
   const [loading, setLoading] = useState(false);
@@ -108,6 +111,13 @@ function SignUpContent() {
     setLoading(true);
     
     try {
+      // Check if authentication service is available
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        toast.error('Authentication service is currently unavailable. Please try email sign-up instead.');
+        setLoading(false);
+        return;
+      }
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -116,12 +126,40 @@ function SignUpContent() {
       });
 
       if (error) {
-        toast.error(error.message);
+        console.error('OAuth error:', error);
+        
+        // Provide specific error messages based on error type
+        let userMessage = 'Google sign-up failed. ';
+        
+        if (error.message.includes('unauthorized_client')) {
+          userMessage += 'Google OAuth is not properly configured. Please use email sign-up instead.';
+        } else if (error.message.includes('access_denied')) {
+          userMessage += 'Access was denied. Please try again or use email sign-up.';
+        } else if (error.message.includes('popup_blocked')) {
+          userMessage += 'Popup was blocked. Please allow popups for this site and try again.';
+        } else if (error.message.includes('network')) {
+          userMessage += 'Please check your internet connection and try again.';
+        } else {
+          userMessage += 'Please try email sign-up instead.';
+        }
+        
+        toast.error(userMessage);
         setLoading(false);
       }
+      // If no error, the redirect will happen automatically
     } catch (error) {
       console.error("Google sign-up error:", error);
-      toast.error("Something went wrong. Please try again.");
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Failed to fetch')) {
+          toast.error("Network error. Please check your connection and try again.");
+        } else {
+          toast.error("Google sign-up is currently unavailable. Please use email sign-up instead.");
+        }
+      } else {
+        toast.error("Something went wrong. Please try email sign-up instead.");
+      }
+      
       setLoading(false);
     }
   };
@@ -259,14 +297,16 @@ function SignUpContent() {
 
 export default function SignUp() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex flex-col justify-center items-center w-full h-screen">
-          <div className="max-w-md w-full bg-gray-200 dark:bg-gray-800 animate-pulse rounded-lg h-96"></div>
-        </div>
-      }
-    >
-      <SignUpContent />
-    </Suspense>
+    <AuthErrorBoundary>
+      <Suspense
+        fallback={
+          <div className="flex flex-col justify-center items-center w-full h-screen">
+            <div className="max-w-md w-full bg-gray-200 dark:bg-gray-800 animate-pulse rounded-lg h-96"></div>
+          </div>
+        }
+      >
+        <SignUpContent />
+      </Suspense>
+    </AuthErrorBoundary>
   );
 }

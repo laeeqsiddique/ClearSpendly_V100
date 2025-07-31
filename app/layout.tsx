@@ -1,7 +1,8 @@
 import { Toaster } from "@/components/ui/sonner";
 import type { Metadata } from "next";
 import { ThemeProvider } from "../components/provider";
-import AnalyticsWrapper from "@/components/analytics-wrapper";
+import { AnalyticsWrapper } from "@/components/analytics-wrapper";
+import { ErrorBoundary } from "@/components/error-boundary";
 import "./globals.css";
 export const metadata: Metadata = {
   title: "ClearSpendly - AI-Powered Receipt Management",
@@ -41,17 +42,20 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`font-[-apple-system,BlinkMacSystemFont]antialiased`} suppressHydrationWarning>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem
-          forcedTheme="light"
-          disableTransitionOnChange
-        >
-          {children}
-          <Toaster />
-          <AnalyticsWrapper />
-        </ThemeProvider>
+        <ErrorBoundary>
+          <AnalyticsWrapper>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="light"
+              enableSystem
+              forcedTheme="light"
+              disableTransitionOnChange
+            >
+              {children}
+              <Toaster />
+            </ThemeProvider>
+          </AnalyticsWrapper>
+        </ErrorBoundary>
       </body>
     </html>
   );

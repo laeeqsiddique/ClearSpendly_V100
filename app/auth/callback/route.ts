@@ -56,11 +56,15 @@ export async function GET(request: NextRequest) {
           // Redirect new users to onboarding
           const forwardedHost = request.headers.get('x-forwarded-host')
           const isLocalEnv = process.env.NODE_ENV === 'development'
+          const isRailway = process.env.RAILWAY_ENVIRONMENT
           
           if (isLocalEnv) {
-            return NextResponse.redirect(`http://localhost:3004/onboarding`)
-          } else if (forwardedHost) {
+            return NextResponse.redirect(`http://localhost:3000/onboarding`)
+          } else if (isRailway && forwardedHost) {
             return NextResponse.redirect(`https://${forwardedHost}/onboarding`)
+          } else if (isRailway) {
+            // Use Railway's public URL or fallback to www.flowvya.com
+            return NextResponse.redirect(`https://www.flowvya.com/onboarding`)
           } else {
             return NextResponse.redirect(`${origin}/onboarding`)
           }
@@ -69,13 +73,17 @@ export async function GET(request: NextRequest) {
 
         const forwardedHost = request.headers.get('x-forwarded-host')
         const isLocalEnv = process.env.NODE_ENV === 'development'
+        const isRailway = process.env.RAILWAY_ENVIRONMENT
         
         if (isLocalEnv) {
           // In development, redirect to localhost
-          return NextResponse.redirect(`http://localhost:3004${returnTo}`)
-        } else if (forwardedHost) {
-          // In production, use the forwarded host
+          return NextResponse.redirect(`http://localhost:3000${returnTo}`)
+        } else if (isRailway && forwardedHost) {
+          // In Railway production, use the forwarded host
           return NextResponse.redirect(`https://${forwardedHost}${returnTo}`)
+        } else if (isRailway) {
+          // Use Railway's public URL or fallback to www.flowvya.com
+          return NextResponse.redirect(`https://www.flowvya.com${returnTo}`)
         } else {
           // Fallback to origin
           return NextResponse.redirect(`${origin}${returnTo}`)

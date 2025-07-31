@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { getCurrentUserContext } from "@/lib/user-context";
 
 export default async function TeamTestPage() {

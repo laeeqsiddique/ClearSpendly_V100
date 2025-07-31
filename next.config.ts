@@ -14,13 +14,21 @@ const nextConfig: NextConfig = {
   // Prevent static generation issues
   trailingSlash: false,
   
+  // Environment variables configuration
+  env: {
+    // Make Railway environment detection available
+    RAILWAY_ENVIRONMENT: process.env.RAILWAY_ENVIRONMENT,
+    // Build-time environment detection
+    IS_BUILD_TIME: process.env.NODE_ENV === 'production' && process.env.CI === 'true' && !process.env.VERCEL && !process.env.RAILWAY_ENVIRONMENT ? 'true' : 'false',
+  },
+  
   // Railway-specific optimizations to prevent build hangs
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
   
   // Externalize server components packages
-  serverExternalPackages: ['@vercel/analytics', '@polar-sh/sdk', 'tesseract.js', 'pdfjs-dist', 'canvas'],
+  serverExternalPackages: ['@polar-sh/sdk', 'tesseract.js', 'pdfjs-dist', 'canvas'],
   
   // Railway deployment configuration
   output: 'standalone', // Required for Railway deployments
@@ -34,10 +42,6 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "pub-6f0cf05705c7412b93a792350f3b3aa5.r2.dev",
-      },
-      {
-        protocol: "https",
-        hostname: "jdj14ctwppwprnqu.public.blob.vercel-storage.com",
       },
       {
         protocol: "https",
@@ -102,6 +106,29 @@ const nextConfig: NextConfig = {
   
   // Compress responses to save bandwidth
   compress: true,
+  
+  // Host validation for production
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'origin-when-cross-origin',
+          },
+        ],
+      },
+    ]
+  },
   
 };
 

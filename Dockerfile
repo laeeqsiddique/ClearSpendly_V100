@@ -29,7 +29,26 @@ COPY . .
 # Install dependencies (this needs source files for proper resolution)
 RUN npm ci
 
-# Build the application
+# Set build-time flag
+ENV BUILDING=true
+
+# Build the application with environment variables
+# Railway will inject these at build time
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ARG RAILWAY_ENVIRONMENT
+
+# Pass environment variables to the build
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV RAILWAY_ENVIRONMENT=$RAILWAY_ENVIRONMENT
+
+# Log environment variables for debugging
+RUN echo "Building with environment variables:" && \
+    echo "NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:0:30}..." && \
+    echo "NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:0:30}..." && \
+    echo "RAILWAY_ENVIRONMENT: $RAILWAY_ENVIRONMENT"
+
 RUN npm run build
 
 # Production stage

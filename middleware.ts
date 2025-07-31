@@ -8,9 +8,38 @@ import { createServerClient } from '@supabase/ssr';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  
+  // Host validation for production - allow Railway deployments
+  const allowedHosts = [
+    'localhost',
+    'www.flowvya.com',
+    'flowvya.com',
+    'clearspendly.com',
+    'www.clearspendly.com',
+    '.railway.app', // Allow Railway deployments
+    '.up.railway.app', // Allow Railway deployments
+  ];
+  
+  const host = request.headers.get('host');
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  // Skip host validation for Railway environments or if RAILWAY_ENVIRONMENT is set
+  const isRailwayDeployment = process.env.RAILWAY_ENVIRONMENT || host?.includes('railway.app');
+  
+  if (isProduction && host && !isRailwayDeployment && !allowedHosts.some(allowed => host.includes(allowed))) {
+    console.warn(`Blocked request from unauthorized host: ${host}`);
+    return new Response('Unauthorized', { status: 403 });
+  }
 
-  // Railway-specific: Skip middleware during build/static generation
-  if (process.env.NODE_ENV === 'production' && process.env.CI === 'true') {
+  // Enhanced build-time detection for Railway and other environments
+  const isBuildTime = process.env.NODE_ENV === 'production' && process.env.CI === 'true' && (
+    !process.env.VERCEL && !process.env.RAILWAY_ENVIRONMENT ||
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+
+  if (isBuildTime) {
+    console.warn('Middleware skipped during build time or missing environment variables');
     return NextResponse.next();
   }
 
@@ -34,8 +63,8 @@ export async function middleware(request: NextRequest) {
     if (["/sign-in", "/sign-up"].includes(pathname)) {
     // Check if user is authenticated after session update
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string,
       {
         cookies: {
           getAll() {
@@ -63,8 +92,8 @@ export async function middleware(request: NextRequest) {
   // For protected routes, check authentication and tenant access
   if (pathname.startsWith("/dashboard") || pathname === "/onboarding") {
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string,
       {
         cookies: {
           getAll() {
