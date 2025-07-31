@@ -17,7 +17,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { TagInput } from "@/components/ui/tag-input";
-import { AIStatusDebug } from "@/components/debug/ai-status";
 import { 
   Receipt, 
   Upload, 
@@ -927,8 +926,6 @@ export default function UploadPage() {
               {/* AI processing now integrated seamlessly */}
             </div>
             
-            {/* Temporary AI Debug Status - Remove after debugging */}
-            <AIStatusDebug />
 
             {/* Upload Area */}
             <div className="bg-white/80 backdrop-blur-sm border-0 shadow-lg rounded-lg overflow-hidden">
