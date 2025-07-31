@@ -1,8 +1,15 @@
 [build]
 builder = "dockerfile"
 dockerfilePath = "./Dockerfile"
-# Build arguments to pass environment variables
-buildArgs = ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "RAILWAY_ENVIRONMENT", "NEXT_PUBLIC_APP_URL", "BUILDING=true"]
+# Build arguments to pass environment variables (excluding sensitive API keys)
+buildArgs = [
+  "NEXT_PUBLIC_SUPABASE_URL", 
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY", 
+  "NEXT_PUBLIC_ENABLE_AI_ENHANCEMENT", 
+  "NEXT_PUBLIC_APP_URL", 
+  "RAILWAY_ENVIRONMENT", 
+  "BUILDING=true"
+]
 # Remove restrictive watch patterns - deploy on ANY change
 # watchPatterns = ["package.json", "package-lock.json", "next.config.ts", "tsconfig.json", "Dockerfile", "components/**", "app/**", "lib/**"]
 

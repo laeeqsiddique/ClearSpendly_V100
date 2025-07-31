@@ -19,37 +19,21 @@ export class SimplifiedOCRProcessor extends OCRProcessor {
   constructor() {
     super();
     
-    // Check for AI enablement (allow both client and server-side flags)
+    // Enable AI if explicitly set or if we can detect server-side availability
     this.enableAI = process.env.NEXT_PUBLIC_ENABLE_AI_ENHANCEMENT === 'true' || 
                     process.env.ENABLE_AI_ENHANCEMENT === 'true' ||
-                    !!(process.env.NEXT_PUBLIC_OPENAI_API_KEY || process.env.OPENAI_API_KEY);
+                    // Auto-enable if we have any indication AI is configured
+                    true; // Always try server-side endpoint
     
     this.confidenceThreshold = parseInt(
       process.env.NEXT_PUBLIC_AI_CONFIDENCE_THRESHOLD || 
       process.env.AI_CONFIDENCE_THRESHOLD || 
-      '90'
+      '80' // Lower threshold to use AI more often
     );
     
-    // Try both client-side and server-side API keys
-    const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
-    
-    if (this.enableAI && apiKey) {
-      this.aiParser = new OpenAIReceiptParser({
-        apiKey: apiKey,
-        model: process.env.NEXT_PUBLIC_AI_MODEL || process.env.AI_MODEL || 'gpt-4o-mini',
-        maxTokens: 400,
-        temperature: 0.1
-      });
-      console.log('✅ AI enhancement enabled with model:', process.env.NEXT_PUBLIC_AI_MODEL || process.env.AI_MODEL || 'gpt-4o-mini');
-      console.log('🔑 Using API key source:', process.env.NEXT_PUBLIC_OPENAI_API_KEY ? 'NEXT_PUBLIC_OPENAI_API_KEY' : 'OPENAI_API_KEY');
-    } else {
-      console.log('ℹ️ AI enhancement disabled. Reasons:', {
-        enableAI: this.enableAI,
-        hasPublicKey: !!process.env.NEXT_PUBLIC_OPENAI_API_KEY,
-        hasServerKey: !!process.env.OPENAI_API_KEY,
-        hasAnyKey: !!apiKey
-      });
-    }
+    // No longer initialize OpenAI client-side - use server endpoint instead
+    console.log('✅ AI enhancement enabled using server-side endpoint');
+    console.log('🎯 AI confidence threshold:', this.confidenceThreshold);
   }
 
   async processImage(file: File): Promise<ExtractedReceiptData> {
@@ -58,8 +42,8 @@ export class SimplifiedOCRProcessor extends OCRProcessor {
       
       const ocrResult = await super.processImage(file);
       
-      if (!this.enableAI || !this.aiParser) {
-        console.log('ℹ️ AI enhancement not available, returning OCR result');
+      if (!this.enableAI) {
+        console.log('ℹ️ AI enhancement disabled, returning OCR result');
         return ocrResult;
       }
       
@@ -71,24 +55,56 @@ export class SimplifiedOCRProcessor extends OCRProcessor {
       console.log(`⚡ OCR confidence (${ocrResult.confidence}%) below threshold, applying AI enhancement...`);
       
       try {
-        const rawText = await this.extractRawText(file);
-        const structuredText = this.createStructuredText(ocrResult);
-        
-        // Combine both raw and structured text for better AI parsing
-        const enhancedText = `RAW OCR TEXT:
-${rawText}
+        // Call server-side AI enhancement endpoint
+        const response = await fetch('/api/ai/enhance-ocr', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ocrData: {
+              vendor: ocrResult.vendor,
+              date: ocrResult.date,
+              total: ocrResult.total,
+              items: ocrResult.items,
+              confidence: ocrResult.confidence
+            },
+            imageText: ocrResult.rawText || ''
+          })
+        });
 
-STRUCTURED EXTRACTION:
-${structuredText}`;
+        if (!response.ok) {
+          throw new Error(`AI enhancement failed: ${response.status}`);
+        }
+
+        const aiResult = await response.json();
         
-        console.log('📝 Sending enhanced text to AI, length:', enhancedText.length);
-        const aiResult = await this.aiParser.parseOCRText(enhancedText);
-        const mergedResult = this.mergeResults(ocrResult, aiResult);
+        if (aiResult.enhanced && aiResult.data) {
+          console.log('✅ AI enhancement successful');
+          
+          // Convert AI result back to ExtractedReceiptData format
+          const enhancedResult: ExtractedReceiptData = {
+            vendor: aiResult.data.vendor || ocrResult.vendor,
+            date: aiResult.data.date || ocrResult.date,
+            total: aiResult.data.total !== undefined ? aiResult.data.total : ocrResult.total,
+            items: aiResult.data.items?.map((item: any) => ({
+              name: item.name || '',
+              price: item.price || 0,
+              quantity: item.quantity || 1
+            })) || ocrResult.items,
+            confidence: Math.max(ocrResult.confidence, aiResult.aiConfidence || 85),
+            rawText: ocrResult.rawText,
+            processing_time: ocrResult.processing_time
+          };
+          
+          return enhancedResult;
+        } else {
+          console.warn('⚠️ AI enhancement returned no improvement, using OCR result');
+          return ocrResult;
+        }
         
-        console.log('✅ AI enhancement successful');
-        return mergedResult;
       } catch (aiError) {
-        console.error('❌ AI enhancement failed, using OCR result:', aiError);
+        console.warn('⚠️ AI enhancement failed, returning OCR result:', aiError);
         return ocrResult;
       }
     } catch (error) {
