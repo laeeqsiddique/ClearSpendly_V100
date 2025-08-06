@@ -3,6 +3,9 @@ import { cookies } from 'next/headers'
 
 const isBuildTime = process.env.NODE_ENV === 'production' && !process.env.VERCEL && !process.env.RAILWAY_ENVIRONMENT && process.env.CI === 'true'
 
+// Export createServerClient for compatibility
+export { createServerClient } from '@supabase/ssr'
+
 export async function createClient() {
   // During build time, return a mock client to prevent errors
   if (isBuildTime || !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {

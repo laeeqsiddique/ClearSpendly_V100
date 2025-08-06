@@ -8,8 +8,8 @@ let generateText: any = null;
 let ImageQualityMetrics: any = null;
 let EnhancedImagePreprocessor: any = null;
 
-// Build-time detection
-const isBuildTime = process.env.NODE_ENV === 'production' && !process.env.VERCEL && !process.env.RAILWAY_ENVIRONMENT;
+// Build-time detection - avoid loading AI SDK during build
+const isBuildTime = process.env.NODE_ENV === 'production' && process.env.BUILDING === 'true';
 
 if (!isBuildTime) {
   try {

@@ -67,3 +67,272 @@ Try rerunning the command with --debug to troubleshoot the error.
 [2025-08-06T14:21:27.753Z] 🚀 Starting automated migration process...
 [2025-08-06T14:21:27.766Z] 📦 Creating database backup...
 [2025-08-06T14:21:27.774Z] 🔗 Linking to Supabase project...
+[2025-08-06T14:30:25.498Z] ❌ Backup failed: Command failed: supabase db dump --linked -f "C:\Users\laeeq\WindSurf\ClearSpendly_V100\backups\backup-2025-08-06T14-21-27-774Z.sql"
+Forgot your password? Reset it from the Dashboard: https://supabase.com/dashboard/project/chuhbgcwjjldivnwyvia/settings/database
+Enter your database password: Dumping schemas from remote database...
+17.4.1.054: Pulling from supabase/postgres
+13b7e930469f: Already exists
+e37cf672b4ac: Pulling fs layer
+4560b8a6b3a9: Pulling fs layer
+857f8bff55be: Pulling fs layer
+68523ea8825f: Pulling fs layer
+f7c8f853b16a: Pulling fs layer
+68523ea8825f: Waiting
+f7c8f853b16a: Waiting
+4f4fb700ef54: Pulling fs layer
+8f223cfdfd75: Pulling fs layer
+4f4fb700ef54: Waiting
+8f223cfdfd75: Waiting
+20f6376279aa: Pulling fs layer
+37a65d95e989: Pulling fs layer
+c3cf4b2ad4dd: Pulling fs layer
+02b033b73e02: Pulling fs layer
+905933d2eaf6: Pulling fs layer
+37a65d95e989: Waiting
+c3cf4b2ad4dd: Waiting
+905933d2eaf6: Waiting
+4b14160a8a0b: Pulling fs layer
+4b14160a8a0b: Waiting
+e41dd8bae25f: Pulling fs layer
+e41dd8bae25f: Waiting
+7416fd43933f: Pulling fs layer
+1ca3c2fd778a: Pulling fs layer
+7416fd43933f: Waiting
+9227761eb59e: Pulling fs layer
+cf1ad00bbdce: Pulling fs layer
+9227761eb59e: Waiting
+cf1ad00bbdce: Waiting
+1ca3c2fd778a: Waiting
+69e9e0df915a: Pulling fs layer
+9c2d3657d4c7: Pulling fs layer
+69e9e0df915a: Waiting
+47079daf81af: Pulling fs layer
+9c2d3657d4c7: Waiting
+8bd0d2c31715: Pulling fs layer
+86ff7f5cb70d: Pulling fs layer
+d5c79283504b: Pulling fs layer
+4ad8fb171cbb: Pulling fs layer
+c8e962270742: Pulling fs layer
+681d5a674269: Pulling fs layer
+8a037c7e6f8d: Pulling fs layer
+9a1c5c6080a7: Pulling fs layer
+cdc511787835: Pulling fs layer
+d8de70d9f275: Pulling fs layer
+206d2eb0d150: Pulling fs layer
+4d1fb967d63d: Pulling fs layer
+8688a20e0e62: Pulling fs layer
+65b780d6f813: Pulling fs layer
+6143ae03bbb0: Pulling fs layer
+d11b91fbab62: Pulling fs layer
+c7ea0c6ab33c: Pulling fs layer
+3ed9bf456ff5: Pulling fs layer
+4025251588db: Pulling fs layer
+45b88e276b9a: Pulling fs layer
+505574f442e7: Pulling fs layer
+90f38fb205a5: Pulling fs layer
+0f86cfc46fa6: Pulling fs layer
+7238fe93ea0a: Pulling fs layer
+1e56db513043: Pulling fs layer
+1c14cbd7408c: Pulling fs layer
+05a2bdc47c26: Pulling fs layer
+47079daf81af: Waiting
+8bd0d2c31715: Waiting
+86ff7f5cb70d: Waiting
+d5c79283504b: Waiting
+4ad8fb171cbb: Waiting
+c8e962270742: Waiting
+681d5a674269: Waiting
+8a037c7e6f8d: Waiting
+9a1c5c6080a7: Waiting
+cdc511787835: Waiting
+d8de70d9f275: Waiting
+206d2eb0d150: Waiting
+4d1fb967d63d: Waiting
+8688a20e0e62: Waiting
+65b780d6f813: Waiting
+6143ae03bbb0: Waiting
+d11b91fbab62: Waiting
+c7ea0c6ab33c: Waiting
+3ed9bf456ff5: Waiting
+4025251588db: Waiting
+45b88e276b9a: Waiting
+505574f442e7: Waiting
+90f38fb205a5: Waiting
+0f86cfc46fa6: Waiting
+7238fe93ea0a: Waiting
+1e56db513043: Waiting
+1c14cbd7408c: Waiting
+05a2bdc47c26: Waiting
+4560b8a6b3a9: Verifying Checksum
+4560b8a6b3a9: Download complete
+857f8bff55be: Verifying Checksum
+857f8bff55be: Download complete
+f7c8f853b16a: Verifying Checksum
+f7c8f853b16a: Download complete
+4f4fb700ef54: Verifying Checksum
+4f4fb700ef54: Download complete
+68523ea8825f: Verifying Checksum
+68523ea8825f: Download complete
+20f6376279aa: Verifying Checksum
+20f6376279aa: Download complete
+37a65d95e989: Verifying Checksum
+37a65d95e989: Download complete
+e37cf672b4ac: Download complete
+02b033b73e02: Verifying Checksum
+02b033b73e02: Download complete
+905933d2eaf6: Download complete
+4b14160a8a0b: Verifying Checksum
+4b14160a8a0b: Download complete
+e41dd8bae25f: Verifying Checksum
+e41dd8bae25f: Download complete
+7416fd43933f: Verifying Checksum
+7416fd43933f: Download complete
+1ca3c2fd778a: Verifying Checksum
+1ca3c2fd778a: Download complete
+c3cf4b2ad4dd: Verifying Checksum
+c3cf4b2ad4dd: Download complete
+cf1ad00bbdce: Verifying Checksum
+cf1ad00bbdce: Download complete
+9227761eb59e: Verifying Checksum
+9227761eb59e: Download complete
+69e9e0df915a: Verifying Checksum
+69e9e0df915a: Download complete
+47079daf81af: Download complete
+8bd0d2c31715: Verifying Checksum
+8bd0d2c31715: Download complete
+86ff7f5cb70d: Verifying Checksum
+86ff7f5cb70d: Download complete
+d5c79283504b: Verifying Checksum
+d5c79283504b: Download complete
+4ad8fb171cbb: Verifying Checksum
+4ad8fb171cbb: Download complete
+c8e962270742: Verifying Checksum
+c8e962270742: Download complete
+681d5a674269: Download complete
+8a037c7e6f8d: Download complete
+9a1c5c6080a7: Verifying Checksum
+9a1c5c6080a7: Download complete
+cdc511787835: Verifying Checksum
+cdc511787835: Download complete
+d8de70d9f275: Verifying Checksum
+d8de70d9f275: Download complete
+206d2eb0d150: Verifying Checksum
+206d2eb0d150: Download complete
+4d1fb967d63d: Verifying Checksum
+4d1fb967d63d: Download complete
+8688a20e0e62: Verifying Checksum
+8688a20e0e62: Download complete
+65b780d6f813: Verifying Checksum
+65b780d6f813: Download complete
+6143ae03bbb0: Download complete
+d11b91fbab62: Verifying Checksum
+d11b91fbab62: Download complete
+c7ea0c6ab33c: Verifying Checksum
+c7ea0c6ab33c: Download complete
+3ed9bf456ff5: Download complete
+4025251588db: Verifying Checksum
+4025251588db: Download complete
+45b88e276b9a: Verifying Checksum
+45b88e276b9a: Download complete
+505574f442e7: Verifying Checksum
+505574f442e7: Download complete
+90f38fb205a5: Verifying Checksum
+90f38fb205a5: Download complete
+0f86cfc46fa6: Verifying Checksum
+0f86cfc46fa6: Download complete
+7238fe93ea0a: Download complete
+1e56db513043: Verifying Checksum
+1e56db513043: Download complete
+1c14cbd7408c: Download complete
+05a2bdc47c26: Download complete
+9c2d3657d4c7: Download complete
+e37cf672b4ac: Pull complete
+4560b8a6b3a9: Pull complete
+857f8bff55be: Pull complete
+68523ea8825f: Pull complete
+f7c8f853b16a: Pull complete
+4f4fb700ef54: Pull complete
+8f223cfdfd75: Download complete
+8f223cfdfd75: Pull complete
+20f6376279aa: Pull complete
+37a65d95e989: Pull complete
+c3cf4b2ad4dd: Pull complete
+02b033b73e02: Pull complete
+905933d2eaf6: Pull complete
+4b14160a8a0b: Pull complete
+e41dd8bae25f: Pull complete
+7416fd43933f: Pull complete
+1ca3c2fd778a: Pull complete
+9227761eb59e: Pull complete
+cf1ad00bbdce: Pull complete
+69e9e0df915a: Pull complete
+9c2d3657d4c7: Pull complete
+47079daf81af: Pull complete
+8bd0d2c31715: Pull complete
+86ff7f5cb70d: Pull complete
+d5c79283504b: Pull complete
+4ad8fb171cbb: Pull complete
+c8e962270742: Pull complete
+681d5a674269: Pull complete
+8a037c7e6f8d: Pull complete
+9a1c5c6080a7: Pull complete
+cdc511787835: Pull complete
+d8de70d9f275: Pull complete
+206d2eb0d150: Pull complete
+4d1fb967d63d: Pull complete
+8688a20e0e62: Pull complete
+65b780d6f813: Pull complete
+6143ae03bbb0: Pull complete
+d11b91fbab62: Pull complete
+c7ea0c6ab33c: Pull complete
+3ed9bf456ff5: Pull complete
+4025251588db: Pull complete
+45b88e276b9a: Pull complete
+505574f442e7: Pull complete
+90f38fb205a5: Pull complete
+0f86cfc46fa6: Pull complete
+7238fe93ea0a: Pull complete
+1e56db513043: Pull complete
+1c14cbd7408c: Pull complete
+05a2bdc47c26: Pull complete
+Digest: sha256:8ed9a6e7dc2a96c3576582d3de716bca55a87cb8c60d0460e154f4663a040f04
+Status: Downloaded newer image for public.ecr.aws/supabase/postgres:17.4.1.054
+Password: 
+pg_dump: error: connection to server at "aws-0-us-east-2.pooler.supabase.com" (3.13.175.194), port 5432 failed: fe_sendauth: no password supplied
+error running container: exit 1
+Try rerunning the command with --debug to troubleshoot the error.
+
+[2025-08-06T14:30:25.801Z] ⚠️  Continuing without backup...
+[2025-08-06T14:30:25.944Z] 🔍 Checking current migration status...
+[2025-08-06T14:30:26.377Z] ❌ Failed to get migration status: Command failed: supabase migration list --linked
+[2025-08-06T14:30:26.381Z] ⚠️  Continuing without status check...
+[2025-08-06T14:30:26.384Z] 🔍 Running pre-migration safety check...
+[2025-08-06T14:30:26.473Z] ❌ Migration failed: Command failed: npm run deploy:check-migrations
+[2025-08-06T15:01:21.819Z] 🚀 Starting automated migration process...
+[2025-08-06T15:01:21.823Z] 📦 Creating database backup...
+[2025-08-06T15:01:21.826Z] 🔗 Linking to Supabase project...
+[2025-08-06T15:01:28.212Z] ❌ Backup failed: Command failed: supabase db dump --linked -f "C:\Users\laeeq\WindSurf\ClearSpendly_V100\backups\backup-2025-08-06T15-01-21-826Z.sql"
+Forgot your password? Reset it from the Dashboard: https://supabase.com/dashboard/project/chuhbgcwjjldivnwyvia/settings/database
+Enter your database password: Dumping schemas from remote database...
+Password: 
+pg_dump: error: connection to server at "aws-0-us-east-2.pooler.supabase.com" (3.139.14.59), port 5432 failed: fe_sendauth: no password supplied
+error running container: exit 1
+Try rerunning the command with --debug to troubleshoot the error.
+
+[2025-08-06T15:01:28.216Z] ⚠️  Continuing without backup...
+[2025-08-06T15:01:28.223Z] 🔍 Checking current migration status...
+[2025-08-06T15:01:30.184Z] ❌ Failed to get migration status: Command failed: supabase migration list --linked
+Forgot your password? Reset it from the Dashboard: https://supabase.com/dashboard/project/chuhbgcwjjldivnwyvia/settings/database
+Enter your database password: Connecting to remote database...
+failed to connect to postgres: failed to connect to `host=aws-0-us-east-2.pooler.supabase.com user=postgres.chuhbgcwjjldivnwyvia database=postgres`: failed SASL auth (invalid SCRAM server-final-message received from server)
+Try rerunning the command with --debug to troubleshoot the error.
+
+[2025-08-06T15:01:30.187Z] ⚠️  Continuing without status check...
+[2025-08-06T15:01:30.189Z] 🔍 Running pre-migration safety check...
+[2025-08-06T15:01:32.913Z] 📝 Applying migrations...
+[2025-08-06T15:01:34.557Z] ❌ Migration failed: Command failed: supabase db push --linked
+Forgot your password? Reset it from the Dashboard: https://supabase.com/dashboard/project/chuhbgcwjjldivnwyvia/settings/database
+Enter your database password: Connecting to remote database...
+failed to connect to postgres: failed to connect to `host=aws-0-us-east-2.pooler.supabase.com user=postgres.chuhbgcwjjldivnwyvia database=postgres`: failed SASL auth (invalid SCRAM server-final-message received from server)
+Try rerunning the command with --debug to troubleshoot the error.
+

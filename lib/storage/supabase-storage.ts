@@ -522,4 +522,5 @@ export const clientStorage = new SupabaseStorageService(false)
 export const serverStorage = new SupabaseStorageService(true)
 
 // Export the service class for custom instances
+export { SupabaseStorageService }
 export default SupabaseStorageService
