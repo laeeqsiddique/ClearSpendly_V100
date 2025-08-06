@@ -288,7 +288,7 @@ export async function checkAndIncrementUsage(
 // Decorator for API routes that require subscription checks
 export function requireSubscription(options?: {
   feature?: keyof typeof FEATURES;
-  usage?: { type: keyof typeof USAGE_TYPES; amount?: number };
+  usage?: { type: keyof typeof USAGE_TYPES; amount?: number; value?: number };
   minimumPlan?: 'free' | 'pro' | 'business' | 'enterprise';
 }) {
   return function (target: any, propertyName: string, descriptor: PropertyDescriptor) {
@@ -325,7 +325,7 @@ export function requireSubscription(options?: {
         const result = await checkAndIncrementUsage(
           featureGate,
           options.usage.type,
-          options.usage.amount
+          options.usage.amount || options.usage.value || 1
         );
         
         if (!result.allowed) {
