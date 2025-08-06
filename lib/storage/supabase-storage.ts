@@ -89,11 +89,11 @@ class SupabaseStorageService {
   constructor(isServer = false) {
     this.isServer = isServer
     // Don't create client in constructor - create it lazily when needed
-    this.getSupabaseClient() = null
+    this.supabase = null
   }
 
   private getSupabaseClient() {
-    if (!this.getSupabaseClient()) {
+    if (!this.supabase) {
       // Avoid creating client during build time
       if (process.env.NODE_ENV === 'production' && process.env.BUILDING === 'true' && !process.env.RAILWAY_ENVIRONMENT) {
         return this.createMockClient()
@@ -101,16 +101,16 @@ class SupabaseStorageService {
 
       if (this.isServer) {
         // Server-side client with service role key
-        this.getSupabaseClient() = createClient(
+        this.supabase = createClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL || '',
           process.env.SUPABASE_SERVICE_ROLE_KEY || ''
         )
       } else {
         // Use the server client helper
-        this.getSupabaseClient() = createServerClient()
+        this.supabase = createServerClient()
       }
     }
-    return this.getSupabaseClient()
+    return this.supabase
   }
 
   private createMockClient() {
