@@ -15,12 +15,13 @@ import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import React, { Suspense, useState } from "react";
 import { toast } from "sonner";
 import { AuthErrorBoundary } from "@/components/error-boundary";
 import { LoadingButton, AuthLoadingState } from "@/components/loading-states";
 import { useAnalytics, analyticsEvents } from "@/components/analytics-wrapper";
 import { getOAuthRedirectUrl } from "@/lib/utils/auth-helpers";
+import { env, isGoogleOAuthConfigured } from "@/lib/config/env";
 
 function SignInContent() {
   const [loading, setLoading] = useState(false);
@@ -30,7 +31,45 @@ function SignInContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = searchParams.get("returnTo");
+  const error = searchParams.get("error");
   const analytics = useAnalytics();
+
+  // Display error messages from OAuth redirects
+  React.useEffect(() => {
+    if (error) {
+      let errorMessage = "Authentication failed. Please try again.";
+      
+      switch (error) {
+        case 'access_denied':
+          errorMessage = "Access was denied. Please try again or use email sign-in.";
+          break;
+        case 'config_error':
+          errorMessage = "Google Sign-in is not properly configured. Please use email sign-in.";
+          break;
+        case 'oauth_error':
+          errorMessage = "OAuth authentication failed. Please try email sign-in.";
+          break;
+        case 'invalid_code':
+          errorMessage = "Invalid authentication code. Please try signing in again.";
+          break;
+        case 'code_expired':
+          errorMessage = "Authentication code expired. Please try signing in again.";
+          break;
+        case 'auth_failed':
+        default:
+          errorMessage = "Authentication failed. Please try again.";
+          break;
+      }
+      
+      toast.error(errorMessage);
+      analytics?.trackEvent('sign_in_error', analyticsEvents.signInError('oauth_callback', errorMessage));
+      
+      // Clear the error parameter from URL
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('error');
+      window.history.replaceState({}, '', newUrl.toString());
+    }
+  }, [error, analytics]);
 
   const supabase = createClient();
   
@@ -77,6 +116,13 @@ function SignInContent() {
   };
 
   const handleGoogleSignIn = async () => {
+    // Check if Google OAuth is properly configured
+    if (!isGoogleOAuthConfigured()) {
+      toast.error("Google Sign-in is not configured. Please use email sign-in or contact support.");
+      console.warn("Google OAuth attempted but not configured - missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET");
+      return;
+    }
+
     setLoading(true);
     setAuthStep('connecting');
 
@@ -101,14 +147,16 @@ function SignInContent() {
         // Check if it's a mock client error (missing environment variables)
         if (error.code === 'MOCK_CLIENT_ERROR' || error.message.includes('service unavailable')) {
           userMessage = 'Authentication service is currently unavailable. Please try email sign-in instead.';
-        } else if (error.message.includes('unauthorized_client')) {
-          userMessage += 'Google OAuth is not properly configured. Please use email sign-in instead.';
+        } else if (error.message.includes('unauthorized_client') || error.message.includes('invalid_client')) {
+          userMessage = 'Google OAuth is not properly configured. Please use email sign-in or contact support.';
         } else if (error.message.includes('access_denied')) {
-          userMessage += 'Access was denied. Please try again or use email sign-in.';
+          userMessage = 'Access was denied. Please try again or use email sign-in.';
         } else if (error.message.includes('popup_blocked')) {
-          userMessage += 'Popup was blocked. Please allow popups for this site and try again.';
+          userMessage = 'Popup was blocked. Please allow popups for this site and try again.';
         } else if (error.message.includes('network')) {
-          userMessage += 'Please check your internet connection and try again.';
+          userMessage = 'Please check your internet connection and try again.';
+        } else if (error.message.includes('redirect_uri_mismatch')) {
+          userMessage = 'OAuth configuration error. Please use email sign-in or contact support.';
         } else {
           userMessage += 'Please try email sign-in instead.';
         }
@@ -206,24 +254,26 @@ function SignInContent() {
             </LoadingButton>
           </form>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or continue with
-              </span>
-            </div>
-          </div>
+          {env.features.enableGoogleAuth && (
+            <>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    Or continue with
+                  </span>
+                </div>
+              </div>
 
-          <LoadingButton
-            variant="outline"
-            className="w-full"
-            isLoading={loading}
-            loadingText="Connecting to Google..."
-            onClick={handleGoogleSignIn}
-          >
+              <LoadingButton
+                variant="outline"
+                className="w-full"
+                isLoading={loading}
+                loadingText="Connecting to Google..."
+                onClick={handleGoogleSignIn}
+              >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="16"
@@ -248,8 +298,10 @@ function SignInContent() {
                 d="M130.55 50.479c24.514 0 41.05 10.589 50.479 19.438l36.844-35.974C195.245 12.91 165.798 0 130.55 0C79.49 0 35.393 29.301 13.925 71.947l42.211 32.783c10.59-31.477 39.891-54.251 74.414-54.251"
               />
             </svg>
-            Continue with Google
-          </LoadingButton>
+                Continue with Google
+              </LoadingButton>
+            </>
+          )}
 
           <div className="text-center text-sm space-y-2">
             <div>

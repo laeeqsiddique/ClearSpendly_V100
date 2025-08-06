@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getTenantIdWithFallback } from "@/lib/api-tenant";
 import { withUserAttribution, requireUserId } from "@/lib/user-context";
 import { withPermission } from "@/lib/api-middleware";
+import { serverStorage, SupabaseStorageService } from "@/lib/storage/supabase-storage";
 
 // Simple Levenshtein distance calculation for fuzzy matching
 function levenshteinDistance(str1: string, str2: string): number {
@@ -50,6 +51,55 @@ function calculateSimilarity(str1: string, str2: string): number {
   
   const distance = levenshteinDistance(normalizedStr1, normalizedStr2);
   return (maxLength - distance) / maxLength;
+}
+
+// Helper function to handle image storage
+async function handleImageStorage(receiptData: any, receiptId: string, tenantId: string) {
+  try {
+    let storageResult = null;
+    const subscriptionTier = 'free'; // TODO: Get from user/tenant subscription data
+
+    if (receiptData.imageUrl && receiptData.imageUrl.startsWith('blob:')) {
+      // Handle blob URLs by converting to file
+      try {
+        const file = await SupabaseStorageService.blobUrlToFile(
+          receiptData.imageUrl, 
+          `receipt_${receiptId}.jpg`
+        );
+        storageResult = await serverStorage.uploadReceiptImage(
+          file,
+          receiptId,
+          tenantId,
+          subscriptionTier
+        );
+        console.log('✅ Blob URL image uploaded to Supabase Storage:', storageResult.path);
+      } catch (error) {
+        console.warn('Failed to convert blob URL to file:', error);
+      }
+    } else if (receiptData.imageData && receiptData.imageData.startsWith('data:')) {
+      // Handle data URLs
+      try {
+        const file = SupabaseStorageService.dataUrlToFile(
+          receiptData.imageData,
+          `receipt_${receiptId}.jpg`
+        );
+        storageResult = await serverStorage.uploadReceiptImage(
+          file,
+          receiptId,
+          tenantId,
+          subscriptionTier
+        );
+        console.log('✅ Data URL image uploaded to Supabase Storage:', storageResult.path);
+      } catch (error) {
+        console.warn('Failed to convert data URL to file:', error);
+      }
+    }
+
+    return storageResult;
+  } catch (error) {
+    console.error('❌ Image storage failed:', error);
+    return null;
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -305,13 +355,39 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Handle image storage after receipt creation
+      const storageResult = await handleImageStorage(receiptData, receipt.id, tenantId);
+      if (storageResult) {
+        // Update receipt with storage information
+        const { error: updateError } = await supabase
+          .from('receipt')
+          .update({
+            storage_path: storageResult.path,
+            storage_url: storageResult.publicUrl,
+            file_metadata: storageResult.metadata,
+            // Update the original_file_url to the permanent URL
+            original_file_url: storageResult.publicUrl
+          })
+          .eq('id', receipt.id);
+
+        if (updateError) {
+          console.error('Error updating receipt with storage info:', updateError);
+          // Don't fail the operation, just log the error
+        }
+      }
+
       console.log('✅ Receipt saved successfully (manual transaction):', receipt.id);
       
       return NextResponse.json({
         success: true,
         data: {
           receiptId: receipt.id,
-          message: 'Receipt saved successfully'
+          message: 'Receipt saved successfully with persistent storage',
+          storageInfo: storageResult ? {
+            hasImage: true,
+            imagePath: storageResult.path,
+            imageUrl: storageResult.publicUrl
+          } : { hasImage: false }
         }
       });
     } else {
@@ -333,13 +409,39 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Handle image storage after receipt creation (stored procedure path)
+      const storageResult = await handleImageStorage(receiptData, transactionResult, tenantId);
+      if (storageResult) {
+        // Update receipt with storage information
+        const { error: updateError } = await supabase
+          .from('receipt')
+          .update({
+            storage_path: storageResult.path,
+            storage_url: storageResult.publicUrl,
+            file_metadata: storageResult.metadata,
+            // Update the original_file_url to the permanent URL
+            original_file_url: storageResult.publicUrl
+          })
+          .eq('id', transactionResult);
+
+        if (updateError) {
+          console.error('Error updating receipt with storage info:', updateError);
+          // Don't fail the operation, just log the error
+        }
+      }
+
       console.log('✅ Receipt saved successfully (stored procedure):', transactionResult);
       
       return NextResponse.json({
         success: true,
         data: {
           receiptId: transactionResult,
-          message: 'Receipt saved successfully'
+          message: 'Receipt saved successfully with persistent storage',
+          storageInfo: storageResult ? {
+            hasImage: true,
+            imagePath: storageResult.path,
+            imageUrl: storageResult.publicUrl
+          } : { hasImage: false }
         }
       });
     }

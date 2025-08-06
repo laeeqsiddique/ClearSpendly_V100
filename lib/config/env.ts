@@ -28,7 +28,10 @@ export const env = {
   
   // Feature Flags
   features: {
-    enableGoogleAuth: !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    enableGoogleAuth: !!process.env.NEXT_PUBLIC_SUPABASE_URL && 
+                     !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+                     !!process.env.GOOGLE_CLIENT_ID &&
+                     !!process.env.GOOGLE_CLIENT_SECRET,
     enableEmailAuth: true, // Always enabled as fallback
   },
 };
@@ -46,6 +49,11 @@ export function getOAuthRedirectUrl(returnTo?: string): string {
   return `${baseUrl}/auth/callback${returnTo ? `?returnTo=${returnTo}` : ''}`;
 }
 
+// Helper function to check if Google OAuth is properly configured
+export function isGoogleOAuthConfigured(): boolean {
+  return !!(env.oauth.google.clientId && env.oauth.google.clientSecret);
+}
+
 // Log configuration issues in development only
 if (env.deployment.environment === 'development' && typeof window !== 'undefined') {
   if (!isSupabaseConfigured()) {
@@ -53,5 +61,13 @@ if (env.deployment.environment === 'development' && typeof window !== 'undefined
       hasUrl: !!env.supabase.url,
       hasAnonKey: !!env.supabase.anonKey,
     });
+  }
+  
+  if (!isGoogleOAuthConfigured()) {
+    console.warn('Google OAuth environment variables not configured:', {
+      hasClientId: !!env.oauth.google.clientId,
+      hasClientSecret: !!env.oauth.google.clientSecret,
+    });
+    console.info('To enable Google Sign-in, set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables');
   }
 }

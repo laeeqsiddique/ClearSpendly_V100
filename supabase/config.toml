@@ -21,7 +21,12 @@ enabled = true
 # in emails.
 site_url = "http://localhost:3000"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://localhost:3000"]
+additional_redirect_urls = [
+  "https://localhost:3000",
+  "https://www.flowvya.com",
+  "https://flowvya.com",
+  "https://*.railway.app"
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604800 (1 week).
 jwt_expiry = 3600
 # If disabled, the refresh token will never expire.
@@ -71,9 +76,9 @@ enabled = false
 verify_jwt = false
 
 [auth.external.google]
-enabled = false
-client_id = ""
-secret = ""
+enabled = true
+client_id = "${GOOGLE_CLIENT_ID}"
+secret = "${GOOGLE_CLIENT_SECRET}"
 # Overrides the default auth redirectUrl.
 redirect_uri = ""
 # Overrides the default auth provider URL. Used to support self-hosted gitlab, single-tenant Azure,

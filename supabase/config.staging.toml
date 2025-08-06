@@ -11,9 +11,10 @@ max_rows = 1000
 [auth]
 enabled = true
 # Staging environment URL - update with your actual staging domain
-site_url = "https://staging.clearspendly.com"
+site_url = "https://staging.flowvya.com"
 additional_redirect_urls = [
-    "https://staging.clearspendly.com/auth/callback",
+    "https://staging.flowvya.com/auth/callback",
+    "https://*.railway.app/auth/callback",
     "http://localhost:3000"  # For local development against staging
 ]
 jwt_expiry = 3600
@@ -52,9 +53,9 @@ verify_jwt = true
 
 # External auth providers for staging
 [auth.external.google]
-enabled = false
-client_id = ""
-secret = ""
+enabled = true
+client_id = "${GOOGLE_CLIENT_ID}"
+secret = "${GOOGLE_CLIENT_SECRET}"
 redirect_uri = ""
 url = ""
 

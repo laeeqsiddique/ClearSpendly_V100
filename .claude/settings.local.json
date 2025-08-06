@@ -55,7 +55,8 @@
       "Bash(timeout 10 npx tsc --noEmit)",
       "Bash(del test-template-mapping.js)",
       "Bash(timeout 60 npx next build)",
-      "Bash(npx supabase:*)"
+      "Bash(npx supabase:*)",
+      "Bash(timeout 60 npm run build)"
     ],
     "deny": []
   }

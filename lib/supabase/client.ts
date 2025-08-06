@@ -7,24 +7,16 @@ const isBuildTime = typeof window === 'undefined' &&
   process.env.BUILDING === 'true'
 
 export function createClient() {
-  // Railway fix: Use hardcoded fallbacks if env vars not available
-  const RAILWAY_FALLBACK_URL = 'https://chuhbgcwjjldivnwyvia.supabase.co'
-  const RAILWAY_FALLBACK_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNodWhiZ2N3ampsZGl2bnd5dmlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1MTY2MzYsImV4cCI6MjA2ODA5MjYzNn0.naZU_NBUTyY_DgUOhFaYjzcqLj6dZ3uYAqm29uZZGfg'
+  // Validate environment variables are present
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   
-  // Use environment variables with Railway fallbacks
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || RAILWAY_FALLBACK_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || RAILWAY_FALLBACK_KEY
-  
-  // Enhanced debug logging for Railway deployment
-  if (typeof window !== 'undefined') {
-    console.log('Supabase Client Debug:', {
-      hasEnvUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-      hasEnvKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      usingFallback: !process.env.NEXT_PUBLIC_SUPABASE_URL,
-      urlPrefix: supabaseUrl?.substring(0, 30),
-      isRailway: !!process.env.RAILWAY_ENVIRONMENT,
-      nodeEnv: process.env.NODE_ENV,
-    })
+  // If critical env vars are missing, use mock client
+  if (!supabaseUrl || !supabaseAnonKey) {
+    if (typeof window !== 'undefined') {
+      console.warn('Supabase credentials not configured - using mock client')
+    }
+    return createMockClient()
   }
   
   // Only use mock during actual build process
@@ -33,7 +25,7 @@ export function createClient() {
     return createMockClient()
   }
   
-  // Always return real client with fallbacks - Railway fix
+  // Return real client with validated environment variables
   return createBrowserClient(supabaseUrl, supabaseAnonKey)
 }
 

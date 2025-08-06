@@ -6,6 +6,9 @@
  * and validates schema changes before deployment
  */
 
+// Load environment variables from .env.local
+require('dotenv').config({ path: '.env.local' });
+
 const fs = require('fs');
 const path = require('path');
 

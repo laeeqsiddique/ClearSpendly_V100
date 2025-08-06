@@ -44,6 +44,14 @@
     "railway:build": "NODE_ENV=production NODE_OPTIONS='--max-old-space-size=4096' npm run build",
     "railway:start": "NODE_ENV=production node server.js",
     "railway:check-env": "node scripts/check-railway-env.js",
+    "railway:rollback": "node scripts/railway-rollback.js",
+    "railway:rollback-db": "node scripts/railway-rollback.js DATABASE",
+    "railway:rollback-full": "node scripts/railway-rollback.js FULL",
+    "production:monitor": "node scripts/production-monitoring.js",
+    "production:health": "node scripts/production-monitoring.js --single-check",
+    "deployment:prepare": "npm run validate-deployment && npm run railway:check-env",
+    "deployment:migrate": "npm run deploy:check-migrations && npm run deploy:automated",
+    "deployment:complete": "npm run deployment:prepare && npm run build && npm run production:health",
     "postinstall": "echo 'Dependencies installed successfully for Railway deployment' && (husky install 2>/dev/null || echo 'Husky install skipped in CI')"
   },
   "dependencies": {
@@ -91,6 +99,7 @@
     "dotenv": "^16.6.1",
     "form-data": "^4.0.2",
     "framer-motion": "^12.23.5",
+    "image-conversion": "^2.1.1",
     "jsdom": "^26.1.0",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",

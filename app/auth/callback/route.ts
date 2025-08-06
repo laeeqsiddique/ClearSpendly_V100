@@ -5,7 +5,26 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
+  const error = searchParams.get('error')
+  const error_description = searchParams.get('error_description')
   const returnTo = searchParams.get('returnTo') ?? '/dashboard'
+
+  // Handle OAuth errors from the provider
+  if (error) {
+    console.error('OAuth provider error:', { error, error_description })
+    
+    // Map common OAuth errors to user-friendly messages
+    let errorParam = 'oauth_error'
+    if (error === 'access_denied') {
+      errorParam = 'access_denied'
+    } else if (error === 'unauthorized_client') {
+      errorParam = 'config_error'
+    } else if (error === 'invalid_client') {
+      errorParam = 'config_error'
+    }
+    
+    return NextResponse.redirect(`${origin}/sign-in?error=${errorParam}`)
+  }
 
   if (code) {
     const supabase = await createClient()
@@ -15,7 +34,16 @@ export async function GET(request: NextRequest) {
       
       if (error) {
         console.error('Auth callback error:', error)
-        return NextResponse.redirect(`${origin}/sign-in?error=auth_failed`)
+        
+        // Handle specific Supabase auth errors
+        let errorParam = 'auth_failed'
+        if (error.message.includes('invalid_code')) {
+          errorParam = 'invalid_code'
+        } else if (error.message.includes('expired')) {
+          errorParam = 'code_expired'
+        }
+        
+        return NextResponse.redirect(`${origin}/sign-in?error=${errorParam}`)
       }
 
       if (data.user) {

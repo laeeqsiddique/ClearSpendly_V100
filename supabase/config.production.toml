@@ -12,10 +12,11 @@ max_rows = 500
 [auth]
 enabled = true
 # Production environment URL - update with your actual production domain
-site_url = "https://clearspendly.com"
+site_url = "https://www.flowvya.com"
 additional_redirect_urls = [
-    "https://clearspendly.com/auth/callback",
-    "https://app.clearspendly.com/auth/callback"
+    "https://www.flowvya.com/auth/callback",
+    "https://flowvya.com/auth/callback",
+    "https://*.railway.app/auth/callback"
 ]
 # Production: Longer JWT expiry for better UX
 jwt_expiry = 7200  # 2 hours
@@ -57,9 +58,9 @@ verify_jwt = true
 
 # External auth providers for production
 [auth.external.google]
-enabled = false
-client_id = ""
-secret = ""
+enabled = true
+client_id = "${GOOGLE_CLIENT_ID}"
+secret = "${GOOGLE_CLIENT_SECRET}"
 redirect_uri = ""
 url = ""
 
