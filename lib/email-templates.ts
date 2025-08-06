@@ -14,6 +14,9 @@ interface InvoiceEmailData {
     email: string;
     phone?: string;
     website?: string;
+    paypal_email?: string;
+    paypal_me_link?: string;
+    payment_instructions?: string;
   };
   payment_link?: string;
   notes?: string;
@@ -308,14 +311,41 @@ export const invoiceEmailTemplates = {
                 </div>
               ` : ''}
 
-              ${data.payment_link ? `
+              <!-- Payment Options Section -->
+              ${data.payment_link || data.business.paypal_email || data.business.paypal_me_link ? `
                 <div class="cta-section">
-                  <a href="${data.payment_link}" class="cta-button">
-                    Pay Invoice Now →
-                  </a>
-                  <div class="security-note">
-                    🔒 Secure payment powered by Stripe
-                  </div>
+                  <h3 style="color: #1a1a1a; margin-bottom: 16px; font-size: 18px;">💳 Payment Options</h3>
+                  
+                  ${data.payment_link ? `
+                    <a href="${data.payment_link}" class="cta-button" style="background: #635bff; margin-bottom: 12px;">
+                      Pay with Card →
+                    </a>
+                    <div class="security-note" style="margin-bottom: 20px;">
+                      🔒 Secure payment powered by Stripe
+                    </div>
+                  ` : ''}
+                  
+                  ${data.business.paypal_me_link ? `
+                    <a href="https://paypal.me/${data.business.paypal_me_link.replace(/^https?:\/\/(www\.)?paypal\.me\//, '')}/${data.total_amount.toFixed(2)}" class="cta-button" style="background: #0070ba; margin-bottom: 12px;">
+                      💰 Pay $${data.total_amount.toFixed(2)} via PayPal
+                    </a>
+                    <div class="security-note" style="margin-bottom: 20px;">
+                      🔒 Secure payment via PayPal
+                    </div>
+                  ` : data.business.paypal_email ? `
+                    <div class="payment-option" style="background: #f0f8ff; border: 1px solid #0070ba; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                      <h4 style="color: #0070ba; margin: 0 0 8px 0; font-size: 16px;">💙 Pay with PayPal</h4>
+                      <p style="margin: 0 0 8px 0; color: #1a1a1a;">Send payment to: <strong>${data.business.paypal_email}</strong></p>
+                      <p style="margin: 0; color: #6b7280; font-size: 14px;">Reference: Invoice ${data.invoice_number}</p>
+                    </div>
+                  ` : ''}
+                  
+                  ${data.business.payment_instructions ? `
+                    <div class="payment-instructions" style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-top: 16px;">
+                      <h4 style="color: #1a1a1a; margin: 0 0 8px 0; font-size: 16px;">📝 Payment Instructions</h4>
+                      <p style="margin: 0; color: #374151; line-height: 1.5;">${data.business.payment_instructions}</p>
+                    </div>
+                  ` : ''}
                 </div>
               ` : `
                 <div class="message-box">
@@ -706,14 +736,41 @@ ${data.business.name}
                 </div>
               </div>
 
-              ${data.payment_link ? `
+              <!-- Payment Options Section -->
+              ${data.payment_link || data.business.paypal_email || data.business.paypal_me_link ? `
                 <div class="cta-section">
-                  <a href="${data.payment_link}" class="cta-button">
-                    Pay Now - Quick & Secure →
-                  </a>
-                  <p style="color: #6b7280; font-size: 14px; margin-top: 16px;">
-                    🔒 Secure payment via Stripe • Takes less than 2 minutes
-                  </p>
+                  <h3 style="color: #1a1a1a; margin-bottom: 16px; font-size: 18px;">💳 Pay Now - Multiple Options</h3>
+                  
+                  ${data.payment_link ? `
+                    <a href="${data.payment_link}" class="cta-button" style="background: #635bff; margin-bottom: 12px;">
+                      Pay with Card →
+                    </a>
+                    <div style="color: #6b7280; font-size: 14px; margin-bottom: 20px;">
+                      🔒 Secure payment powered by Stripe
+                    </div>
+                  ` : ''}
+                  
+                  ${data.business.paypal_me_link ? `
+                    <a href="https://paypal.me/${data.business.paypal_me_link.replace(/^https?:\/\/(www\.)?paypal\.me\//, '')}/${data.total_amount.toFixed(2)}" class="cta-button" style="background: #0070ba; margin-bottom: 12px;">
+                      💰 Pay $${data.total_amount.toFixed(2)} via PayPal
+                    </a>
+                    <div style="color: #6b7280; font-size: 14px; margin-bottom: 20px;">
+                      🔒 Secure payment via PayPal
+                    </div>
+                  ` : data.business.paypal_email ? `
+                    <div class="payment-option" style="background: #f0f8ff; border: 1px solid #0070ba; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                      <h4 style="color: #0070ba; margin: 0 0 8px 0; font-size: 16px;">💙 Pay with PayPal</h4>
+                      <p style="margin: 0 0 8px 0; color: #1a1a1a;">Send payment to: <strong>${data.business.paypal_email}</strong></p>
+                      <p style="margin: 0; color: #6b7280; font-size: 14px;">Reference: Invoice ${data.invoice_number}</p>
+                    </div>
+                  ` : ''}
+                  
+                  ${data.business.payment_instructions ? `
+                    <div class="payment-instructions" style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-top: 16px;">
+                      <h4 style="color: #1a1a1a; margin: 0 0 8px 0; font-size: 16px;">📝 Payment Instructions</h4>
+                      <p style="margin: 0; color: #374151; line-height: 1.5;">${data.business.payment_instructions}</p>
+                    </div>
+                  ` : ''}
                 </div>
               ` : `
                 <div class="help-section">
@@ -762,7 +819,11 @@ Invoice Details:
 
 To avoid any service interruption or late fees, please process this payment at your earliest convenience.
 
-${data.payment_link ? `Pay online: ${data.payment_link}` : ''}
+Payment Options:
+${data.payment_link ? `• Pay with Card: ${data.payment_link}` : ''}
+${data.business.paypal_me_link ? `• PayPal: https://paypal.me/${data.business.paypal_me_link.replace(/^https?:\/\/(www\.)?paypal\.me\//, '')}/${data.total_amount.toFixed(2)}` : ''}
+${data.business.paypal_email ? `• Send PayPal payment to: ${data.business.paypal_email} (Reference: Invoice ${data.invoice_number})` : ''}
+${data.business.payment_instructions ? `\nPayment Instructions:\n${data.business.payment_instructions}` : ''}
 
 If you have already sent payment, please disregard this notice.
 

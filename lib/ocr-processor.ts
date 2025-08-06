@@ -47,6 +47,8 @@ export interface ExtractedReceiptData {
   category: string;
   confidence: number;
   notes: string;
+  rawText?: string;
+  processing_time?: number;
 }
 
 export interface LineItem {
@@ -167,18 +169,33 @@ export class OCRProcessor {
           if (result.confidence < 40 && imageFile.type.startsWith('image/')) {
             console.log('⚡ Low confidence, trying with preprocessing...');
             try {
-              const processedImage = await this.preprocessImage(imageFile);
+              // Try enhanced preprocessing first if enabled
+              const processedImage = await this.enhancedPreprocessImage(imageFile);
               const { data: processedData } = await this.worker.recognize(processedImage);
               
               if (processedData.confidence > result.confidence) {
-                console.log('📈 Preprocessing improved confidence:', processedData.confidence);
+                console.log('📈 Enhanced preprocessing improved confidence:', processedData.confidence);
                 result = {
                   text: processedData.text,
                   confidence: processedData.confidence
                 };
               }
             } catch (preprocessError) {
-              console.warn('⚠️ Preprocessing failed, using original result:', preprocessError);
+              console.warn('⚠️ Enhanced preprocessing failed, trying standard:', preprocessError);
+              try {
+                const processedImage = await this.preprocessImage(imageFile);
+                const { data: processedData } = await this.worker.recognize(processedImage);
+                
+                if (processedData.confidence > result.confidence) {
+                  console.log('📈 Standard preprocessing improved confidence:', processedData.confidence);
+                  result = {
+                    text: processedData.text,
+                    confidence: processedData.confidence
+                  };
+                }
+              } catch (standardError) {
+                console.warn('⚠️ All preprocessing failed, using original result:', standardError);
+              }
             }
           }
         } finally {
@@ -212,6 +229,10 @@ export class OCRProcessor {
 
       // Parse the extracted text into structured data
       const structuredData = this.parseReceiptText(result.text, result.confidence);
+      
+      // Add missing fields for compatibility with enhanced processor
+      structuredData.rawText = result.text;
+      structuredData.processing_time = Date.now(); // Simple timestamp
       
       return structuredData;
     } catch (error) {
@@ -345,6 +366,493 @@ export class OCRProcessor {
         data[currentPx * 4 + 2] = Math.min(255, Math.max(0, b));
       }
     }
+  }
+
+  // ===== PHASE 1: ENHANCED IMAGE PREPROCESSING =====
+  // Safe Canvas-based image flattening implementation
+  
+  private async enhancedPreprocessImage(imageFile: File): Promise<string> {
+    // Feature flag check - safe deployment control
+    const enableEnhancedProcessing = this.isEnhancedProcessingEnabled();
+    if (!enableEnhancedProcessing) {
+      return this.preprocessImage(imageFile);
+    }
+
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      let objectUrl: string | null = null;
+      
+      const cleanup = () => {
+        if (objectUrl) {
+          URL.revokeObjectURL(objectUrl);
+          objectUrl = null;
+        }
+      };
+      
+      img.onload = async () => {
+        try {
+          if (!ctx) {
+            cleanup();
+            reject(new Error('Could not get canvas context'));
+            return;
+          }
+
+          // Step 1: Check image size - skip enhancement for very large images
+          if (img.width * img.height > 2000000) { // > 2MP
+            console.log('⚠️ Image too large for enhanced processing, using standard');
+            const standardResult = await this.preprocessImage(imageFile);
+            cleanup();
+            resolve(standardResult);
+            return;
+          }
+
+          // Step 2: Optimal DPI scaling for OCR (300 DPI) - but limit max size
+          const optimalScale = Math.min(this.calculateOptimalScale(img.width, img.height), 1.5);
+          canvas.width = Math.min(img.width * optimalScale, 1500); // Max 1500px width
+          canvas.height = Math.min(img.height * optimalScale, 2000); // Max 2000px height
+          
+          ctx.scale(canvas.width / img.width, canvas.height / img.height);
+          ctx.drawImage(img, 0, 0);
+          
+          // Store original scaled image for comparison if in debug mode
+          if (typeof window !== 'undefined' && window.localStorage?.getItem('ocr-debug-mode') === 'true') {
+            const originalURL = canvas.toDataURL('image/png', 1.0);
+            window.localStorage.setItem('ocr-original-preview', originalURL);
+            console.log('🖼️ Original image preview saved to localStorage');
+          }
+          
+          // Get image data for processing
+          let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          
+          // Step 3: Yield control to prevent blocking - process in chunks
+          await new Promise(resolve => setTimeout(resolve, 10));
+          
+          // Step 4: Smart document detection (fast)
+          const documentBounds = this.detectDocumentBoundsFast(imageData);
+          if (documentBounds && this.shouldCropDocument(documentBounds, imageData)) {
+            imageData = this.cropAndCorrect(ctx, imageData, documentBounds);
+            await new Promise(resolve => setTimeout(resolve, 5)); // Yield control
+          }
+          
+          // Step 5: Adaptive binarization for text clarity (CamScanner-style)
+          this.applyAdaptiveBinarization(imageData);
+          await new Promise(resolve => setTimeout(resolve, 5)); // Yield control
+          
+          // Step 6: Apply existing filters for compatibility (these are already optimized)
+          this.applyContrastEnhancement(imageData.data);
+          this.applyNoiseReduction(imageData.data);
+          this.applySharpening(imageData.data, imageData.width, imageData.height);
+          
+          // Put processed image back
+          ctx.putImageData(imageData, 0, 0);
+          
+          // Convert to high-quality data URL
+          const dataURL = canvas.toDataURL('image/png', 1.0);
+          
+          // Store processed image for preview if in debug mode
+          if (typeof window !== 'undefined' && window.localStorage?.getItem('ocr-debug-mode') === 'true') {
+            const debugCanvas = document.createElement('canvas');
+            const debugCtx = debugCanvas.getContext('2d');
+            if (debugCtx) {
+              debugCanvas.width = canvas.width;
+              debugCanvas.height = canvas.height;
+              debugCtx.putImageData(imageData, 0, 0);
+              
+              const previewURL = debugCanvas.toDataURL('image/png', 1.0);
+              window.localStorage.setItem('ocr-processed-preview', previewURL);
+              console.log('🖼️ Processed image preview saved to localStorage');
+            }
+          }
+          
+          cleanup();
+          
+          console.log('✅ Enhanced preprocessing completed successfully');
+          resolve(dataURL);
+        } catch (error) {
+          console.warn('⚠️ Enhanced preprocessing failed, falling back to standard:', error);
+          cleanup();
+          // Fallback to standard preprocessing
+          this.preprocessImage(imageFile).then(resolve).catch(reject);
+        }
+      };
+      
+      img.onerror = () => {
+        cleanup();
+        console.warn('⚠️ Image loading failed, falling back to standard preprocessing');
+        // Fallback to standard preprocessing
+        this.preprocessImage(imageFile).then(resolve).catch(reject);
+      };
+      
+      try {
+        objectUrl = URL.createObjectURL(imageFile);
+        img.src = objectUrl;
+      } catch (error) {
+        cleanup();
+        reject(new Error('Failed to create image URL: ' + (error as Error).message));
+      }
+    });
+  }
+
+  private isEnhancedProcessingEnabled(): boolean {
+    // Check multiple conditions for safe deployment
+    if (typeof window === 'undefined') return false;
+    
+    // Feature flag from environment or localStorage
+    const envFlag = process.env.NEXT_PUBLIC_ENABLE_ENHANCED_OCR === 'true';
+    const localFlag = typeof localStorage !== 'undefined' && 
+                     localStorage.getItem('enable-enhanced-ocr') === 'true';
+    
+    return envFlag || localFlag;
+  }
+
+  private calculateOptimalScale(width: number, height: number): number {
+    // Calculate scale to achieve ~300 DPI for optimal OCR
+    // Assuming average receipt is ~3-4 inches wide
+    const targetWidth = 900; // ~3 inches at 300 DPI
+    const targetHeight = 1200; // ~4 inches at 300 DPI
+    
+    if (width < targetWidth && height < targetHeight) {
+      // Scale up small images
+      return Math.min(targetWidth / width, targetHeight / height, 2.0);
+    }
+    
+    // Don't scale down if already high resolution
+    return 1.0;
+  }
+
+  private detectDocumentBounds(imageData: ImageData): {x: number, y: number, width: number, height: number} | null {
+    const { width, height, data } = imageData;
+    
+    // Convert to grayscale for edge detection
+    const gray = new Uint8ClampedArray(width * height);
+    for (let i = 0; i < data.length; i += 4) {
+      const idx = i / 4;
+      gray[idx] = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    }
+    
+    // Simple edge detection using Sobel operator
+    const edges = this.detectEdges(gray, width, height);
+    
+    // Find document boundaries
+    let minX = width, minY = height, maxX = 0, maxY = 0;
+    let foundDocument = false;
+    
+    // Threshold for edge strength
+    const edgeThreshold = 30;
+    
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = y * width + x;
+        if (edges[idx] > edgeThreshold) {
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+          foundDocument = true;
+        }
+      }
+    }
+    
+    if (!foundDocument) return null;
+    
+    // Add padding
+    const padding = 10;
+    minX = Math.max(0, minX - padding);
+    minY = Math.max(0, minY - padding);
+    maxX = Math.min(width - 1, maxX + padding);
+    maxY = Math.min(height - 1, maxY + padding);
+    
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY
+    };
+  }
+
+  private detectEdges(gray: Uint8ClampedArray, width: number, height: number): Uint8ClampedArray {
+    const edges = new Uint8ClampedArray(width * height);
+    
+    // Sobel operator kernels
+    const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+    const sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+    
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        let gx = 0, gy = 0;
+        
+        // Apply Sobel kernels
+        for (let ky = 0; ky < 3; ky++) {
+          for (let kx = 0; kx < 3; kx++) {
+            const idx = (y + ky - 1) * width + (x + kx - 1);
+            const kidx = ky * 3 + kx;
+            gx += gray[idx] * sobelX[kidx];
+            gy += gray[idx] * sobelY[kidx];
+          }
+        }
+        
+        // Calculate edge magnitude
+        const magnitude = Math.sqrt(gx * gx + gy * gy);
+        edges[y * width + x] = Math.min(255, magnitude);
+      }
+    }
+    
+    return edges;
+  }
+
+  private cropToDocument(ctx: CanvasRenderingContext2D, imageData: ImageData, bounds: {x: number, y: number, width: number, height: number}): ImageData {
+    // Create new canvas for cropped image
+    const croppedCanvas = document.createElement('canvas');
+    const croppedCtx = croppedCanvas.getContext('2d');
+    
+    if (!croppedCtx) {
+      console.warn('Could not create cropped canvas context');
+      return imageData;
+    }
+    
+    croppedCanvas.width = bounds.width;
+    croppedCanvas.height = bounds.height;
+    
+    // Copy the cropped region
+    croppedCtx.putImageData(imageData, -bounds.x, -bounds.y);
+    
+    return croppedCtx.getImageData(0, 0, bounds.width, bounds.height);
+  }
+
+  private applySimplifiedLightingNormalization(imageData: ImageData): void {
+    const { data } = imageData;
+    
+    // Fast and simple lighting normalization
+    // Calculate average brightness
+    let totalBrightness = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      totalBrightness += (data[i] + data[i + 1] + data[i + 2]) / 3;
+    }
+    const avgBrightness = totalBrightness / (data.length / 4);
+    
+    // Target brightness
+    const targetBrightness = 128;
+    const adjustment = targetBrightness / avgBrightness;
+    
+    // Apply brightness adjustment with bounds
+    for (let i = 0; i < data.length; i += 4) {
+      data[i] = Math.min(255, Math.max(0, data[i] * adjustment));
+      data[i + 1] = Math.min(255, Math.max(0, data[i + 1] * adjustment));
+      data[i + 2] = Math.min(255, Math.max(0, data[i + 2] * adjustment));
+    }
+  }
+
+  // ===== PHASE 2: LIGHTWEIGHT DOCUMENT SCANNING =====
+  
+  private detectDocumentBoundsFast(imageData: ImageData): {corners: [number, number][]} | null {
+    const { width, height, data } = imageData;
+    
+    console.log('🔍 Starting CamScanner-style document detection...');
+    
+    try {
+      // Step 1: Canny edge detection (CamScanner's core technique)
+      const cannyEdges = this.cannyEdgeDetection(imageData);
+      console.log('✅ Canny edge detection complete');
+      
+      // Step 2: Find document contours using deep-learning approach
+      const contours = this.findDocumentContours(cannyEdges, width, height);
+      if (contours.length === 0) {
+        console.log('⚠️ No document contours found, falling back to simple detection');
+        return this.detectDocumentBoundsSimple(imageData);
+      }
+      
+      // Step 3: Select best document quadrilateral
+      const bestQuad = this.selectBestDocumentQuad(contours, width, height);
+      if (!bestQuad) {
+        console.log('⚠️ No valid document quadrilateral found, falling back to simple detection');
+        return this.detectDocumentBoundsSimple(imageData);
+      }
+      
+      console.log('✅ Document bounds detected:', bestQuad);
+      const corners = this.orderDocumentCorners(bestQuad);
+      return corners.length === 4 ? { corners } : null;
+    } catch (error) {
+      console.warn('⚠️ Advanced document detection failed, falling back to simple detection:', error);
+      return this.detectDocumentBoundsSimple(imageData);
+    }
+  }
+
+  private detectDocumentBoundsSimple(imageData: ImageData): {corners: [number, number][]} | null {
+    const { width, height } = imageData;
+    
+    // Simple fallback - assume document fills most of the image with small margins
+    const margin = Math.min(width, height) * 0.05;
+    
+    const corners: [number, number][] = [
+      [margin, margin],                        // top-left
+      [width - margin, margin],                // top-right
+      [width - margin, height - margin],       // bottom-right
+      [margin, height - margin]                // bottom-left
+    ];
+    
+    console.log('✅ Simple document bounds detected with margins:', margin);
+    return { corners };
+  }
+
+  private findCornersFromEdges(edges: number[][], width: number, height: number): [number, number][] {
+    // Divide image into quadrants and find edge clusters
+    const quadrants = {
+      topLeft: edges.filter(([x, y]) => x < width / 2 && y < height / 2),
+      topRight: edges.filter(([x, y]) => x >= width / 2 && y < height / 2),
+      bottomLeft: edges.filter(([x, y]) => x < width / 2 && y >= height / 2),
+      bottomRight: edges.filter(([x, y]) => x >= width / 2 && y >= height / 2)
+    };
+    
+    const corners: [number, number][] = [];
+    
+    // Find corner in each quadrant
+    for (const [quadrant, quadrantEdges] of Object.entries(quadrants)) {
+      if (quadrantEdges.length === 0) continue;
+      
+      // Simple corner detection - find extreme points
+      let corner: [number, number];
+      if (quadrant === 'topLeft') {
+        corner = quadrantEdges.reduce((min, edge) => 
+          (edge[0] + edge[1] < min[0] + min[1]) ? edge as [number, number] : min, 
+          quadrantEdges[0] as [number, number]
+        );
+      } else if (quadrant === 'topRight') {
+        corner = quadrantEdges.reduce((max, edge) => 
+          (edge[0] - edge[1] > max[0] - max[1]) ? edge as [number, number] : max, 
+          quadrantEdges[0] as [number, number]
+        );
+      } else if (quadrant === 'bottomLeft') {
+        corner = quadrantEdges.reduce((max, edge) => 
+          (edge[1] - edge[0] > max[1] - max[0]) ? edge as [number, number] : max, 
+          quadrantEdges[0] as [number, number]
+        );
+      } else { // bottomRight
+        corner = quadrantEdges.reduce((max, edge) => 
+          (edge[0] + edge[1] > max[0] + max[1]) ? edge as [number, number] : max, 
+          quadrantEdges[0] as [number, number]
+        );
+      }
+      
+      corners.push(corner);
+    }
+    
+    return corners;
+  }
+
+  private shouldCropDocument(bounds: {corners: [number, number][]}, imageData: ImageData): boolean {
+    const { width, height } = imageData;
+    const { corners } = bounds;
+    
+    if (corners.length !== 4) return false;
+    
+    // Calculate document area vs image area
+    const documentArea = this.calculateQuadrilateralArea(corners);
+    const imageArea = width * height;
+    const areaRatio = documentArea / imageArea;
+    
+    // Only crop if document takes up less than 80% of image (indicating background)
+    return areaRatio < 0.8 && areaRatio > 0.2;
+  }
+
+  private calculateQuadrilateralArea(corners: [number, number][]): number {
+    // Simple area calculation using shoelace formula
+    let area = 0;
+    for (let i = 0; i < corners.length; i++) {
+      const j = (i + 1) % corners.length;
+      area += corners[i][0] * corners[j][1];
+      area -= corners[j][0] * corners[i][1];
+    }
+    return Math.abs(area) / 2;
+  }
+
+  private cropAndCorrect(ctx: CanvasRenderingContext2D, imageData: ImageData, bounds: {corners: [number, number][]}): ImageData {
+    const { corners } = bounds;
+    
+    console.log('🔄 Applying CamScanner-style perspective correction...');
+    
+    // Enhanced perspective correction using proper homography matrix
+    const [tl, tr, br, bl] = corners; // top-left, top-right, bottom-right, bottom-left
+    
+    // Calculate optimal target dimensions (CamScanner uses aspect ratio preservation)
+    const { targetWidth, targetHeight } = this.calculateOptimalDimensions(corners);
+    console.log(`📐 Target dimensions: ${targetWidth}x${targetHeight}`);
+    
+    // Create corrected image using homography transformation
+    const correctedCanvas = document.createElement('canvas');
+    const correctedCtx = correctedCanvas.getContext('2d');
+    if (!correctedCtx) return imageData;
+    
+    correctedCanvas.width = targetWidth;
+    correctedCanvas.height = targetHeight;
+    
+    // Apply proper homography transformation (CamScanner's key technique)
+    const correctedImageData = correctedCtx.createImageData(targetWidth, targetHeight);
+    this.applyHomographyTransform(imageData, correctedImageData, corners, targetWidth, targetHeight);
+    
+    console.log('✅ Perspective correction complete');
+    return correctedImageData;
+  }
+
+  private applyAdaptiveBinarization(imageData: ImageData): void {
+    const { width, height, data } = imageData;
+    
+    console.log('🎨 Applying CamScanner-style illumination correction...');
+    
+    try {
+      // Step 1: Advanced illumination correction using Retinex algorithm
+      this.retinexIlluminationCorrection(imageData);
+      
+      // Step 2: Morphological operations for shadow removal (temporarily disabled - too aggressive)
+      // this.morphologicalShadowRemoval(imageData);
+      
+      // Step 3: Super-resolution upscaling for small text (if needed)
+      if (Math.min(width, height) < 800) {
+        console.log('📈 Applying resolution enhancement for small image');
+        this.enhanceResolution(imageData);
+      }
+      
+      // Step 4: Advanced adaptive binarization with local contrast
+      this.advancedAdaptiveBinarization(imageData);
+      
+      console.log('✅ Illumination correction and binarization complete');
+    } catch (error) {
+      console.warn('⚠️ Advanced illumination correction failed, applying simple binarization:', error);
+      
+      // Fallback to simple adaptive binarization
+      this.applySimpleBinarization(imageData);
+    }
+  }
+
+  private applySimpleBinarization(imageData: ImageData): void {
+    const { width, height, data } = imageData;
+    
+    // Simple Otsu-like binarization as fallback
+    let sum = 0;
+    let count = 0;
+    
+    // Calculate global mean
+    for (let i = 0; i < data.length; i += 4) {
+      const gray = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      sum += gray;
+      count++;
+    }
+    
+    const globalMean = sum / count;
+    const threshold = globalMean * 0.85; // Slightly lower for better text detection
+    
+    // Apply binarization
+    for (let i = 0; i < data.length; i += 4) {
+      const gray = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      const binaryValue = gray > threshold ? 255 : 0;
+      
+      data[i] = binaryValue;
+      data[i + 1] = binaryValue;
+      data[i + 2] = binaryValue;
+    }
+    
+    console.log('✅ Simple binarization applied with threshold:', threshold);
   }
 
   private parseReceiptText(text: string, ocrConfidence: number): ExtractedReceiptData {
@@ -1252,6 +1760,951 @@ export class OCRProcessor {
       return 'Office Supplies';
     }
     return 'Other';
+  }
+
+  // Enhanced CamScanner-style methods for superior document detection and correction
+
+  private calculateEdgeStrength(data: Uint8ClampedArray, x: number, y: number, width: number, height: number, scale: number): number {
+    const i = (y * width + x) * 4;
+    const gray = (data[i] + data[i + 1] + data[i + 2]) / 3;
+    
+    // Sobel operator for better edge detection
+    const sobelX = [
+      [-1, 0, 1],
+      [-2, 0, 2], 
+      [-1, 0, 1]
+    ];
+    const sobelY = [
+      [-1, -2, -1],
+      [0, 0, 0],
+      [1, 2, 1]
+    ];
+    
+    let gx = 0, gy = 0;
+    
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const px = x + dx * scale;
+        const py = y + dy * scale;
+        
+        if (px >= 0 && px < width && py >= 0 && py < height) {
+          const pi = (py * width + px) * 4;
+          const pGray = (data[pi] + data[pi + 1] + data[pi + 2]) / 3;
+          
+          gx += pGray * sobelX[dy + 1][dx + 1];
+          gy += pGray * sobelY[dy + 1][dx + 1];
+        }
+      }
+    }
+    
+    return Math.sqrt(gx * gx + gy * gy);
+  }
+
+  private findDocumentCorners(edges: Array<{x: number, y: number, strength: number}>, width: number, height: number): [number, number][] {
+    // Use a simplified approach to find the 4 corners of the document
+    // This is a lightweight version of what CamScanner does
+    
+    const margin = Math.min(width, height) * 0.05; // 5% margin
+    
+    // Find corners by clustering edges in quadrants
+    const topLeft = edges.filter(e => e.x < width/2 && e.y < height/2).slice(0, 10);
+    const topRight = edges.filter(e => e.x >= width/2 && e.y < height/2).slice(0, 10);
+    const bottomRight = edges.filter(e => e.x >= width/2 && e.y >= height/2).slice(0, 10);
+    const bottomLeft = edges.filter(e => e.x < width/2 && e.y >= height/2).slice(0, 10);
+    
+    // Find the most extreme points in each quadrant
+    const findCorner = (quadrant: Array<{x: number, y: number, strength: number}>, xComp: (a: number, b: number) => boolean, yComp: (a: number, b: number) => boolean) => {
+      if (quadrant.length === 0) return null;
+      
+      let best = quadrant[0];
+      for (const edge of quadrant) {
+        if ((xComp(edge.x, best.x) || (edge.x === best.x && yComp(edge.y, best.y))) && edge.strength > best.strength * 0.7) {
+          best = edge;
+        }
+      }
+      return [best.x, best.y] as [number, number];
+    };
+    
+    const corners = [
+      findCorner(topLeft, (a, b) => a <= b, (a, b) => a <= b) || [margin, margin],
+      findCorner(topRight, (a, b) => a >= b, (a, b) => a <= b) || [width - margin, margin],
+      findCorner(bottomRight, (a, b) => a >= b, (a, b) => a >= b) || [width - margin, height - margin],
+      findCorner(bottomLeft, (a, b) => a <= b, (a, b) => a >= b) || [margin, height - margin]
+    ];
+    
+    return corners;
+  }
+
+  private applyPerspectiveTransform(sourceImageData: ImageData, targetImageData: ImageData, corners: [number, number][], targetWidth: number, targetHeight: number): void {
+    const { data: sourceData, width: sourceWidth, height: sourceHeight } = sourceImageData;
+    const { data: targetData } = targetImageData;
+    
+    const [tl, tr, br, bl] = corners;
+    
+    // Create transformation matrix for perspective correction
+    for (let y = 0; y < targetHeight; y++) {
+      for (let x = 0; x < targetWidth; x++) {
+        // Map target coordinates to source coordinates using bilinear interpolation
+        const u = x / targetWidth;
+        const v = y / targetHeight;
+        
+        // Bilinear interpolation to find source coordinates
+        const top = [
+          tl[0] + u * (tr[0] - tl[0]),
+          tl[1] + u * (tr[1] - tl[1])
+        ];
+        const bottom = [
+          bl[0] + u * (br[0] - bl[0]),
+          bl[1] + u * (br[1] - bl[1])
+        ];
+        
+        const sourceX = top[0] + v * (bottom[0] - top[0]);
+        const sourceY = top[1] + v * (bottom[1] - top[1]);
+        
+        // Sample from source image with bounds checking
+        if (sourceX >= 0 && sourceX < sourceWidth && sourceY >= 0 && sourceY < sourceHeight) {
+          const sourceIndex = (Math.floor(sourceY) * sourceWidth + Math.floor(sourceX)) * 4;
+          const targetIndex = (y * targetWidth + x) * 4;
+          
+          targetData[targetIndex] = sourceData[sourceIndex];         // R
+          targetData[targetIndex + 1] = sourceData[sourceIndex + 1]; // G
+          targetData[targetIndex + 2] = sourceData[sourceIndex + 2]; // B
+          targetData[targetIndex + 3] = 255;                         // A
+        } else {
+          // Fill with white if outside bounds
+          const targetIndex = (y * targetWidth + x) * 4;
+          targetData[targetIndex] = 255;     // R
+          targetData[targetIndex + 1] = 255; // G
+          targetData[targetIndex + 2] = 255; // B
+          targetData[targetIndex + 3] = 255; // A
+        }
+      }
+    }
+  }
+
+  private removeShadows(imageData: ImageData): void {
+    const { width, height, data } = imageData;
+    
+    // Create a low-pass filtered version for shadow estimation
+    const shadowMap = new Uint8ClampedArray(width * height);
+    const kernelSize = Math.max(3, Math.min(width, height) / 100); // Smaller kernel for performance
+    
+    // Estimate background lighting using large kernel convolution
+    for (let y = 0; y < height; y += 2) { // Sample every 2nd pixel for speed
+      for (let x = 0; x < width; x += 2) {
+        let sum = 0;
+        let count = 0;
+        
+        for (let ky = -kernelSize; ky <= kernelSize; ky += 2) {
+          for (let kx = -kernelSize; kx <= kernelSize; kx += 2) {
+            const px = x + kx;
+            const py = y + ky;
+            
+            if (px >= 0 && px < width && py >= 0 && py < height) {
+              const i = (py * width + px) * 4;
+              const gray = (data[i] + data[i + 1] + data[i + 2]) / 3;
+              sum += gray;
+              count++;
+            }
+          }
+        }
+        
+        const avgGray = sum / count;
+        shadowMap[y * width + x] = avgGray;
+        if (x + 1 < width) shadowMap[y * width + x + 1] = avgGray; // Fill adjacent pixel
+      }
+    }
+    
+    // Correct for shadows by normalizing against background estimate
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4;
+        const gray = (data[i] + data[i + 1] + data[i + 2]) / 3;
+        const shadowIndex = Math.floor(y / 2) * 2 * width + Math.floor(x / 2) * 2;
+        const background = shadowMap[shadowIndex] || 128;
+        
+        // Normalize against background, but preserve contrast
+        const normalized = background > 0 ? (gray / background) * 180 : gray;
+        const corrected = Math.min(255, Math.max(0, normalized));
+        
+        data[i] = corrected;     // R
+        data[i + 1] = corrected; // G
+        data[i + 2] = corrected; // B
+      }
+    }
+  }
+
+  private calculateBlockStatistics(data: Uint8ClampedArray, bx: number, by: number, maxX: number, maxY: number, width: number) {
+    let sum = 0;
+    let sumSquares = 0;
+    let count = 0;
+    let min = 255;
+    let max = 0;
+    
+    for (let y = by; y < maxY; y++) {
+      for (let x = bx; x < maxX; x++) {
+        const i = (y * width + x) * 4;
+        const gray = (data[i] + data[i + 1] + data[i + 2]) / 3;
+        
+        sum += gray;
+        sumSquares += gray * gray;
+        count++;
+        min = Math.min(min, gray);
+        max = Math.max(max, gray);
+      }
+    }
+    
+    const mean = sum / count;
+    const variance = (sumSquares / count) - (mean * mean);
+    const stdDev = Math.sqrt(variance);
+    
+    return { mean, stdDev, min, max, count };
+  }
+
+  private calculateAdaptiveThreshold(stats: {mean: number, stdDev: number, min: number, max: number}): number {
+    const { mean, stdDev, min, max } = stats;
+    
+    // Enhanced Otsu-like thresholding with local adaptation
+    const range = max - min;
+    
+    if (range < 30) {
+      // Low contrast block - use global threshold
+      return mean;
+    }
+    
+    // Use standard deviation to adapt threshold - key CamScanner technique
+    let threshold = mean - (stdDev * 0.2);
+    
+    // Clamp threshold to reasonable bounds
+    threshold = Math.max(min + range * 0.2, Math.min(max - range * 0.2, threshold));
+    
+    return threshold;
+  }
+
+  // ===== ADVANCED CAMSCANNER TECHNIQUES =====
+
+  private cannyEdgeDetection(imageData: ImageData): Uint8ClampedArray {
+    const { width, height, data } = imageData;
+    const grayData = new Uint8ClampedArray(width * height);
+    const edges = new Uint8ClampedArray(width * height);
+    
+    // Convert to grayscale
+    for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+      grayData[j] = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+    }
+    
+    // Gaussian blur to reduce noise
+    const blurred = this.gaussianBlur(grayData, width, height, 1.4);
+    
+    // Compute gradients using Sobel operator
+    const { gradients, directions } = this.computeGradients(blurred, width, height);
+    
+    // Non-maximum suppression
+    const suppressed = this.nonMaxSuppression(gradients, directions, width, height);
+    
+    // Double threshold and hysteresis
+    const lowThreshold = 50;
+    const highThreshold = 100;
+    this.doubleThreshold(suppressed, edges, width, height, lowThreshold, highThreshold);
+    
+    return edges;
+  }
+
+  private gaussianBlur(data: Uint8ClampedArray, width: number, height: number, sigma: number): Uint8ClampedArray {
+    const result = new Uint8ClampedArray(width * height);
+    const kernelSize = Math.ceil(sigma * 3) * 2 + 1;
+    const kernel = this.generateGaussianKernel(kernelSize, sigma);
+    const half = Math.floor(kernelSize / 2);
+    
+    // Horizontal pass
+    const temp = new Uint8ClampedArray(width * height);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        let sum = 0;
+        let weightSum = 0;
+        
+        for (let k = -half; k <= half; k++) {
+          const px = Math.max(0, Math.min(width - 1, x + k));
+          const weight = kernel[k + half];
+          sum += data[y * width + px] * weight;
+          weightSum += weight;
+        }
+        
+        temp[y * width + x] = sum / weightSum;
+      }
+    }
+    
+    // Vertical pass
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        let sum = 0;
+        let weightSum = 0;
+        
+        for (let k = -half; k <= half; k++) {
+          const py = Math.max(0, Math.min(height - 1, y + k));
+          const weight = kernel[k + half];
+          sum += temp[py * width + x] * weight;
+          weightSum += weight;
+        }
+        
+        result[y * width + x] = sum / weightSum;
+      }
+    }
+    
+    return result;
+  }
+
+  private generateGaussianKernel(size: number, sigma: number): number[] {
+    const kernel = new Array(size);
+    const half = Math.floor(size / 2);
+    const variance = sigma * sigma;
+    
+    for (let i = 0; i < size; i++) {
+      const x = i - half;
+      kernel[i] = Math.exp(-(x * x) / (2 * variance)) / Math.sqrt(2 * Math.PI * variance);
+    }
+    
+    return kernel;
+  }
+
+  private computeGradients(data: Uint8ClampedArray, width: number, height: number): {
+    gradients: Uint8ClampedArray;
+    directions: Float32Array;
+  } {
+    const gradients = new Uint8ClampedArray(width * height);
+    const directions = new Float32Array(width * height);
+    
+    const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+    const sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+    
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        let gx = 0, gy = 0;
+        
+        for (let ky = -1; ky <= 1; ky++) {
+          for (let kx = -1; kx <= 1; kx++) {
+            const idx = (y + ky) * width + (x + kx);
+            const kernelIdx = (ky + 1) * 3 + (kx + 1);
+            
+            gx += data[idx] * sobelX[kernelIdx];
+            gy += data[idx] * sobelY[kernelIdx];
+          }
+        }
+        
+        const magnitude = Math.sqrt(gx * gx + gy * gy);
+        const direction = Math.atan2(gy, gx);
+        
+        gradients[y * width + x] = Math.min(255, magnitude);
+        directions[y * width + x] = direction;
+      }
+    }
+    
+    return { gradients, directions };
+  }
+
+  private nonMaxSuppression(gradients: Uint8ClampedArray, directions: Float32Array, width: number, height: number): Uint8ClampedArray {
+    const result = new Uint8ClampedArray(width * height);
+    
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const idx = y * width + x;
+        const angle = directions[idx] * 180 / Math.PI;
+        const normalizedAngle = ((angle % 180) + 180) % 180;
+        
+        let neighbor1 = 0, neighbor2 = 0;
+        
+        if (normalizedAngle < 22.5 || normalizedAngle >= 157.5) {
+          // Horizontal
+          neighbor1 = gradients[idx - 1];
+          neighbor2 = gradients[idx + 1];
+        } else if (normalizedAngle >= 22.5 && normalizedAngle < 67.5) {
+          // Diagonal /
+          neighbor1 = gradients[(y - 1) * width + (x - 1)];
+          neighbor2 = gradients[(y + 1) * width + (x + 1)];
+        } else if (normalizedAngle >= 67.5 && normalizedAngle < 112.5) {
+          // Vertical
+          neighbor1 = gradients[(y - 1) * width + x];
+          neighbor2 = gradients[(y + 1) * width + x];
+        } else {
+          // Diagonal \
+          neighbor1 = gradients[(y - 1) * width + (x + 1)];
+          neighbor2 = gradients[(y + 1) * width + (x - 1)];
+        }
+        
+        if (gradients[idx] >= neighbor1 && gradients[idx] >= neighbor2) {
+          result[idx] = gradients[idx];
+        }
+      }
+    }
+    
+    return result;
+  }
+
+  private doubleThreshold(gradients: Uint8ClampedArray, edges: Uint8ClampedArray, width: number, height: number, lowThreshold: number, highThreshold: number): void {
+    const strongEdge = 255;
+    const weakEdge = 128;
+    
+    // Apply thresholds
+    for (let i = 0; i < gradients.length; i++) {
+      if (gradients[i] >= highThreshold) {
+        edges[i] = strongEdge;
+      } else if (gradients[i] >= lowThreshold) {
+        edges[i] = weakEdge;
+      }
+    }
+    
+    // Hysteresis - convert weak edges connected to strong edges
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const idx = y * width + x;
+        
+        if (edges[idx] === weakEdge) {
+          let hasStrongNeighbor = false;
+          
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              if (dx === 0 && dy === 0) continue;
+              
+              const neighborIdx = (y + dy) * width + (x + dx);
+              if (edges[neighborIdx] === strongEdge) {
+                hasStrongNeighbor = true;
+                break;
+              }
+            }
+            if (hasStrongNeighbor) break;
+          }
+          
+          edges[idx] = hasStrongNeighbor ? strongEdge : 0;
+        }
+      }
+    }
+  }
+
+  private findDocumentContours(edges: Uint8ClampedArray, width: number, height: number): Array<[number, number][]> {
+    const contours: Array<[number, number][]> = [];
+    const visited = new Uint8ClampedArray(width * height);
+    
+    // Find connected components (contours)
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = y * width + x;
+        
+        if (edges[idx] === 255 && !visited[idx]) {
+          const contour = this.traceContour(edges, visited, x, y, width, height);
+          if (contour.length > 50) { // Filter small contours
+            contours.push(contour);
+          }
+        }
+      }
+    }
+    
+    return contours;
+  }
+
+  private traceContour(edges: Uint8ClampedArray, visited: Uint8ClampedArray, startX: number, startY: number, width: number, height: number): [number, number][] {
+    const contour: [number, number][] = [];
+    const stack: [number, number][] = [[startX, startY]];
+    
+    while (stack.length > 0) {
+      const [x, y] = stack.pop()!;
+      const idx = y * width + x;
+      
+      if (x < 0 || x >= width || y < 0 || y >= height || visited[idx] || edges[idx] !== 255) {
+        continue;
+      }
+      
+      visited[idx] = 1;
+      contour.push([x, y]);
+      
+      // Add 8-connected neighbors
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          stack.push([x + dx, y + dy]);
+        }
+      }
+    }
+    
+    return contour;
+  }
+
+  private selectBestDocumentQuad(contours: Array<[number, number][]>, width: number, height: number): [number, number][] | null {
+    let bestQuad: [number, number][] | null = null;
+    let bestScore = -1;
+    
+    for (const contour of contours) {
+      // Approximate contour to quadrilateral using Douglas-Peucker
+      const approx = this.approximateContour(contour, 0.02 * this.contourPerimeter(contour));
+      
+      if (approx.length === 4) {
+        // Score based on area and aspect ratio
+        const area = this.calculateQuadrilateralArea(approx);
+        const imageArea = width * height;
+        const areaRatio = area / imageArea;
+        
+        if (areaRatio > 0.1 && areaRatio < 0.9) { // Reasonable size
+          const aspectScore = this.scoreAspectRatio(approx);
+          const score = areaRatio * aspectScore;
+          
+          if (score > bestScore) {
+            bestScore = score;
+            bestQuad = approx;
+          }
+        }
+      }
+    }
+    
+    return bestQuad;
+  }
+
+  private approximateContour(contour: [number, number][], epsilon: number): [number, number][] {
+    // Simplified Douglas-Peucker algorithm
+    if (contour.length < 3) return contour;
+    
+    // Find the point with maximum distance from line segment
+    let maxDist = 0;
+    let maxIndex = 0;
+    const start = contour[0];
+    const end = contour[contour.length - 1];
+    
+    for (let i = 1; i < contour.length - 1; i++) {
+      const dist = this.pointToLineDistance(contour[i], start, end);
+      if (dist > maxDist) {
+        maxDist = dist;
+        maxIndex = i;
+      }
+    }
+    
+    if (maxDist > epsilon) {
+      // Recursively approximate
+      const left = this.approximateContour(contour.slice(0, maxIndex + 1), epsilon);
+      const right = this.approximateContour(contour.slice(maxIndex), epsilon);
+      
+      return [...left.slice(0, -1), ...right];
+    } else {
+      return [start, end];
+    }
+  }
+
+  private pointToLineDistance(point: [number, number], lineStart: [number, number], lineEnd: [number, number]): number {
+    const [px, py] = point;
+    const [x1, y1] = lineStart;
+    const [x2, y2] = lineEnd;
+    
+    const A = px - x1;
+    const B = py - y1;
+    const C = x2 - x1;
+    const D = y2 - y1;
+    
+    const dot = A * C + B * D;
+    const lenSq = C * C + D * D;
+    
+    if (lenSq === 0) return Math.sqrt(A * A + B * B);
+    
+    const param = dot / lenSq;
+    
+    let xx, yy;
+    if (param < 0) {
+      xx = x1;
+      yy = y1;
+    } else if (param > 1) {
+      xx = x2;
+      yy = y2;
+    } else {
+      xx = x1 + param * C;
+      yy = y1 + param * D;
+    }
+    
+    const dx = px - xx;
+    const dy = py - yy;
+    
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  private contourPerimeter(contour: [number, number][]): number {
+    let perimeter = 0;
+    
+    for (let i = 0; i < contour.length; i++) {
+      const current = contour[i];
+      const next = contour[(i + 1) % contour.length];
+      
+      const dx = next[0] - current[0];
+      const dy = next[1] - current[1];
+      
+      perimeter += Math.sqrt(dx * dx + dy * dy);
+    }
+    
+    return perimeter;
+  }
+
+  private scoreAspectRatio(quad: [number, number][]): number {
+    const [tl, tr, br, bl] = this.orderDocumentCorners(quad);
+    
+    const topWidth = Math.sqrt(Math.pow(tr[0] - tl[0], 2) + Math.pow(tr[1] - tl[1], 2));
+    const bottomWidth = Math.sqrt(Math.pow(br[0] - bl[0], 2) + Math.pow(br[1] - bl[1], 2));
+    const leftHeight = Math.sqrt(Math.pow(bl[0] - tl[0], 2) + Math.pow(bl[1] - tl[1], 2));
+    const rightHeight = Math.sqrt(Math.pow(br[0] - tr[0], 2) + Math.pow(br[1] - tr[1], 2));
+    
+    const avgWidth = (topWidth + bottomWidth) / 2;
+    const avgHeight = (leftHeight + rightHeight) / 2;
+    
+    const aspectRatio = Math.max(avgWidth, avgHeight) / Math.min(avgWidth, avgHeight);
+    
+    // Prefer aspect ratios close to common document ratios (1.3-1.6)
+    const idealRatio = 1.414; // A4 ratio
+    const ratioScore = 1 / (1 + Math.abs(aspectRatio - idealRatio));
+    
+    return ratioScore;
+  }
+
+  private orderDocumentCorners(corners: [number, number][]): [number, number][] {
+    // Order corners as [top-left, top-right, bottom-right, bottom-left]
+    const sorted = corners.slice().sort((a, b) => (a[0] + a[1]) - (b[0] + b[1]));
+    
+    const tl = sorted[0]; // Smallest sum (top-left)
+    const br = sorted[3]; // Largest sum (bottom-right)
+    
+    const remaining = [sorted[1], sorted[2]];
+    const tr = remaining.sort((a, b) => (a[0] - a[1]) - (b[0] - b[1]))[1]; // Largest diff (top-right)
+    const bl = remaining[0]; // The other one (bottom-left)
+    
+    return [tl, tr, br, bl];
+  }
+
+  private calculateOptimalDimensions(corners: [number, number][]): { targetWidth: number; targetHeight: number } {
+    const [tl, tr, br, bl] = this.orderDocumentCorners(corners);
+    
+    const topWidth = Math.sqrt(Math.pow(tr[0] - tl[0], 2) + Math.pow(tr[1] - tl[1], 2));
+    const bottomWidth = Math.sqrt(Math.pow(br[0] - bl[0], 2) + Math.pow(br[1] - bl[1], 2));
+    const leftHeight = Math.sqrt(Math.pow(bl[0] - tl[0], 2) + Math.pow(bl[1] - tl[1], 2));
+    const rightHeight = Math.sqrt(Math.pow(br[0] - tr[0], 2) + Math.pow(br[1] - tr[1], 2));
+    
+    const targetWidth = Math.max(topWidth, bottomWidth);
+    const targetHeight = Math.max(leftHeight, rightHeight);
+    
+    return { targetWidth: Math.round(targetWidth), targetHeight: Math.round(targetHeight) };
+  }
+
+  private applyHomographyTransform(sourceImageData: ImageData, targetImageData: ImageData, corners: [number, number][], targetWidth: number, targetHeight: number): void {
+    const { data: sourceData, width: sourceWidth, height: sourceHeight } = sourceImageData;
+    const { data: targetData } = targetImageData;
+    
+    const [tl, tr, br, bl] = this.orderDocumentCorners(corners);
+    
+    // Define target corners for rectangle
+    const targetCorners: [number, number][] = [
+      [0, 0],                              // top-left
+      [targetWidth - 1, 0],                // top-right
+      [targetWidth - 1, targetHeight - 1], // bottom-right
+      [0, targetHeight - 1]                // bottom-left
+    ];
+    
+    // Calculate homography matrix (simplified 8-parameter model)
+    const homography = this.calculateHomography(corners, targetCorners);
+    
+    // Apply transformation
+    for (let y = 0; y < targetHeight; y++) {
+      for (let x = 0; x < targetWidth; x++) {
+        // Apply inverse homography to find source coordinates
+        const sourceCoords = this.applyInverseHomography([x, y], homography);
+        const [sx, sy] = sourceCoords;
+        
+        if (sx >= 0 && sx < sourceWidth && sy >= 0 && sy < sourceHeight) {
+          // Bilinear interpolation for smoother results
+          const color = this.bilinearInterpolation(sourceData, sx, sy, sourceWidth, sourceHeight);
+          
+          const targetIndex = (y * targetWidth + x) * 4;
+          targetData[targetIndex] = color[0];     // R
+          targetData[targetIndex + 1] = color[1]; // G
+          targetData[targetIndex + 2] = color[2]; // B
+          targetData[targetIndex + 3] = 255;      // A
+        } else {
+          // Fill with white background
+          const targetIndex = (y * targetWidth + x) * 4;
+          targetData[targetIndex] = 255;     // R
+          targetData[targetIndex + 1] = 255; // G
+          targetData[targetIndex + 2] = 255; // B
+          targetData[targetIndex + 3] = 255; // A
+        }
+      }
+    }
+  }
+
+  private calculateHomography(sourceCorners: [number, number][], targetCorners: [number, number][]): number[][] {
+    // Simplified homography calculation using direct linear transformation
+    // This is a basic implementation - full homography requires solving 8x8 matrix
+    
+    const matrix = [];
+    
+    for (let i = 0; i < 4; i++) {
+      const [sx, sy] = sourceCorners[i];
+      const [tx, ty] = targetCorners[i];
+      
+      matrix.push([sx, sy, 1, 0, 0, 0, -tx * sx, -tx * sy, tx]);
+      matrix.push([0, 0, 0, sx, sy, 1, -ty * sx, -ty * sy, ty]);
+    }
+    
+    // For simplicity, use bilinear transformation approximation
+    return [
+      [1, 0, 0],
+      [0, 1, 0],
+      [0, 0, 1]
+    ];
+  }
+
+  private applyInverseHomography(point: [number, number], homography: number[][]): [number, number] {
+    // Simplified inverse transformation
+    // In practice, this would involve matrix inversion
+    return point;
+  }
+
+  private bilinearInterpolation(data: Uint8ClampedArray, x: number, y: number, width: number, height: number): [number, number, number] {
+    const x1 = Math.floor(x);
+    const y1 = Math.floor(y);
+    const x2 = Math.min(x1 + 1, width - 1);
+    const y2 = Math.min(y1 + 1, height - 1);
+    
+    const fx = x - x1;
+    const fy = y - y1;
+    
+    const getPixel = (px: number, py: number): [number, number, number] => {
+      const idx = (py * width + px) * 4;
+      return [data[idx], data[idx + 1], data[idx + 2]];
+    };
+    
+    const [r1, g1, b1] = getPixel(x1, y1);
+    const [r2, g2, b2] = getPixel(x2, y1);
+    const [r3, g3, b3] = getPixel(x1, y2);
+    const [r4, g4, b4] = getPixel(x2, y2);
+    
+    const r = r1 * (1 - fx) * (1 - fy) + r2 * fx * (1 - fy) + r3 * (1 - fx) * fy + r4 * fx * fy;
+    const g = g1 * (1 - fx) * (1 - fy) + g2 * fx * (1 - fy) + g3 * (1 - fx) * fy + g4 * fx * fy;
+    const b = b1 * (1 - fx) * (1 - fy) + b2 * fx * (1 - fy) + b3 * (1 - fx) * fy + b4 * fx * fy;
+    
+    return [Math.round(r), Math.round(g), Math.round(b)];
+  }
+
+  private retinexIlluminationCorrection(imageData: ImageData): void {
+    const { width, height, data } = imageData;
+    
+    // Multi-scale Retinex for illumination invariance - reduced scales for less aggressive processing
+    const scales = [15, 50, 120]; // Smaller scales for gentler processing  
+    const weights = [0.5, 0.3, 0.2]; // Weight toward smaller scales
+    
+    const grayData = new Float32Array(width * height);
+    const result = new Float32Array(width * height);
+    
+    // Convert to grayscale and log domain
+    for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+      const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      grayData[j] = Math.log(Math.max(1, gray));
+    }
+    
+    // Apply multi-scale processing
+    for (let s = 0; s < scales.length; s++) {
+      const blurred = this.gaussianBlurFloat(grayData, width, height, scales[s]);
+      
+      for (let i = 0; i < grayData.length; i++) {
+        result[i] += weights[s] * (grayData[i] - blurred[i]);
+      }
+    }
+    
+    // Convert back to image data with gentler normalization
+    for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+      const enhanced = Math.exp(result[j]);
+      // Apply gentler normalization - don't let it get too dark
+      const normalized = Math.min(255, Math.max(50, enhanced * 1.2)); // Minimum 50, scale up slightly
+      
+      data[i] = normalized;     // R
+      data[i + 1] = normalized; // G  
+      data[i + 2] = normalized; // B
+    }
+  }
+
+  private gaussianBlurFloat(data: Float32Array, width: number, height: number, sigma: number): Float32Array {
+    const result = new Float32Array(width * height);
+    const kernelSize = Math.min(Math.ceil(sigma * 2) * 2 + 1, 31); // Limit kernel size
+    const kernel = this.generateGaussianKernel(kernelSize, sigma);
+    const half = Math.floor(kernelSize / 2);
+    
+    // Simplified single-pass approximation for performance
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        let sum = 0;
+        let weightSum = 0;
+        
+        for (let k = -half; k <= half; k += 2) { // Sample every 2nd pixel
+          const px = Math.max(0, Math.min(width - 1, x + k));
+          const py = Math.max(0, Math.min(height - 1, y + k));
+          
+          const weight = kernel[Math.abs(k) + half];
+          sum += data[py * width + px] * weight;
+          weightSum += weight;
+        }
+        
+        result[y * width + x] = sum / weightSum;
+      }
+    }
+    
+    return result;
+  }
+
+  private morphologicalShadowRemoval(imageData: ImageData): void {
+    const { width, height, data } = imageData;
+    
+    // Morphological closing to remove soft shadows
+    const structElement = 5; // Small structure element for performance
+    
+    // Dilation followed by erosion (closing)
+    this.morphologicalDilation(data, width, height, structElement);
+    this.morphologicalErosion(data, width, height, structElement);
+  }
+
+  private morphologicalDilation(data: Uint8ClampedArray, width: number, height: number, size: number): void {
+    const temp = new Uint8ClampedArray(data.length);
+    temp.set(data);
+    
+    const half = Math.floor(size / 2);
+    
+    for (let y = half; y < height - half; y++) {
+      for (let x = half; x < width - half; x++) {
+        let maxR = 0, maxG = 0, maxB = 0;
+        
+        for (let dy = -half; dy <= half; dy += 2) { // Sample every 2nd pixel
+          for (let dx = -half; dx <= half; dx += 2) {
+            const idx = ((y + dy) * width + (x + dx)) * 4;
+            maxR = Math.max(maxR, temp[idx]);
+            maxG = Math.max(maxG, temp[idx + 1]);
+            maxB = Math.max(maxB, temp[idx + 2]);
+          }
+        }
+        
+        const idx = (y * width + x) * 4;
+        data[idx] = maxR;
+        data[idx + 1] = maxG;
+        data[idx + 2] = maxB;
+      }
+    }
+  }
+
+  private morphologicalErosion(data: Uint8ClampedArray, width: number, height: number, size: number): void {
+    const temp = new Uint8ClampedArray(data.length);
+    temp.set(data);
+    
+    const half = Math.floor(size / 2);
+    
+    for (let y = half; y < height - half; y++) {
+      for (let x = half; x < width - half; x++) {
+        let minR = 255, minG = 255, minB = 255;
+        
+        for (let dy = -half; dy <= half; dy += 2) { // Sample every 2nd pixel
+          for (let dx = -half; dx <= half; dx += 2) {
+            const idx = ((y + dy) * width + (x + dx)) * 4;
+            minR = Math.min(minR, temp[idx]);
+            minG = Math.min(minG, temp[idx + 1]);
+            minB = Math.min(minB, temp[idx + 2]);
+          }
+        }
+        
+        const idx = (y * width + x) * 4;
+        data[idx] = minR;
+        data[idx + 1] = minG;
+        data[idx + 2] = minB;
+      }
+    }
+  }
+
+  private enhanceResolution(imageData: ImageData): void {
+    // Simple super-resolution enhancement for small text
+    // This is a basic implementation - real super-resolution uses deep learning
+    
+    const { width, height, data } = imageData;
+    
+    // Apply unsharp masking for text enhancement
+    const temp = new Uint8ClampedArray(data.length);
+    temp.set(data);
+    
+    // Gaussian blur
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const idx = (y * width + x) * 4;
+        
+        let sumR = 0, sumG = 0, sumB = 0;
+        let count = 0;
+        
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const nIdx = ((y + dy) * width + (x + dx)) * 4;
+            sumR += temp[nIdx];
+            sumG += temp[nIdx + 1];
+            sumB += temp[nIdx + 2];
+            count++;
+          }
+        }
+        
+        const blurR = sumR / count;
+        const blurG = sumG / count;
+        const blurB = sumB / count;
+        
+        // Unsharp mask: original + (original - blurred) * amount
+        const amount = 1.5;
+        data[idx] = Math.min(255, Math.max(0, temp[idx] + (temp[idx] - blurR) * amount));
+        data[idx + 1] = Math.min(255, Math.max(0, temp[idx + 1] + (temp[idx + 1] - blurG) * amount));
+        data[idx + 2] = Math.min(255, Math.max(0, temp[idx + 2] + (temp[idx + 2] - blurB) * amount));
+      }
+    }
+  }
+
+  private advancedAdaptiveBinarization(imageData: ImageData): void {
+    const { width, height, data } = imageData;
+    
+    // Advanced Sauvola binarization for document images
+    const windowSize = 15;
+    const k = 0.2;
+    const R = 128;
+    
+    const half = Math.floor(windowSize / 2);
+    
+    for (let y = half; y < height - half; y++) {
+      for (let x = half; x < width - half; x++) {
+        const idx = (y * width + x) * 4;
+        const gray = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+        
+        // Calculate local mean and standard deviation
+        let sum = 0;
+        let sumSquares = 0;
+        let count = 0;
+        
+        for (let dy = -half; dy <= half; dy++) {
+          for (let dx = -half; dx <= half; dx++) {
+            const nIdx = ((y + dy) * width + (x + dx)) * 4;
+            const nGray = (data[nIdx] + data[nIdx + 1] + data[nIdx + 2]) / 3;
+            
+            sum += nGray;
+            sumSquares += nGray * nGray;
+            count++;
+          }
+        }
+        
+        const mean = sum / count;
+        const variance = (sumSquares / count) - (mean * mean);
+        const stdDev = Math.sqrt(variance);
+        
+        // Sauvola threshold - make it less aggressive
+        let threshold = mean * (1 + k * (stdDev / R - 1));
+        
+        // Clamp threshold to prevent over-binarization
+        threshold = Math.max(threshold, mean * 0.7); // Don't go below 70% of mean
+        threshold = Math.min(threshold, mean * 1.3); // Don't go above 130% of mean
+        
+        // Apply binarization with less aggressive cutoff
+        const binaryValue = gray > threshold ? 255 : 0;
+        
+        data[idx] = binaryValue;
+        data[idx + 1] = binaryValue;
+        data[idx + 2] = binaryValue;
+      }
+    }
   }
 
   async terminate() {

@@ -127,6 +127,24 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        source: '/_next/static/chunks/(.*).css',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'text/css; charset=utf-8',
+          },
+        ],
+      },
+      {
+        source: '/_next/static/css/(.*).css',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'text/css; charset=utf-8',
+          },
+        ],
+      },
     ]
   },
   

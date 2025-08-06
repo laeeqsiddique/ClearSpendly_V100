@@ -367,14 +367,18 @@ export function InvoicePDFViewer({ invoiceId, open, onClose }: InvoicePDFViewerP
                 <span className="text-blue-300">•</span>
                 <span className="text-gray-600">{invoice.client.name}</span>
                 <span className="text-blue-300">•</span>
-                <span className="font-medium text-gray-900">${invoice.total_amount.toFixed(2)}</span>
+                <span className="font-medium text-gray-900">${(invoice.template.show_tax ? invoice.total_amount : invoice.subtotal).toFixed(2)}</span>
               </div>
               <div className="text-gray-600 font-medium">
-                Due: {new Date(invoice.due_date).toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric', 
-                  year: 'numeric' 
-                })}
+                Due: {(() => {
+                  const [year, month, day] = invoice.due_date.split('-').map(Number);
+                  const date = new Date(year, month - 1, day);
+                  return date.toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric', 
+                    year: 'numeric' 
+                  });
+                })()}
               </div>
             </div>
           </div>

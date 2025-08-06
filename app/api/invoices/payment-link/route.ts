@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { stripeService } from '@/lib/stripe-service';
+import { paypalService } from '@/lib/paypal-service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
 
     // Get request body
     const body = await request.json();
-    const { invoiceId } = body;
+    const { invoiceId, provider = 'auto' } = body; // provider can be 'stripe', 'paypal', or 'auto'
 
     if (!invoiceId) {
       return NextResponse.json({ 
@@ -48,18 +49,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
 
-    // Check if invoice already has a payment link
-    if (invoiceData.stripe_payment_link_id && invoiceData.stripe_payment_link_url) {
-      return NextResponse.json({
-        success: true,
-        paymentLink: {
-          id: invoiceData.stripe_payment_link_id,
-          url: invoiceData.stripe_payment_link_url
-        },
-        message: 'Payment link already exists'
-      });
-    }
-
     // Check if invoice is in a valid state for payment
     if (invoiceData.status === 'paid') {
       return NextResponse.json({ 
@@ -73,6 +62,69 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
+    // Get enabled payment providers for this tenant
+    const { data: enabledProviders, error: providersError } = await supabase
+      .from('payment_provider')
+      .select('provider_type, is_default, paypal_client_id, verification_status')
+      .eq('tenant_id', membership.tenant_id)
+      .eq('is_enabled', true)
+      .eq('verification_status', 'verified');
+
+    if (providersError) {
+      console.error('Error fetching payment providers:', providersError);
+      return NextResponse.json({ error: 'Failed to fetch payment providers' }, { status: 500 });
+    }
+
+    if (!enabledProviders || enabledProviders.length === 0) {
+      return NextResponse.json({ 
+        error: 'No payment providers enabled for this account' 
+      }, { status: 400 });
+    }
+
+    // Determine which provider to use
+    let selectedProvider = provider;
+    if (provider === 'auto') {
+      // Use the default provider, or Stripe if no default is set
+      const defaultProvider = enabledProviders.find(p => p.is_default);
+      selectedProvider = defaultProvider?.provider_type || 'stripe';
+    }
+
+    // Validate that the selected provider is enabled
+    const providerConfig = enabledProviders.find(p => p.provider_type === selectedProvider);
+    if (!providerConfig) {
+      return NextResponse.json({ 
+        error: `Payment provider '${selectedProvider}' is not enabled for this account` 
+      }, { status: 400 });
+    }
+
+    // Check if invoice already has a payment link for this provider
+    const hasStripeLink = invoiceData.stripe_payment_link_id && invoiceData.stripe_payment_link_url;
+    const hasPayPalLink = invoiceData.paypal_order_id && invoiceData.paypal_payment_link_url;
+
+    if (selectedProvider === 'stripe' && hasStripeLink) {
+      return NextResponse.json({
+        success: true,
+        paymentLink: {
+          id: invoiceData.stripe_payment_link_id,
+          url: invoiceData.stripe_payment_link_url,
+          provider: 'stripe'
+        },
+        message: 'Stripe payment link already exists'
+      });
+    }
+
+    if (selectedProvider === 'paypal' && hasPayPalLink) {
+      return NextResponse.json({
+        success: true,
+        paymentLink: {
+          id: invoiceData.paypal_order_id,
+          url: invoiceData.paypal_payment_link_url,
+          provider: 'paypal'
+        },
+        message: 'PayPal payment link already exists'
+      });
+    }
+
     // Get business information from tenant
     const { data: tenant, error: tenantError } = await supabase
       .from('tenant')
@@ -82,36 +134,80 @@ export async function POST(request: NextRequest) {
 
     const businessName = tenant?.name || "Your Business";
 
-    // Create Stripe payment link
-    const result = await stripeService.createPaymentLink({
-      invoiceId: invoiceData.id,
-      amount: invoiceData.total_amount,
-      currency: invoiceData.currency || 'USD',
-      description: `Invoice ${invoiceData.invoice_number} from ${businessName}`,
-      clientEmail: invoiceData.client.email,
-      clientName: invoiceData.client.name,
-      invoiceNumber: invoiceData.invoice_number,
-      metadata: {
-        tenant_id: membership.tenant_id,
-        business_name: businessName,
-        due_date: invoiceData.due_date
-      }
-    });
+    let result;
+    let updateData: any = {};
+    let activityDescription = '';
 
-    if (!result.success) {
+    if (selectedProvider === 'stripe') {
+      // Create Stripe payment link
+      result = await stripeService.createPaymentLink({
+        invoiceId: invoiceData.id,
+        amount: invoiceData.total_amount,
+        currency: invoiceData.currency || 'USD',
+        description: `Invoice ${invoiceData.invoice_number} from ${businessName}`,
+        clientEmail: invoiceData.client.email,
+        clientName: invoiceData.client.name,
+        invoiceNumber: invoiceData.invoice_number,
+        metadata: {
+          tenant_id: membership.tenant_id,
+          business_name: businessName,
+          due_date: invoiceData.due_date
+        }
+      });
+
+      if (result.success) {
+        updateData = {
+          stripe_payment_link_id: result.paymentLink!.id,
+          stripe_payment_link_url: result.paymentLink!.url,
+          payment_method: 'stripe',
+          preferred_payment_provider: 'stripe'
+        };
+        activityDescription = `Stripe payment link created for invoice ${invoiceData.invoice_number}`;
+      }
+
+    } else if (selectedProvider === 'paypal') {
+      // Create PayPal order
+      result = await paypalService.createOrderForInvoice({
+        invoiceId: invoiceData.id,
+        amount: invoiceData.total_amount,
+        currency: invoiceData.currency || 'USD',
+        description: `Invoice ${invoiceData.invoice_number} from ${businessName}`,
+        clientEmail: invoiceData.client.email,
+        clientName: invoiceData.client.name,
+        invoiceNumber: invoiceData.invoice_number,
+        tenantId: membership.tenant_id,
+        metadata: {
+          tenant_id: membership.tenant_id,
+          business_name: businessName,
+          due_date: invoiceData.due_date
+        }
+      });
+
+      if (result.success) {
+        updateData = {
+          paypal_order_id: result.order!.id,
+          paypal_payment_link_url: result.order!.approvalUrl,
+          payment_method: 'paypal',
+          preferred_payment_provider: 'paypal'
+        };
+        activityDescription = `PayPal payment link created for invoice ${invoiceData.invoice_number}`;
+      }
+    } else {
       return NextResponse.json({ 
-        error: `Failed to create payment link: ${result.error}` 
+        error: `Unsupported payment provider: ${selectedProvider}` 
+      }, { status: 400 });
+    }
+
+    if (!result || !result.success) {
+      return NextResponse.json({ 
+        error: `Failed to create ${selectedProvider} payment link: ${result?.error || 'Unknown error'}` 
       }, { status: 500 });
     }
 
     // Update invoice with payment link information
     const { error: updateError } = await supabase
       .from('invoice')
-      .update({
-        stripe_payment_link_id: result.paymentLink!.id,
-        stripe_payment_link_url: result.paymentLink!.url,
-        payment_method: 'stripe'
-      })
+      .update(updateData)
       .eq('id', invoiceId);
 
     if (updateError) {
@@ -125,7 +221,7 @@ export async function POST(request: NextRequest) {
       .insert({
         invoice_id: invoiceId,
         activity_type: 'payment_link_created',
-        description: `Stripe payment link created for invoice ${invoiceData.invoice_number}`
+        description: activityDescription
       });
 
     if (activityError) {
@@ -135,8 +231,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      paymentLink: result.paymentLink,
-      message: 'Payment link created successfully'
+      paymentLink: {
+        id: selectedProvider === 'stripe' ? result.paymentLink!.id : result.order!.id,
+        url: selectedProvider === 'stripe' ? result.paymentLink!.url : result.order!.approvalUrl,
+        provider: selectedProvider
+      },
+      message: `${selectedProvider} payment link created successfully`
     });
 
   } catch (error) {

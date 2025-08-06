@@ -349,7 +349,17 @@ export function InvoiceForm({ open, onClose, onSubmit, editData }: InvoiceFormPr
 
             <div className="space-y-2">
               <Label htmlFor="template">Invoice Template *</Label>
-              <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+              <Select value={selectedTemplate} onValueChange={(templateId) => {
+                setSelectedTemplate(templateId);
+                // Update tax rate from selected template
+                const template = templates.find(t => t.id === templateId);
+                if (template) {
+                  setTotals(prev => ({
+                    ...prev,
+                    taxRate: template.tax_rate * 100 // Convert from decimal to percentage
+                  }));
+                }
+              }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select template">
                     {selectedTemplate && (
@@ -528,6 +538,45 @@ export function InvoiceForm({ open, onClose, onSubmit, editData }: InvoiceFormPr
                 <Plus className="w-4 h-4 mr-2" />
                 Add Item
               </Button>
+            </CardContent>
+          </Card>
+
+          {/* Tax Configuration */}
+          <Card className="mb-4">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="tax-rate" className="text-sm">Tax Rate (%)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="tax-rate"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={totals.taxRate}
+                    onChange={(e) => {
+                      const rate = parseFloat(e.target.value) || 0;
+                      setTotals(prev => ({
+                        ...prev,
+                        taxRate: Math.min(100, Math.max(0, rate))
+                      }));
+                    }}
+                    className="w-24 text-right"
+                  />
+                  <span className="text-sm text-muted-foreground">%</span>
+                  {totals.taxRate > 0 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setTotals(prev => ({ ...prev, taxRate: 0 }))}
+                      className="ml-2"
+                    >
+                      Remove Tax
+                    </Button>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
 

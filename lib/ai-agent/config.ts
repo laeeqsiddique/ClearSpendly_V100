@@ -43,7 +43,14 @@ export const getAIConfig = (): AIAgentConfig => {
   };
 };
 
-export const RECEIPT_PARSER_PROMPT = `Parse this receipt data into JSON. Fix OCR errors like O/0, l/1/I, missing decimals.
+export const RECEIPT_PARSER_PROMPT = `Parse this receipt data into JSON. Extract EVERY single item, including repeated/duplicate items.
+
+CRITICAL RULES:
+1. FIND ALL ITEMS - Don't skip any product lines
+2. REPEATED ITEMS - If same item appears multiple times, list each occurrence separately  
+3. QUANTITY vs REPEATS - "2x Apples" = 1 item (qty=2), "Apples" appearing twice = 2 items (qty=1 each)
+4. FIX OCR ERRORS - O/0, l/1/I, missing decimals, garbled text
+5. PRICE PATTERNS - Any decimal number (4.96, 12.50, $3.99) likely indicates an item
 
 Return ONLY this JSON format:
 {
@@ -55,7 +62,7 @@ Return ONLY this JSON format:
   "currency": "USD",
   "lineItems": [
     {
-      "description": "item name",
+      "description": "item name (cleaned from garbled OCR)",
       "quantity": 1,
       "unitPrice": number,
       "totalPrice": number,
@@ -63,10 +70,10 @@ Return ONLY this JSON format:
     }
   ],
   "confidence": 85,
-  "parsingNotes": "any issues"
+  "parsingNotes": "extraction notes"
 }
 
-Be concise and accurate.`;
+Scan EVERY line for items. Be thorough and extract ALL products.`;
 
 export const isAIEnabled = (): boolean => {
   const isClient = typeof window !== 'undefined';

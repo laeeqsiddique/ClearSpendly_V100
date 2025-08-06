@@ -397,7 +397,14 @@ export function InvoiceFormNew({ open, onClose, onSubmit, editData }: InvoiceFor
                             ? 'border-blue-500 bg-blue-50' 
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
-                        onClick={() => setSelectedTemplate(template.id)}
+                        onClick={() => {
+                          setSelectedTemplate(template.id);
+                          // Update tax rate from selected template
+                          setTotals(prev => ({
+                            ...prev,
+                            taxRate: template.tax_rate * 100 // Convert from decimal to percentage
+                          }));
+                        }}
                       >
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between">

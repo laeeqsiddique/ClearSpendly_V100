@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { InvoicePreview } from "@/components/invoice-preview";
+import { InvoicePreviewWrapper } from "@/components/invoice-preview-wrapper";
 
 interface Client {
   id: string;
@@ -32,6 +34,12 @@ interface Client {
   email: string;
   company_name?: string;
   address?: string;
+  address_line1?: string;
+  address_line2?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country?: string;
   phone?: string;
 }
 
@@ -95,6 +103,14 @@ export default function EditInvoicePage() {
   const router = useRouter();
   const params = useParams();
   const invoiceId = params?.id as string;
+  
+  // Helper function to get local date string without UTC conversion
+  const getLocalDateString = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
   
   const [loading, setLoading] = useState(false);
   const [loadingInvoice, setLoadingInvoice] = useState(true);
@@ -160,21 +176,34 @@ export default function EditInvoicePage() {
       if (invoiceError) throw invoiceError;
       if (!invoice) throw new Error("Invoice not found");
 
-      // Set invoice data
+      // Set invoice data - use template tax settings instead of old invoice tax settings
       setInvoiceData({
         subject: invoice.subject || "",
         issue_date: invoice.issue_date,
         due_date: invoice.due_date,
         notes: invoice.notes || "",
-        show_tax: invoice.tax_rate > 0,
-        tax_rate: invoice.tax_rate * 100,
-        tax_label: "Tax",
+        show_tax: invoice.template?.show_tax || false,
+        tax_rate: (invoice.template?.tax_rate || 0) * 100,
+        tax_label: invoice.template?.tax_label || "Tax",
         status: invoice.status,
         invoice_number: invoice.invoice_number
       });
 
       setSelectedClient(invoice.client);
       setSelectedTemplate(invoice.template);
+
+      // Debug logging to see what template is loaded
+      console.log('🔍 Invoice template loaded:', {
+        template_id: invoice.template?.id,
+        template_name: invoice.template?.name,
+        template_type: invoice.template?.template_type,
+        show_tax: invoice.template?.show_tax,
+        tax_rate: invoice.template?.tax_rate,
+        color_scheme: invoice.template?.color_scheme
+      });
+      
+      // Additional debugging for the entire template object
+      console.log('🔍 Full template object:', invoice.template);
 
       // Fetch invoice items
       const { data: items, error: itemsError } = await supabase
@@ -263,13 +292,15 @@ export default function EditInvoicePage() {
   };
 
   const calculateDueDate = (issueDate: string, paymentTerms: string) => {
-    const date = new Date(issueDate);
+    // Parse date in local timezone to avoid UTC conversion issues
+    const [year, month, day] = issueDate.split('-').map(Number);
+    const date = new Date(year, month - 1, day); // month is 0-indexed
     const days = paymentTerms === 'Net 15' ? 15 : 
                  paymentTerms === 'Net 30' ? 30 : 
                  paymentTerms === 'Net 60' ? 60 : 
                  paymentTerms === 'Net 90' ? 90 : 0;
     date.setDate(date.getDate() + days);
-    return date.toISOString().split('T')[0];
+    return getLocalDateString(date);
   };
 
   const updateLineItem = (id: string, field: keyof LineItem, value: string | number) => {
@@ -396,132 +427,22 @@ export default function EditInvoicePage() {
   const renderInvoicePreview = () => {
     if (!selectedTemplate || !selectedClient) return null;
     
-    const color = selectedTemplate.color_scheme || '#1e40af';
-    const fontClass = selectedTemplate.font_family || 'font-sans';
-    
     return (
-      <div className={`bg-white border rounded-lg p-6 shadow-sm ${fontClass}`} style={{ minHeight: '400px', fontSize: '14px' }}>
-        {/* Header */}
-        <div className="mb-6">
-          {selectedTemplate.logo_url && (
-            <div className={`mb-4 ${
-              selectedTemplate.logo_position === 'center' ? 'flex justify-center' :
-              selectedTemplate.logo_position === 'right' ? 'flex justify-end' : 'flex justify-start'
-            }`}>
-              <img 
-                src={selectedTemplate.logo_url} 
-                alt="Company Logo" 
-                style={{ 
-                  height: selectedTemplate.logo_size === 'small' ? '40px' : 
-                         selectedTemplate.logo_size === 'large' ? '80px' : '60px',
-                  width: 'auto', 
-                  objectFit: 'contain' 
-                }}
-              />
-            </div>
-          )}
-          
-          <div className="flex justify-between items-start">
-            <div>
-              {selectedTemplate.company_name && (
-                <h1 className="text-2xl font-bold mb-2" style={{ color }}>{selectedTemplate.company_name}</h1>
-              )}
-              {selectedTemplate.company_address && (
-                <div className="text-sm text-gray-600 whitespace-pre-line">{selectedTemplate.company_address}</div>
-              )}
-              {(selectedTemplate.company_phone || selectedTemplate.company_email) && (
-                <div className="text-sm text-gray-600 mt-1">
-                  {selectedTemplate.company_phone} {selectedTemplate.company_email && `• ${selectedTemplate.company_email}`}
-                </div>
-              )}
-            </div>
-            <div className="text-right">
-              <h2 className="text-xl font-bold text-gray-700 mb-2">INVOICE</h2>
-              <div className="text-sm text-gray-600 space-y-1">
-                <div><strong>Invoice #:</strong> {invoiceData.invoice_number || 'Loading...'}</div>
-                <div><strong>Date:</strong> {invoiceData.issue_date}</div>
-                <div><strong>Due:</strong> {invoiceData.due_date}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Invoice Subject/Description */}
-        {invoiceData.subject && (
-          <div className="mb-6">
-            <div className="text-lg font-medium text-gray-800 border-l-4 pl-4" style={{ borderColor: color }}>
-              {invoiceData.subject}
-            </div>
-          </div>
-        )}
-
-        {/* Bill To - Moved after subject */}
-        <div className="mb-6">
-          <h3 className="font-bold text-gray-700 mb-2">BILL TO:</h3>
-          <div className="text-sm text-gray-600">
-            <div className="font-medium">{selectedClient.name}</div>
-            {selectedClient.company_name && <div>{selectedClient.company_name}</div>}
-            {selectedClient.address && <div className="whitespace-pre-line">{selectedClient.address}</div>}
-            {selectedClient.email && <div>{selectedClient.email}</div>}
-            {selectedClient.phone && <div>{selectedClient.phone}</div>}
-          </div>
-        </div>
-
-
-        {/* Items Table */}
-        <div className="mb-6">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b-2" style={{ borderColor: color }}>
-                <th className="text-left py-2 text-sm font-semibold">Description</th>
-                <th className="text-center py-2 text-sm font-semibold w-16">Qty</th>
-                <th className="text-right py-2 text-sm font-semibold w-20">Rate</th>
-                <th className="text-right py-2 text-sm font-semibold w-20">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lineItems.filter(item => item.description).map((item) => (
-                <tr key={item.id} className="border-b">
-                  <td className="py-2 text-sm">{item.description}</td>
-                  <td className="py-2 text-sm text-center">{item.quantity}</td>
-                  <td className="py-2 text-sm text-right">${item.rate.toFixed(2)}</td>
-                  <td className="py-2 text-sm text-right font-medium">${item.amount.toFixed(2)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Totals */}
-        <div className="flex justify-end mb-6">
-          <div className="w-48">
-            <div className="flex justify-between py-1 text-sm">
-              <span>Subtotal:</span>
-              <span className="font-medium">${subtotal.toFixed(2)}</span>
-            </div>
-            {invoiceData.show_tax && (
-              <div className="flex justify-between py-1 text-sm">
-                <span>{invoiceData.tax_label} ({invoiceData.tax_rate}%):</span>
-                <span className="font-medium">${taxAmount.toFixed(2)}</span>
-              </div>
-            )}
-            <div className="flex justify-between py-2 border-t font-bold" style={{ borderColor: color }}>
-              <span>Total:</span>
-              <span style={{ color }}>${total.toFixed(2)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Notes */}
-        {invoiceData.notes && (
-          <div className="text-sm text-gray-600">
-            <div className="font-semibold mb-1">Notes:</div>
-            <div className="whitespace-pre-line">{invoiceData.notes}</div>
-          </div>
-        )}
-      </div>
+      <InvoicePreview 
+        template={selectedTemplate}
+        invoice={{
+          invoice_number: invoiceData.invoice_number,
+          issue_date: invoiceData.issue_date,
+          due_date: invoiceData.due_date,
+          subject: invoiceData.subject,
+          notes: invoiceData.notes
+        }}
+        client={selectedClient}
+        items={lineItems}
+      />
     );
   };
+
 
   if (loadingInvoice) {
     return (
@@ -635,6 +556,15 @@ export default function EditInvoicePage() {
                       onValueChange={(value) => {
                         const template = templates.find(t => t.id === value);
                         setSelectedTemplate(template || null);
+                        // Update tax settings when template changes
+                        if (template) {
+                          setInvoiceData(prev => ({
+                            ...prev,
+                            show_tax: template.show_tax,
+                            tax_rate: template.tax_rate * 100,
+                            tax_label: template.tax_label
+                          }));
+                        }
                       }}
                     >
                       <SelectTrigger>
@@ -767,6 +697,64 @@ export default function EditInvoicePage() {
                     rows={3}
                   />
                 </div>
+
+                {/* Tax Configuration */}
+                <div className="space-y-4 pt-4 border-t">
+                  <h4 className="font-medium">Tax Settings</h4>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <Label>Enable Tax</Label>
+                      <p className="text-sm text-muted-foreground">Apply tax to this invoice</p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant={invoiceData.show_tax ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setInvoiceData(prev => ({ ...prev, show_tax: !prev.show_tax }))}
+                    >
+                      {invoiceData.show_tax ? "Enabled" : "Disabled"}
+                    </Button>
+                  </div>
+                  
+                  {invoiceData.show_tax && (
+                    <div className="space-y-4 pl-4 border-l-2 border-blue-100">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="tax-rate-edit">Tax Rate (%)</Label>
+                          <Input
+                            id="tax-rate-edit"
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            value={invoiceData.tax_rate}
+                            onChange={(e) => {
+                              const rate = parseFloat(e.target.value) || 0;
+                              setInvoiceData(prev => ({
+                                ...prev,
+                                tax_rate: Math.min(100, Math.max(0, rate))
+                              }));
+                            }}
+                            placeholder="8.5"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="tax-label-edit">Tax Label</Label>
+                          <Input
+                            id="tax-label-edit"
+                            value={invoiceData.tax_label}
+                            onChange={(e) => setInvoiceData(prev => ({ ...prev, tax_label: e.target.value }))}
+                            placeholder="Tax"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Tax will be calculated as {invoiceData.tax_rate}% of the subtotal
+                      </p>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
@@ -819,13 +807,13 @@ export default function EditInvoicePage() {
                       ${item.amount.toFixed(2)}
                     </div>
                     
-                    <div className="col-span-1">
+                    <div className="col-span-1 flex items-end justify-center">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => removeLineItem(item.id)}
                         disabled={lineItems.length === 1}
-                        className="h-9 w-9 p-0"
+                        className="h-9 w-9 p-0 hover:bg-red-50 hover:text-red-600"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -870,28 +858,9 @@ export default function EditInvoicePage() {
 
           {/* Right Side - Preview */}
           <div className="space-y-4">
-            <Card className="sticky top-6">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Eye className="w-5 h-5" />
-                  Live Preview
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {selectedClient && selectedTemplate ? (
-                  <div className="border rounded-lg p-4 bg-gray-50">
-                    <div className="transform scale-90 origin-top">
-                      {renderInvoicePreview()}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Eye className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                    <p>Select a client and template to see preview</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <InvoicePreviewWrapper showEmpty={!selectedClient || !selectedTemplate}>
+              {selectedClient && selectedTemplate && renderInvoicePreview()}
+            </InvoicePreviewWrapper>
           </div>
         </div>
       </div>

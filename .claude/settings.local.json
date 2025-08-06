@@ -41,7 +41,21 @@
       "Bash(npm run validate-deployment:*)",
       "Bash(nslookup:*)",
       "Bash(npm ls:*)",
-      "Bash(npm run prepare:*)"
+      "Bash(npm run prepare:*)",
+      "Bash(npm run lint)",
+      "WebFetch(domain:github.com)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(awk:*)",
+      "Bash(sed:*)",
+      "Bash(npm run:*)",
+      "Bash(pkill:*)",
+      "Bash(true)",
+      "Bash(timeout 10 npx tsc --noEmit)",
+      "Bash(del test-template-mapping.js)",
+      "Bash(timeout 60 npx next build)",
+      "Bash(npx supabase:*)"
     ],
     "deny": []
   }

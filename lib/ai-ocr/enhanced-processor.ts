@@ -40,6 +40,7 @@ export class SimplifiedOCRProcessor extends OCRProcessor {
     try {
       console.log('🔍 Starting enhanced OCR processing...');
       
+      // Use standard OCR processing (keep it simple and fast)
       const ocrResult = await super.processImage(file);
       
       if (!this.enableAI) {
@@ -65,8 +66,8 @@ export class SimplifiedOCRProcessor extends OCRProcessor {
             ocrData: {
               vendor: ocrResult.vendor,
               date: ocrResult.date,
-              total: ocrResult.total,
-              items: ocrResult.items,
+              total: ocrResult.totalAmount,
+              items: ocrResult.lineItems,
               confidence: ocrResult.confidence
             },
             imageText: ocrResult.rawText || ''
@@ -86,13 +87,21 @@ export class SimplifiedOCRProcessor extends OCRProcessor {
           const enhancedResult: ExtractedReceiptData = {
             vendor: aiResult.data.vendor || ocrResult.vendor,
             date: aiResult.data.date || ocrResult.date,
-            total: aiResult.data.total !== undefined ? aiResult.data.total : ocrResult.total,
-            items: aiResult.data.items?.map((item: any) => ({
-              name: item.name || '',
-              price: item.price || 0,
-              quantity: item.quantity || 1
-            })) || ocrResult.items,
+            totalAmount: aiResult.data.total !== undefined ? aiResult.data.total : ocrResult.totalAmount,
+            subtotal: aiResult.data.subtotal !== undefined ? aiResult.data.subtotal : ocrResult.subtotal,
+            tax: aiResult.data.tax !== undefined ? aiResult.data.tax : ocrResult.tax,
+            currency: ocrResult.currency,
+            lineItems: aiResult.data.items?.map((item: any) => ({
+              id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substr(2, 9),
+              description: item.name || '',
+              quantity: item.quantity || 1,
+              unitPrice: item.price || 0,
+              totalPrice: item.price || 0,
+              category: 'Other'
+            })) || ocrResult.lineItems,
+            category: ocrResult.category,
             confidence: Math.max(ocrResult.confidence, aiResult.aiConfidence || 85),
+            notes: ocrResult.notes,
             rawText: ocrResult.rawText,
             processing_time: ocrResult.processing_time
           };

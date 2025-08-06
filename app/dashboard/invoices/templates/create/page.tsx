@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { InvoicePreview } from "@/components/invoice-preview";
+import { InvoicePreviewWrapper } from "@/components/invoice-preview-wrapper";
 
 interface TemplateSettings {
   id?: string;
@@ -127,12 +129,18 @@ const colorOptions = [
   { value: '#1e3a8a', label: 'Navy Blue', sample: 'bg-blue-900' },
   { value: '#0ea5e9', label: 'Sky Blue', sample: 'bg-sky-500' },
   { value: '#06b6d4', label: 'Cyan Blue', sample: 'bg-cyan-500' },
+  { value: '#1d4ed8', label: 'Royal Blue', sample: 'bg-blue-600' },
+  { value: '#3730a3', label: 'Indigo Blue', sample: 'bg-indigo-700' },
+  { value: '#1e293b', label: 'Steel Blue', sample: 'bg-slate-800' },
   
   // Greens
   { value: '#059669', label: 'Forest Green', sample: 'bg-emerald-600' },
   { value: '#16a34a', label: 'Fresh Green', sample: 'bg-green-600' },
   { value: '#65a30d', label: 'Lime Green', sample: 'bg-lime-600' },
   { value: '#14532d', label: 'Dark Green', sample: 'bg-green-900' },
+  { value: '#15803d', label: 'Garden Green', sample: 'bg-green-700' },
+  { value: '#166534', label: 'Pine Green', sample: 'bg-green-800' },
+  { value: '#047857', label: 'Jade Green', sample: 'bg-emerald-700' },
   
   // Purples & Pinks
   { value: '#7c3aed', label: 'Royal Purple', sample: 'bg-violet-600' },
@@ -140,6 +148,9 @@ const colorOptions = [
   { value: '#c026d3', label: 'Fuchsia', sample: 'bg-fuchsia-600' },
   { value: '#db2777', label: 'Rose Pink', sample: 'bg-pink-600' },
   { value: '#be185d', label: 'Deep Pink', sample: 'bg-pink-700' },
+  { value: '#581c87', label: 'Plum Purple', sample: 'bg-purple-800' },
+  { value: '#86198f', label: 'Magenta', sample: 'bg-fuchsia-700' },
+  { value: '#a21caf', label: 'Orchid Pink', sample: 'bg-fuchsia-800' },
   
   // Warm Colors
   { value: '#dc2626', label: 'Bold Red', sample: 'bg-red-600' },
@@ -147,6 +158,10 @@ const colorOptions = [
   { value: '#d97706', label: 'Amber Gold', sample: 'bg-amber-600' },
   { value: '#ca8a04', label: 'Golden Yellow', sample: 'bg-yellow-600' },
   { value: '#7c2d12', label: 'Warm Brown', sample: 'bg-orange-800' },
+  { value: '#b91c1c', label: 'Crimson Red', sample: 'bg-red-700' },
+  { value: '#c2410c', label: 'Rust Orange', sample: 'bg-orange-700' },
+  { value: '#b45309', label: 'Bronze', sample: 'bg-amber-700' },
+  { value: '#92400e', label: 'Copper', sample: 'bg-amber-800' },
   
   // Neutrals
   { value: '#374151', label: 'Business Gray', sample: 'bg-gray-700' },
@@ -154,11 +169,26 @@ const colorOptions = [
   { value: '#71717a', label: 'Cool Gray', sample: 'bg-zinc-500' },
   { value: '#000000', label: 'Classic Black', sample: 'bg-black' },
   { value: '#0f172a', label: 'Midnight', sample: 'bg-slate-900' },
+  { value: '#4b5563', label: 'Charcoal Gray', sample: 'bg-gray-600' },
+  { value: '#6b7280', label: 'Storm Gray', sample: 'bg-gray-500' },
+  { value: '#374151', label: 'Graphite', sample: 'bg-gray-700' },
+  { value: '#1f2937', label: 'Dark Charcoal', sample: 'bg-gray-800' },
   
   // Teals & Aquas
   { value: '#0d9488', label: 'Teal', sample: 'bg-teal-600' },
   { value: '#0891b2', label: 'Aqua Blue', sample: 'bg-cyan-600' },
-  { value: '#0e7490', label: 'Ocean Blue', sample: 'bg-cyan-700' }
+  { value: '#0e7490', label: 'Ocean Blue', sample: 'bg-cyan-700' },
+  { value: '#115e59', label: 'Deep Teal', sample: 'bg-teal-700' },
+  { value: '#134e4a', label: 'Emerald Teal', sample: 'bg-teal-800' },
+  { value: '#155e75', label: 'Deep Cyan', sample: 'bg-cyan-800' },
+  
+  // Premium Colors
+  { value: '#4338ca', label: 'Premium Indigo', sample: 'bg-indigo-600' },
+  { value: '#7c2d12', label: 'Luxury Brown', sample: 'bg-orange-900' },
+  { value: '#450a0a', label: 'Burgundy', sample: 'bg-red-900' },
+  { value: '#1e1b4b', label: 'Deep Navy', sample: 'bg-indigo-900' },
+  { value: '#581c87', label: 'Royal Violet', sample: 'bg-purple-800' },
+  { value: '#0c4a6e', label: 'Corporate Blue', sample: 'bg-sky-800' }
 ];
 
 // Sample data for preview
@@ -203,7 +233,7 @@ function CreateTemplateContent() {
     default_payment_terms: "Net 30",
     default_notes: "Thank you for your business!",
     show_tax: true,
-    tax_rate: 0.08,
+    tax_rate: 0.0875, // 8.75% - configurable default
     tax_label: "Tax",
     invoice_prefix: "INV",
     next_invoice_number: 1,
@@ -428,6 +458,11 @@ function CreateTemplateContent() {
   };
 
   const renderInvoicePreview = () => {
+    // Use the unified template engine via InvoicePreview component
+    return <InvoicePreview template={settings} />;
+  };
+
+  const renderInvoicePreviewOld = () => {
     const color = settings.color_scheme;
     const fontClass = settings.font_family || 'font-sans';
     
@@ -1059,7 +1094,7 @@ function CreateTemplateContent() {
                     <div className="space-y-1">
                       {/* Blues */}
                       <div className="text-xs font-semibold text-gray-500 px-2 pt-2">Blues</div>
-                      {colorOptions.filter(c => c.label.includes('Blue') || c.label.includes('Sky') || c.label.includes('Cyan') || c.label.includes('Navy')).map((color) => (
+                      {colorOptions.filter(c => c.label.includes('Blue') || c.label.includes('Sky') || c.label.includes('Cyan') || c.label.includes('Navy') || c.label.includes('Royal Blue') || c.label.includes('Indigo') || c.label.includes('Steel')).map((color) => (
                         <SelectItem key={color.value} value={color.value}>
                           <div className="flex items-center gap-2">
                             <div className={`w-4 h-4 rounded ${color.sample}`}></div>
@@ -1070,7 +1105,7 @@ function CreateTemplateContent() {
                       
                       {/* Greens */}
                       <div className="text-xs font-semibold text-gray-500 px-2 pt-2">Greens</div>
-                      {colorOptions.filter(c => c.label.includes('Green') || c.label.includes('Lime')).map((color) => (
+                      {colorOptions.filter(c => c.label.includes('Green') || c.label.includes('Lime') || c.label.includes('Garden') || c.label.includes('Pine') || c.label.includes('Jade')).map((color) => (
                         <SelectItem key={color.value} value={color.value}>
                           <div className="flex items-center gap-2">
                             <div className={`w-4 h-4 rounded ${color.sample}`}></div>
@@ -1081,7 +1116,7 @@ function CreateTemplateContent() {
                       
                       {/* Purples & Pinks */}
                       <div className="text-xs font-semibold text-gray-500 px-2 pt-2">Purples & Pinks</div>
-                      {colorOptions.filter(c => c.label.includes('Purple') || c.label.includes('Pink') || c.label.includes('Fuchsia') || c.label.includes('Rose')).map((color) => (
+                      {colorOptions.filter(c => c.label.includes('Purple') || c.label.includes('Pink') || c.label.includes('Fuchsia') || c.label.includes('Rose') || c.label.includes('Plum') || c.label.includes('Magenta') || c.label.includes('Orchid')).map((color) => (
                         <SelectItem key={color.value} value={color.value}>
                           <div className="flex items-center gap-2">
                             <div className={`w-4 h-4 rounded ${color.sample}`}></div>
@@ -1092,7 +1127,7 @@ function CreateTemplateContent() {
                       
                       {/* Warm Colors */}
                       <div className="text-xs font-semibold text-gray-500 px-2 pt-2">Warm Colors</div>
-                      {colorOptions.filter(c => c.label.includes('Red') || c.label.includes('Orange') || c.label.includes('Amber') || c.label.includes('Yellow') || c.label.includes('Brown')).map((color) => (
+                      {colorOptions.filter(c => c.label.includes('Red') || c.label.includes('Orange') || c.label.includes('Amber') || c.label.includes('Yellow') || c.label.includes('Brown') || c.label.includes('Crimson') || c.label.includes('Rust') || c.label.includes('Bronze') || c.label.includes('Copper')).map((color) => (
                         <SelectItem key={color.value} value={color.value}>
                           <div className="flex items-center gap-2">
                             <div className={`w-4 h-4 rounded ${color.sample}`}></div>
@@ -1103,7 +1138,7 @@ function CreateTemplateContent() {
                       
                       {/* Neutrals */}
                       <div className="text-xs font-semibold text-gray-500 px-2 pt-2">Neutrals</div>
-                      {colorOptions.filter(c => c.label.includes('Gray') || c.label.includes('Black') || c.label.includes('Slate') || c.label.includes('Midnight')).map((color) => (
+                      {colorOptions.filter(c => c.label.includes('Gray') || c.label.includes('Black') || c.label.includes('Slate') || c.label.includes('Midnight') || c.label.includes('Charcoal') || c.label.includes('Storm') || c.label.includes('Graphite')).map((color) => (
                         <SelectItem key={color.value} value={color.value}>
                           <div className="flex items-center gap-2">
                             <div className={`w-4 h-4 rounded ${color.sample}`}></div>
@@ -1114,7 +1149,18 @@ function CreateTemplateContent() {
                       
                       {/* Teals & Aquas */}
                       <div className="text-xs font-semibold text-gray-500 px-2 pt-2">Teals & Aquas</div>
-                      {colorOptions.filter(c => c.label.includes('Teal') || c.label.includes('Aqua') || c.label.includes('Ocean')).map((color) => (
+                      {colorOptions.filter(c => c.label.includes('Teal') || c.label.includes('Aqua') || c.label.includes('Ocean') || c.label.includes('Deep Teal') || c.label.includes('Emerald Teal') || c.label.includes('Deep Cyan')).map((color) => (
+                        <SelectItem key={color.value} value={color.value}>
+                          <div className="flex items-center gap-2">
+                            <div className={`w-4 h-4 rounded ${color.sample}`}></div>
+                            <span>{color.label}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                      
+                      {/* Premium Colors */}
+                      <div className="text-xs font-semibold text-gray-500 px-2 pt-2">Premium Colors</div>
+                      {colorOptions.filter(c => c.label.includes('Premium') || c.label.includes('Luxury') || c.label.includes('Burgundy') || c.label.includes('Deep Navy') || c.label.includes('Royal Violet') || c.label.includes('Corporate Blue')).map((color) => (
                         <SelectItem key={color.value} value={color.value}>
                           <div className="flex items-center gap-2">
                             <div className={`w-4 h-4 rounded ${color.sample}`}></div>
@@ -1300,6 +1346,17 @@ function CreateTemplateContent() {
                   />
                 </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="company-address">Company Address</Label>
+                  <textarea
+                    id="company-address"
+                    value={settings.company_address}
+                    onChange={(e) => setSettings(prev => ({ ...prev, company_address: e.target.value }))}
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder="Enter company address..."
+                  />
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="company-phone">Phone</Label>
@@ -1360,6 +1417,77 @@ function CreateTemplateContent() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Default Notes */}
+                <div className="space-y-2">
+                  <Label htmlFor="default-notes">Default Notes</Label>
+                  <Input
+                    id="default-notes"
+                    value={settings.default_notes}
+                    onChange={(e) => setSettings(prev => ({ ...prev, default_notes: e.target.value }))}
+                    placeholder="Thank you for your business!"
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Tax Settings */}
+              <div className="space-y-4">
+                <h4 className="font-medium">Tax Settings</h4>
+                
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label>Enable Tax</Label>
+                    <p className="text-sm text-muted-foreground">Show tax calculations on invoices</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant={settings.show_tax ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSettings(prev => ({ ...prev, show_tax: !prev.show_tax }))}
+                  >
+                    {settings.show_tax ? "Enabled" : "Disabled"}
+                  </Button>
+                </div>
+                
+                {settings.show_tax && (
+                  <div className="space-y-4 pl-4 border-l-2 border-blue-100">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="tax-rate">Tax Rate (%)</Label>
+                        <Input
+                          id="tax-rate"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={settings.tax_rate * 100}
+                          onChange={(e) => {
+                            const rate = parseFloat(e.target.value) || 0;
+                            setSettings(prev => ({ 
+                              ...prev, 
+                              tax_rate: Math.min(100, Math.max(0, rate)) / 100 
+                            }));
+                          }}
+                          placeholder="8.5"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="tax-label">Tax Label</Label>
+                        <Input
+                          id="tax-label"
+                          value={settings.tax_label}
+                          onChange={(e) => setSettings(prev => ({ ...prev, tax_label: e.target.value }))}
+                          placeholder="Tax"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Example: {(settings.tax_rate * 100).toFixed(1)}% {settings.tax_label} will be applied to invoice subtotals
+                    </p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -1367,21 +1495,9 @@ function CreateTemplateContent() {
 
         {/* Live Preview */}
         <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Eye className="h-5 w-5" />
-                Live Preview
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="border rounded-lg p-4 bg-gray-50">
-                <div className="scale-75 origin-top-left" style={{ width: '133.33%' }}>
-                  {renderInvoicePreview()}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <InvoicePreviewWrapper title="Template Preview">
+            {renderInvoicePreview()}
+          </InvoicePreviewWrapper>
         </div>
             </div>
           </div>

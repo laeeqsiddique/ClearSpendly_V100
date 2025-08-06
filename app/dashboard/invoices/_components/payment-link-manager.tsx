@@ -17,7 +17,9 @@ import {
   AlertCircle,
   DollarSign,
   Calendar,
-  User
+  User,
+  Wallet,
+  Plus
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -32,6 +34,8 @@ interface PaymentLinkManagerProps {
     due_date: string;
     stripe_payment_link_id?: string;
     stripe_payment_link_url?: string;
+    paypal_payment_link_id?: string;
+    paypal_payment_link_url?: string;
     client: {
       name: string;
       email: string;
@@ -45,82 +49,94 @@ export function PaymentLinkManager({ open, onClose, invoice, onPaymentLinkUpdate
   const [creating, setCreating] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
   const [copying, setCopying] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<'stripe' | 'paypal' | null>(null);
 
   if (!invoice) return null;
 
-  const hasPaymentLink = invoice.stripe_payment_link_id && invoice.stripe_payment_link_url;
-  const canCreatePaymentLink = !hasPaymentLink && !['paid', 'cancelled'].includes(invoice.status);
-  const canDeactivatePaymentLink = hasPaymentLink && invoice.status !== 'paid';
+  const hasStripeLink = invoice.stripe_payment_link_id && invoice.stripe_payment_link_url;
+  const hasPayPalLink = invoice.paypal_payment_link_id && invoice.paypal_payment_link_url;
+  const hasAnyPaymentLink = hasStripeLink || hasPayPalLink;
+  const canCreatePaymentLink = !['paid', 'cancelled'].includes(invoice.status);
+  const canDeactivatePaymentLink = hasAnyPaymentLink && invoice.status !== 'paid';
 
-  const handleCreatePaymentLink = async () => {
+  const handleCreatePaymentLink = async (provider: 'stripe' | 'paypal') => {
     try {
       setCreating(true);
+      setSelectedProvider(provider);
 
-      const response = await fetch('/api/invoices/payment-link', {
+      const endpoint = provider === 'paypal' ? '/api/invoices/paypal-payment-link' : '/api/invoices/payment-link';
+      
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          invoiceId: invoice.id
+          invoiceId: invoice.id,
+          provider
         }),
       });
 
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to create payment link');
+        throw new Error(result.error || `Failed to create ${provider} payment link`);
       }
 
-      toast.success('Payment link created successfully!');
+      toast.success(`${provider === 'paypal' ? 'PayPal' : 'Stripe'} payment link created successfully!`);
       onPaymentLinkUpdated?.();
       
     } catch (error) {
-      console.error('Error creating payment link:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to create payment link');
+      console.error(`Error creating ${provider} payment link:`, error);
+      toast.error(error instanceof Error ? error.message : `Failed to create ${provider} payment link`);
     } finally {
       setCreating(false);
+      setSelectedProvider(null);
     }
   };
 
-  const handleDeactivatePaymentLink = async () => {
+  const handleDeactivatePaymentLink = async (provider: 'stripe' | 'paypal') => {
     try {
       setDeactivating(true);
 
-      const response = await fetch('/api/invoices/payment-link', {
+      const endpoint = provider === 'paypal' ? '/api/invoices/paypal-payment-link' : '/api/invoices/payment-link';
+      
+      const response = await fetch(endpoint, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          invoiceId: invoice.id
+          invoiceId: invoice.id,
+          provider
         }),
       });
 
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to deactivate payment link');
+        throw new Error(result.error || `Failed to deactivate ${provider} payment link`);
       }
 
-      toast.success('Payment link deactivated successfully!');
+      toast.success(`${provider === 'paypal' ? 'PayPal' : 'Stripe'} payment link deactivated successfully!`);
       onPaymentLinkUpdated?.();
       
     } catch (error) {
-      console.error('Error deactivating payment link:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to deactivate payment link');
+      console.error(`Error deactivating ${provider} payment link:`, error);
+      toast.error(error instanceof Error ? error.message : `Failed to deactivate ${provider} payment link`);
     } finally {
       setDeactivating(false);
     }
   };
 
-  const handleCopyLink = async () => {
-    if (!invoice.stripe_payment_link_url) return;
+  const handleCopyLink = async (provider: 'stripe' | 'paypal') => {
+    const linkUrl = provider === 'paypal' ? invoice.paypal_payment_link_url : invoice.stripe_payment_link_url;
+    if (!linkUrl) return;
 
     try {
       setCopying(true);
-      await navigator.clipboard.writeText(invoice.stripe_payment_link_url);
-      toast.success('Payment link copied to clipboard!');
+      await navigator.clipboard.writeText(linkUrl);
+      toast.success(`${provider === 'paypal' ? 'PayPal' : 'Stripe'} payment link copied to clipboard!`);
     } catch (error) {
       console.error('Error copying link:', error);
       toast.error('Failed to copy link');
@@ -129,9 +145,10 @@ export function PaymentLinkManager({ open, onClose, invoice, onPaymentLinkUpdate
     }
   };
 
-  const handleOpenLink = () => {
-    if (invoice.stripe_payment_link_url) {
-      window.open(invoice.stripe_payment_link_url, '_blank', 'noopener,noreferrer');
+  const handleOpenLink = (provider: 'stripe' | 'paypal') => {
+    const linkUrl = provider === 'paypal' ? invoice.paypal_payment_link_url : invoice.stripe_payment_link_url;
+    if (linkUrl) {
+      window.open(linkUrl, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -211,62 +228,136 @@ export function PaymentLinkManager({ open, onClose, invoice, onPaymentLinkUpdate
           </Card>
 
           {/* Payment Link Status */}
-          {hasPaymentLink ? (
+          {hasAnyPaymentLink ? (
             <div className="space-y-4">
               <Alert className="border-green-200 bg-green-50">
                 <CheckCircle2 className="w-4 h-4 text-green-600" />
                 <AlertDescription className="text-green-800">
-                  Payment link is active and ready to receive payments.
+                  Payment links are active and ready to receive payments.
                 </AlertDescription>
               </Alert>
 
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <LinkIcon className="w-4 h-4 text-blue-600" />
-                    <span className="font-medium">Active Payment Link</span>
-                  </div>
-                  
-                  <div className="bg-gray-50 p-3 rounded-lg mb-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-600 break-all">
-                        {invoice.stripe_payment_link_url}
-                      </span>
+              {/* Stripe Payment Link */}
+              {hasStripeLink && (
+                <Card className="bg-white/70 backdrop-blur-sm border border-blue-200/50">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <CreditCard className="w-4 h-4 text-blue-600" />
+                      <span className="font-medium">Stripe Payment Link</span>
+                      <Badge variant="secondary" className="text-xs">Card Payments</Badge>
                     </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCopyLink}
-                      disabled={copying}
-                      className="flex-1"
-                    >
-                      {copying ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Copy className="w-4 h-4 mr-2" />
-                      )}
-                      Copy Link
-                    </Button>
                     
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleOpenLink}
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                    <div className="bg-blue-50/50 p-3 rounded-lg mb-4 border border-blue-200/50">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-600 break-all">
+                          {invoice.stripe_payment_link_url}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleCopyLink('stripe')}
+                        disabled={copying}
+                        className="flex-1 border-blue-200 hover:bg-blue-50"
+                      >
+                        {copying ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Copy className="w-4 h-4 mr-2" />
+                        )}
+                        Copy Stripe Link
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenLink('stripe')}
+                        className="border-blue-200 hover:bg-blue-50"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </Button>
+
+                      {canDeactivatePaymentLink && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeactivatePaymentLink('stripe')}
+                          disabled={deactivating}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* PayPal Payment Link */}
+              {hasPayPalLink && (
+                <Card className="bg-white/70 backdrop-blur-sm border border-purple-200/50">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Wallet className="w-4 h-4 text-purple-600" />
+                      <span className="font-medium">PayPal Payment Link</span>
+                      <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-800">PayPal & Cards</Badge>
+                    </div>
+                    
+                    <div className="bg-purple-50/50 p-3 rounded-lg mb-4 border border-purple-200/50">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-600 break-all">
+                          {invoice.paypal_payment_link_url}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleCopyLink('paypal')}
+                        disabled={copying}
+                        className="flex-1 border-purple-200 hover:bg-purple-50"
+                      >
+                        {copying ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Copy className="w-4 h-4 mr-2" />
+                        )}
+                        Copy PayPal Link
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenLink('paypal')}
+                        className="border-purple-200 hover:bg-purple-50"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </Button>
+
+                      {canDeactivatePaymentLink && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeactivatePaymentLink('paypal')}
+                          disabled={deactivating}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {canDeactivatePaymentLink && (
                 <Alert className="border-orange-200 bg-orange-50">
                   <AlertCircle className="w-4 h-4 text-orange-600" />
                   <AlertDescription className="text-orange-800">
-                    You can deactivate this payment link to prevent new payments. This action cannot be undone.
+                    You can deactivate payment links to prevent new payments. This action cannot be undone.
                   </AlertDescription>
                 </Alert>
               )}
@@ -278,21 +369,103 @@ export function PaymentLinkManager({ open, onClose, invoice, onPaymentLinkUpdate
                   <Alert className="border-blue-200 bg-blue-50">
                     <AlertCircle className="w-4 h-4 text-blue-600" />
                     <AlertDescription className="text-blue-800">
-                      Create a secure payment link that your client can use to pay this invoice online with their credit card or bank account.
+                      Create secure payment links that your client can use to pay this invoice online with their preferred payment method.
                     </AlertDescription>
                   </Alert>
 
-                  <Card className="border-dashed border-2">
-                    <CardContent className="text-center py-8">
-                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <CreditCard className="w-6 h-6 text-blue-600" />
-                      </div>
-                      <h3 className="font-semibold mb-2">No Payment Link Created</h3>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Create a payment link to allow online payments for this invoice.
-                      </p>
-                    </CardContent>
-                  </Card>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Stripe Payment Link Option */}
+                    {!hasStripeLink && (
+                      <Card className="border-dashed border-2 border-blue-200 hover:border-blue-300 transition-colors">
+                        <CardContent className="text-center py-6">
+                          <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <CreditCard className="w-6 h-6 text-blue-600" />
+                          </div>
+                          <h3 className="font-semibold mb-2 text-blue-900">Stripe Payment</h3>
+                          <p className="text-sm text-gray-600 mb-4">
+                            Credit cards, debit cards, and bank transfers
+                          </p>
+                          <Button
+                            onClick={() => handleCreatePaymentLink('stripe')}
+                            disabled={creating}
+                            size="sm"
+                            className="bg-blue-600 hover:bg-blue-700"
+                          >
+                            {creating && selectedProvider === 'stripe' ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Creating...
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-4 h-4 mr-2" />
+                                Create Stripe Link
+                              </>
+                            )}
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* PayPal Payment Link Option */}
+                    {!hasPayPalLink && (
+                      <Card className="border-dashed border-2 border-purple-200 hover:border-purple-300 transition-colors">
+                        <CardContent className="text-center py-6">
+                          <div className="w-12 h-12 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <Wallet className="w-6 h-6 text-purple-600" />
+                          </div>
+                          <h3 className="font-semibold mb-2 text-purple-900">PayPal Payment</h3>
+                          <p className="text-sm text-gray-600 mb-4">
+                            PayPal wallets, credit cards, and bank transfers
+                          </p>
+                          <Button
+                            onClick={() => handleCreatePaymentLink('paypal')}
+                            disabled={creating}
+                            size="sm"
+                            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                          >
+                            {creating && selectedProvider === 'paypal' ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Creating...
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-4 h-4 mr-2" />
+                                Create PayPal Link
+                              </>
+                            )}
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+
+                  {!hasStripeLink && !hasPayPalLink && (
+                    <Card className="bg-gradient-to-r from-purple-50/50 to-blue-50/50 border-purple-200/50">
+                      <CardContent className="p-4">
+                        <h4 className="font-medium text-gray-900 mb-2">Why choose multiple payment methods?</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600">
+                          <div className="flex items-start gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                            <span>Increase payment success rates</span>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                            <span>Give customers payment flexibility</span>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                            <span>Reduce payment abandonment</span>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                            <span>Reach global customers</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
                 </>
               ) : (
                 <Alert className="border-gray-200 bg-gray-50">
@@ -311,24 +484,36 @@ export function PaymentLinkManager({ open, onClose, invoice, onPaymentLinkUpdate
           {/* Features List */}
           <div className="space-y-2 text-sm text-gray-600">
             <h4 className="font-medium text-gray-900">Payment Link Features:</h4>
-            <ul className="space-y-1">
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="w-3 h-3 text-green-600" />
-                Secure credit card and bank account payments
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="w-3 h-3 text-green-600" />
-                Automatic invoice status updates
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="w-3 h-3 text-green-600" />
-                Payment confirmation emails
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="w-3 h-3 text-green-600" />
-                Mobile-friendly payment experience
-              </li>
-            </ul>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3 h-3 text-green-600" />
+                  Secure credit card payments
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3 h-3 text-green-600" />
+                  PayPal wallet support
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3 h-3 text-green-600" />
+                  Bank transfer options
+                </div>
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3 h-3 text-green-600" />
+                  Automatic status updates
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3 h-3 text-green-600" />
+                  Payment confirmation emails
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3 h-3 text-green-600" />
+                  Mobile-friendly experience
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -336,47 +521,6 @@ export function PaymentLinkManager({ open, onClose, invoice, onPaymentLinkUpdate
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          
-          {canCreatePaymentLink && (
-            <Button 
-              onClick={handleCreatePaymentLink} 
-              disabled={creating}
-              className="min-w-[140px]"
-            >
-              {creating ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  Create Payment Link
-                </>
-              )}
-            </Button>
-          )}
-          
-          {canDeactivatePaymentLink && (
-            <Button 
-              variant="destructive"
-              onClick={handleDeactivatePaymentLink} 
-              disabled={deactivating}
-              className="min-w-[120px]"
-            >
-              {deactivating ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Deactivating...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Deactivate Link
-                </>
-              )}
-            </Button>
-          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

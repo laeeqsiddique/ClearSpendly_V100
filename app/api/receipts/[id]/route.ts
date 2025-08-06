@@ -111,7 +111,7 @@ export async function PATCH(
     }
 
     // Handle vendor update
-    if (body.vendor !== undefined) {
+    if (body.vendor !== undefined && body.vendor.trim()) {
       console.log('Vendor update requested:', body.vendor);
       
       // First, try to find existing vendor with this name
@@ -127,10 +127,12 @@ export async function PATCH(
         updates.vendor_id = existingVendor.id;
       } else {
         // Create new vendor
+        const normalizedName = body.vendor.toLowerCase().trim().replace(/\s+/g, ' ');
         const { data: newVendor, error: vendorError } = await supabase
           .from('vendor')
           .insert({
             name: body.vendor,
+            normalized_name: normalizedName,
             category: 'Other', // Default category
             tenant_id: tenantId
           })

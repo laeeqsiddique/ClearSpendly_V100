@@ -325,7 +325,8 @@ export async function POST(req: NextRequest) {
       }));
       
       const subtotal = lineItemsWithIds.reduce((sum, item) => sum + item.totalPrice, 0);
-      const taxRate = 0.08; // 8% tax
+      // Use default tax rate if provided, otherwise no tax
+      const taxRate = 0; // No default tax - will be configured per invoice template
       const tax = subtotal * taxRate;
       const totalAmount = subtotal + tax;
       

@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { InvoicePreview } from "@/components/invoice-preview";
+import { InvoicePreviewWrapper } from "@/components/invoice-preview-wrapper";
 
 // Import all the template configuration data
 const templateStyles = [
@@ -91,6 +93,27 @@ const colorOptions = [
   { value: '#000000', label: 'Classic Black', sample: 'bg-black' },
 ];
 
+const fontOptions = [
+  // Sans Serif
+  { value: 'font-sans', label: 'Inter (Default)', family: 'Inter, system-ui, sans-serif', category: 'Sans Serif' },
+  { value: 'font-system', label: 'System UI', family: 'system-ui, sans-serif', category: 'Sans Serif' },
+  { value: 'font-helvetica', label: 'Helvetica', family: 'Helvetica, Arial, sans-serif', category: 'Sans Serif' },
+  { value: 'font-arial', label: 'Arial', family: 'Arial, sans-serif', category: 'Sans Serif' },
+  
+  // Serif
+  { value: 'font-serif', label: 'Times New Roman', family: 'Times New Roman, serif', category: 'Serif' },
+  { value: 'font-georgia', label: 'Georgia', family: 'Georgia, serif', category: 'Serif' },
+  { value: 'font-garamond', label: 'Garamond', family: 'Garamond, serif', category: 'Serif' },
+  
+  // Monospace
+  { value: 'font-mono', label: 'Monaco', family: 'Monaco, monospace', category: 'Monospace' },
+  { value: 'font-courier', label: 'Courier New', family: 'Courier New, monospace', category: 'Monospace' },
+  
+  // Display
+  { value: 'font-display', label: 'Montserrat', family: 'Montserrat, sans-serif', category: 'Display' },
+  { value: 'font-heading', label: 'Poppins', family: 'Poppins, sans-serif', category: 'Display' }
+];
+
 interface TemplateSettings {
   id?: string;
   name: string;
@@ -136,7 +159,7 @@ function CreateTemplateContent() {
     default_payment_terms: "Net 30",
     default_notes: "Thank you for your business!",
     show_tax: true,
-    tax_rate: 0.08,
+    tax_rate: 0.0875, // 8.75% - configurable default
     tax_label: "Tax",
     invoice_prefix: "INV",
     next_invoice_number: 1,
@@ -147,6 +170,48 @@ function CreateTemplateContent() {
   const [initialLoading, setInitialLoading] = useState(isEditing);
 
   const supabase = createClient();
+
+  // Logo upload handler
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Logo file size must be less than 2MB");
+      return;
+    }
+
+    try {
+      setUploadingLogo(true);
+      
+      // Create a simple data URL for now (in production, upload to storage)
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (e.target?.result) {
+          setSettings(prev => ({ ...prev, logo_url: e.target!.result as string }));
+          toast.success("Logo uploaded successfully!");
+        }
+      };
+      reader.readAsDataURL(file);
+      
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      toast.error("Failed to upload logo");
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  // Remove logo handler
+  const handleRemoveLogo = () => {
+    setSettings(prev => ({ ...prev, logo_url: "" }));
+    toast.success("Logo removed");
+  };
+
+  // Render invoice preview using shared component
+  const renderInvoicePreview = () => {
+    return <InvoicePreview template={settings} />;
+  };
 
   // Save function that redirects to the new template page
   const handleSave = async () => {
@@ -623,27 +688,92 @@ function CreateTemplateContent() {
                   </Select>
                 </div>
               </div>
+
+              <Separator />
+
+              {/* Tax Settings */}
+              <div className="space-y-4">
+                <h4 className="font-medium">Tax Settings</h4>
+                
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label>Enable Tax</Label>
+                    <p className="text-sm text-muted-foreground">Show tax calculations on invoices</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant={settings.show_tax ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSettings(prev => ({ ...prev, show_tax: !prev.show_tax }))}
+                  >
+                    {settings.show_tax ? "Enabled" : "Disabled"}
+                  </Button>
+                </div>
+                
+                {settings.show_tax && (
+                  <div className="space-y-4 pl-4 border-l-2 border-blue-100">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="tax-rate">Tax Rate (%)</Label>
+                        <Input
+                          id="tax-rate"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={settings.tax_rate * 100}
+                          onChange={(e) => {
+                            const rate = parseFloat(e.target.value) || 0;
+                            setSettings(prev => ({ 
+                              ...prev, 
+                              tax_rate: Math.min(100, Math.max(0, rate)) / 100 
+                            }));
+                          }}
+                          placeholder="8.5"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="tax-label">Tax Label</Label>
+                        <Input
+                          id="tax-label"
+                          value={settings.tax_label}
+                          onChange={(e) => setSettings(prev => ({ ...prev, tax_label: e.target.value }))}
+                          placeholder="Tax"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Example: {settings.tax_rate * 100}% {settings.tax_label} will be applied to invoice subtotals
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Default Notes */}
+              <div className="space-y-4">
+                <h4 className="font-medium">Default Content</h4>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="default-notes">Default Notes</Label>
+                  <Input
+                    id="default-notes"
+                    value={settings.default_notes}
+                    onChange={(e) => setSettings(prev => ({ ...prev, default_notes: e.target.value }))}
+                    placeholder="Thank you for your business!"
+                  />
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Live Preview */}
         <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Eye className="h-5 w-5" />
-                Live Preview
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="border rounded-lg p-4 bg-gray-50">
-                <div className="scale-75 origin-top-left" style={{ width: '133.33%' }}>
-                  {renderInvoicePreview()}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <InvoicePreviewWrapper title="Template Preview">
+            {renderInvoicePreview()}
+          </InvoicePreviewWrapper>
         </div>
             </div>
           </div>

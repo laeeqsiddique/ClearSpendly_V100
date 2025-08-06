@@ -29,6 +29,8 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { InvoicePreview } from "@/components/invoice-preview";
+import { InvoicePreviewWrapper } from "@/components/invoice-preview-wrapper";
 
 interface TemplateSettings {
   id?: string;
@@ -208,7 +210,7 @@ export function InvoiceTemplatesRedesigned() {
     default_payment_terms: "Net 30",
     default_notes: "Thank you for your business!",
     show_tax: true,
-    tax_rate: 0.08,
+    tax_rate: 0.0875, // 8.75% - configurable default
     tax_label: "Tax",
     invoice_prefix: "INV",
     next_invoice_number: 1,
@@ -435,6 +437,11 @@ export function InvoiceTemplatesRedesigned() {
   };
 
   const renderInvoicePreview = () => {
+    // Use the unified template engine via InvoicePreview component
+    return <InvoicePreview template={settings} />;
+  };
+
+  const renderInvoicePreviewOld = () => {
     const color = settings.color_scheme;
     const fontClass = settings.font_family || 'font-sans';
     

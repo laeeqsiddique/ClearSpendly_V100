@@ -30,6 +30,7 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 import { createClient } from "@/lib/supabase/client";
+import { parseLocalDate } from "@/lib/date-utils";
 import { toast } from "sonner";
 import { InvoicePDFViewer } from "./invoice-pdf-viewer";
 import { SendEmailDialog } from "./send-email-dialog";
@@ -43,6 +44,8 @@ interface Invoice {
   due_date: string;
   status: string;
   payment_status?: string;
+  subtotal: number;
+  tax_rate: number;
   total_amount: number;
   amount_paid: number;
   balance_due: number;
@@ -53,6 +56,9 @@ interface Invoice {
     name: string;
     email: string;
     company_name?: string;
+  };
+  template: {
+    show_tax: boolean;
   };
 }
 
@@ -95,6 +101,17 @@ export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListP
 
   const supabase = createClient();
 
+  // Helper function to get the correct amount to display based on tax settings
+  const getDisplayAmount = (invoice: Invoice) => {
+    return invoice.template.show_tax ? invoice.total_amount : invoice.subtotal;
+  };
+
+  // Helper function to get the correct balance due based on tax settings
+  const getDisplayBalanceDue = (invoice: Invoice) => {
+    const displayAmount = getDisplayAmount(invoice);
+    return displayAmount - invoice.amount_paid;
+  };
+
   useEffect(() => {
     fetchInvoices();
   }, [refreshTrigger, startDate, endDate]);
@@ -122,6 +139,8 @@ export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListP
           due_date,
           status,
           payment_status,
+          subtotal,
+          tax_rate,
           total_amount,
           amount_paid,
           balance_due,
@@ -132,6 +151,9 @@ export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListP
             name,
             email,
             company_name
+          ),
+          template:template_id (
+            show_tax
           )
         `)
         .eq('tenant_id', membership.tenant_id);
@@ -256,7 +278,7 @@ export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListP
     const canMarkPaid = ['sent', 'viewed', 'overdue'].includes(invoice.status);
     const canCancel = !['paid', 'cancelled'].includes(invoice.status);
     const canMarkDraft = ['sent', 'viewed'].includes(invoice.status);
-    const canRecordPayment = !['cancelled'].includes(invoice.status) && invoice.balance_due > 0;
+    const canRecordPayment = !['cancelled'].includes(invoice.status) && getDisplayBalanceDue(invoice) > 0;
 
     return (
       <DropdownMenu>
@@ -455,14 +477,14 @@ export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListP
                       <TableCell>
                         <div className="flex items-center space-x-2">
                           <Calendar className="w-4 h-4 text-gray-400" />
-                          <span>{format(new Date(invoice.issue_date), 'MMM dd, yyyy')}</span>
+                          <span>{format(parseLocalDate(invoice.issue_date), 'MMM dd, yyyy')}</span>
                         </div>
                       </TableCell>
                       <TableCell>
                         <span className={`${
                           invoice.status === 'overdue' ? 'text-red-600 font-medium' : ''
                         }`}>
-                          {format(new Date(invoice.due_date), 'MMM dd, yyyy')}
+                          {format(parseLocalDate(invoice.due_date), 'MMM dd, yyyy')}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -483,7 +505,7 @@ export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListP
                               }
                             >
                               {invoice.payment_status === 'partial' 
-                                ? `Partial (${Math.round((invoice.amount_paid / invoice.total_amount) * 100)}%)`
+                                ? `Partial (${Math.round((invoice.amount_paid / getDisplayAmount(invoice)) * 100)}%)`
                                 : 'Paid'
                               }
                             </Badge>
@@ -491,7 +513,7 @@ export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListP
                         </div>
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        ${invoice.total_amount.toFixed(2)}
+                        ${getDisplayAmount(invoice).toFixed(2)}
                       </TableCell>
                       <TableCell className="text-right">
                         <span className={invoice.amount_paid > 0 ? 'text-green-600 font-medium' : ''}>
@@ -500,9 +522,9 @@ export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListP
                       </TableCell>
                       <TableCell className="text-right">
                         <span className={`font-medium ${
-                          invoice.balance_due > 0 ? 'text-red-600' : 'text-green-600'
+                          getDisplayBalanceDue(invoice) > 0 ? 'text-red-600' : 'text-green-600'
                         }`}>
-                          ${invoice.balance_due.toFixed(2)}
+                          ${getDisplayBalanceDue(invoice).toFixed(2)}
                         </span>
                       </TableCell>
                       <TableCell>

@@ -34,9 +34,15 @@ import {
   AlertCircle,
   ExternalLink,
   Activity,
-  Zap as ZapIcon
+  Zap as ZapIcon,
+  FlaskConical,
+  Eye,
+  Wallet,
+  Plus
 } from "lucide-react";
 import AIChatAgent from '@/components/ai-chat-agent';
+import { toast } from "sonner";
+import Link from "next/link";
 
 interface SystemStats {
   totalReceipts: number;
@@ -80,6 +86,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [enhancedOCR, setEnhancedOCR] = useState(false);
   const [stats, setStats] = useState<SystemStats>({
     totalReceipts: 0,
     totalAmount: 0,
@@ -122,6 +129,9 @@ export default function AdminPage() {
   useEffect(() => {
     loadSystemStats();
     loadSettings();
+    // Load enhanced OCR setting
+    const storedEnhancedOCR = localStorage.getItem('enable-enhanced-ocr');
+    setEnhancedOCR(storedEnhancedOCR === 'true');
   }, []);
 
   const loadSystemStats = async () => {
@@ -235,7 +245,7 @@ export default function AdminPage() {
 
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 bg-white shadow-sm">
+        <TabsList className="grid w-full grid-cols-5 bg-white shadow-sm">
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Overview
@@ -251,6 +261,10 @@ export default function AdminPage() {
           <TabsTrigger value="billing" className="flex items-center gap-2">
             <CreditCard className="h-4 w-4" />
             Billing
+          </TabsTrigger>
+          <TabsTrigger value="experimental" className="flex items-center gap-2">
+            <FlaskConical className="h-4 w-4" />
+            Experimental
           </TabsTrigger>
         </TabsList>
 
@@ -844,6 +858,155 @@ export default function AdminPage() {
                     No, the free tier limit of 10 receipts resets at the beginning of each month.
                   </p>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* PayPal Payment Settings */}
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Wallet className="h-5 w-5 text-purple-600" />
+                <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                  PayPal Integration
+                </span>
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Configure PayPal to accept payments from customers worldwide
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200/50">
+                <div className="text-2xl">💙</div>
+                <div className="flex-1">
+                  <h4 className="font-medium text-gray-900">Enable PayPal Payments</h4>
+                  <p className="text-sm text-gray-600">Allow customers to pay with PayPal wallets and cards</p>
+                </div>
+                <Button asChild className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+                  <Link href="/dashboard/payment-settings">
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Configure Payments
+                  </Link>
+                </Button>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                <div className="flex items-center gap-2 text-gray-600">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  200+ countries
+                </div>
+                <div className="flex items-center gap-2 text-gray-600">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  Buyer protection
+                </div>
+                <div className="flex items-center gap-2 text-gray-600">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  Multiple payment types
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Experimental Tab */}
+        <TabsContent value="experimental" className="space-y-6">
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FlaskConical className="h-5 w-5 text-purple-600" />
+                Experimental Features
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Try out new features before they're officially released. These features may change or be removed.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 rounded-lg border bg-gray-50/50">
+                  <div className="flex-1 space-y-1">
+                    <Label htmlFor="enhanced-ocr" className="text-base font-medium flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-yellow-600" />
+                      Enhanced Receipt Processing
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Enable advanced image preprocessing for better OCR accuracy on poor quality receipts. 
+                      This includes document detection, perspective correction, and lighting normalization.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="enhanced-ocr"
+                      checked={enhancedOCR}
+                      onCheckedChange={(checked) => {
+                        console.log('Switch toggled:', checked);
+                        setEnhancedOCR(checked);
+                        localStorage.setItem('enable-enhanced-ocr', checked.toString());
+                        toast.success(
+                          checked 
+                            ? "Enhanced OCR enabled! Try uploading a receipt to see the improvements." 
+                            : "Enhanced OCR disabled. Using standard processing."
+                        );
+                      }}
+                      className="data-[state=checked]:bg-green-600"
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      {enhancedOCR ? 'ON' : 'OFF'}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
+                  <h4 className="text-sm font-medium text-blue-900 mb-2">
+                    📈 Expected Improvements
+                  </h4>
+                  <p className="text-sm text-blue-800 mb-3">
+                    Enhanced processing significantly improves accuracy for receipts with:
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-900">Poor Lighting</p>
+                        <p className="text-xs text-blue-700">Shadows, uneven lighting</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-900">Skewed Photos</p>
+                        <p className="text-xs text-blue-700">Angled or rotated images</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-900">Damaged Receipts</p>
+                        <p className="text-xs text-blue-700">Wrinkled or folded paper</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-900">Low Contrast</p>
+                        <p className="text-xs text-blue-700">Faded or light text</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-lg bg-amber-50 border border-amber-200 p-4">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-amber-900">Performance Note</h4>
+                      <p className="text-sm text-amber-800 mt-1">
+                        Enhanced processing may take 2-3 seconds longer but can reduce Vision API usage by 60-80%, 
+                        saving costs and improving accuracy.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
               </div>
             </CardContent>
           </Card>
