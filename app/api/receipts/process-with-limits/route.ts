@@ -21,7 +21,7 @@ const processReceiptSchema = z.object({
 // This endpoint demonstrates usage tracking and feature gating
 export const POST = withSubscriptionContext(
   requireSubscription({
-    usage: { type: 'receipts_per_month', amount: 1 },
+    usage: { type: 'receipts_per_month', value: 1 },
     feature: 'ocr_processing'
   })(async function (request: NextRequest) {
     try {
