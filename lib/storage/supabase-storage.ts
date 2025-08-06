@@ -88,16 +88,42 @@ class SupabaseStorageService {
 
   constructor(isServer = false) {
     this.isServer = isServer
-    
-    if (isServer) {
-      // Server-side client with service role key
-      this.supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-        process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-      )
-    } else {
-      // Use the server client helper
-      this.supabase = createServerClient()
+    // Don't create client in constructor - create it lazily when needed
+    this.getSupabaseClient() = null
+  }
+
+  private getSupabaseClient() {
+    if (!this.getSupabaseClient()) {
+      // Avoid creating client during build time
+      if (process.env.NODE_ENV === 'production' && process.env.BUILDING === 'true' && !process.env.RAILWAY_ENVIRONMENT) {
+        return this.createMockClient()
+      }
+
+      if (this.isServer) {
+        // Server-side client with service role key
+        this.getSupabaseClient() = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+          process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+        )
+      } else {
+        // Use the server client helper
+        this.getSupabaseClient() = createServerClient()
+      }
+    }
+    return this.getSupabaseClient()
+  }
+
+  private createMockClient() {
+    return {
+      storage: {
+        from: () => ({
+          upload: async () => ({ data: null, error: null }),
+          download: async () => ({ data: null, error: null }),
+          remove: async () => ({ data: null, error: null }),
+          getPublicUrl: () => ({ data: { publicUrl: '' } }),
+          list: async () => ({ data: [], error: null })
+        })
+      }
     }
   }
 
@@ -238,7 +264,7 @@ class SupabaseStorageService {
       const fullPath = `${tenantId}/${path}`
       
       // Upload to Supabase Storage
-      const { data, error } = await this.supabase.storage
+      const { data, error } = await this.getSupabaseClient().storage
         .from(bucket)
         .upload(fullPath, compressedFile, {
           cacheControl: '3600',
@@ -252,7 +278,7 @@ class SupabaseStorageService {
       }
 
       // Get public URL for the uploaded file
-      const { data: publicUrlData } = this.supabase.storage
+      const { data: publicUrlData } = this.getSupabaseClient().storage
         .from(bucket)
         .getPublicUrl(fullPath)
 
@@ -343,7 +369,7 @@ class SupabaseStorageService {
    */
   async deleteFile(bucket: BucketName, path: string): Promise<void> {
     try {
-      const { error } = await this.supabase.storage
+      const { error } = await this.getSupabaseClient().storage
         .from(bucket)
         .remove([path])
 
@@ -366,7 +392,7 @@ class SupabaseStorageService {
     expiresIn: number = 3600 // 1 hour default
   ): Promise<string> {
     try {
-      const { data, error } = await this.supabase.storage
+      const { data, error } = await this.getSupabaseClient().storage
         .from(bucket)
         .createSignedUrl(path, expiresIn)
 
@@ -404,7 +430,7 @@ class SupabaseStorageService {
       }
 
       try {
-        const { data: files, error } = await this.supabase
+        const { data: files, error } = await this.getSupabaseClient()
           .storage
           .from(bucket)
           .list(tenantId, { limit: 1000 })
@@ -429,7 +455,7 @@ class SupabaseStorageService {
             console.log(`🔍 Would delete ${filesToDelete.length} old files from ${bucket} for tenant ${tenantId}`)
             deletedCount += filesToDelete.length
           } else {
-            const { error: deleteError } = await this.supabase.storage
+            const { error: deleteError } = await this.getSupabaseClient().storage
               .from(bucket)
               .remove(pathsToDelete)
 
@@ -468,7 +494,7 @@ class SupabaseStorageService {
 
     for (const bucket of Object.keys(BUCKET_CONFIGS) as BucketName[]) {
       try {
-        const { data: files, error } = await this.supabase
+        const { data: files, error } = await this.getSupabaseClient()
           .storage
           .from(bucket)
           .list(tenantId, { limit: 10000 })
