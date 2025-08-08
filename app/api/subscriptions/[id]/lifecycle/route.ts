@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { subscriptionLifecycleManager } from '@/lib/services/subscription-lifecycle-manager';
 import { createClient } from '@/lib/supabase/server';
 import { headers } from 'next/headers';
 

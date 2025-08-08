@@ -5,12 +5,25 @@ import { updateSubscriptionExpenses, deleteSubscriptionExpenses } from "@/lib/se
 
 export const dynamic = 'force-dynamic';
 
+// Deployment safety
+const isBuildTime = process.env.NODE_ENV === 'production' && !process.env.VERCEL && !process.env.RAILWAY_ENVIRONMENT;
+
 // PATCH /api/subscriptions/[id] - Update subscription
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  
+  // Mock response for build time
+  if (isBuildTime) {
+    return NextResponse.json({
+      success: true,
+      message: 'Build-time mock response - subscription update disabled during build',
+      buildTime: true
+    });
+  }
+
   try {
     const user = await getUser();
     if (!user) {
@@ -90,6 +103,16 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  
+  // Mock response for build time
+  if (isBuildTime) {
+    return NextResponse.json({
+      success: true,
+      message: 'Build-time mock response - subscription deletion disabled during build',
+      buildTime: true
+    });
+  }
+
   try {
     const user = await getUser();
     if (!user) {

@@ -6,8 +6,20 @@ import { generateSubscriptionExpenses } from "@/lib/services/subscription-expens
 
 export const dynamic = 'force-dynamic';
 
+// Deployment safety
+const isBuildTime = process.env.NODE_ENV === 'production' && !process.env.VERCEL && !process.env.RAILWAY_ENVIRONMENT;
+
 // GET /api/subscriptions - Get all subscriptions for tenant
 export async function GET(request: NextRequest) {
+  // Mock response for build time
+  if (isBuildTime) {
+    return NextResponse.json({
+      success: true,
+      subscriptions: [],
+      buildTime: true
+    });
+  }
+
   try {
     const user = await getUser();
     if (!user) {
@@ -127,6 +139,15 @@ export async function GET(request: NextRequest) {
 
 // POST /api/subscriptions - Create new subscription
 export async function POST(request: NextRequest) {
+  // Mock response for build time
+  if (isBuildTime) {
+    return NextResponse.json({
+      success: true,
+      message: 'Build-time mock response - subscription creation disabled during build',
+      buildTime: true
+    });
+  }
+
   try {
     const user = await getUser();
     if (!user) {
