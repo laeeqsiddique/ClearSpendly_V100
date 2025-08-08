@@ -1,4 +1,11 @@
 import { createClient } from '@/lib/supabase/server';
+import {
+  PayPalConfig,
+  PayPalBusinessInfo,
+  generatePayPalPaymentSection,
+  generatePayPalCSS,
+  shouldShowPayPalPayments
+} from '@/lib/paypal-utils';
 
 // Enhanced email template system that uses database templates
 interface EmailTemplateConfig {
@@ -19,6 +26,13 @@ interface EmailTemplateConfig {
   body_style: any;
   button_style: any;
   custom_css?: string;
+  // PayPal configuration fields
+  enable_paypal_payments?: boolean;
+  paypal_button_text?: string;
+  paypal_instructions_text?: string;
+  show_paypal_email?: boolean;
+  show_paypal_me_link?: boolean;
+  paypal_button_color?: string;
 }
 
 interface BusinessInfo {
@@ -32,6 +46,9 @@ interface BusinessInfo {
   state?: string;
   postal_code?: string;
   country?: string;
+  // PayPal payment information
+  paypal_email?: string;
+  paypal_me_link?: string;
 }
 
 interface EmailData {
@@ -162,6 +179,16 @@ export class EmailTemplateGenerator {
       payment_link: this.data?.payment_link || ''
     };
 
+    // Generate PayPal payment section if enabled
+    const paypalSection = shouldShowPayPalPayments(this.data.business, this.template) 
+      ? generatePayPalPaymentSection(
+          this.data.business, 
+          this.template, 
+          safeData.total_amount, 
+          safeData.currency
+        )
+      : '';
+
     return `
       <!-- Invoice Details Card -->
       <div class="invoice-card">
@@ -210,6 +237,8 @@ export class EmailTemplateGenerator {
           <p>📎 Please find the detailed invoice attached to this email for payment instructions.</p>
         </div>
       `}
+
+      ${paypalSection}
     `;
   }
 
@@ -225,6 +254,16 @@ export class EmailTemplateGenerator {
     };
     
     const daysOverdue = safeData.days_overdue;
+
+    // Generate PayPal payment section if enabled
+    const paypalSection = shouldShowPayPalPayments(this.data.business, this.template) 
+      ? generatePayPalPaymentSection(
+          this.data.business, 
+          this.template, 
+          safeData.total_amount, 
+          safeData.currency
+        )
+      : '';
     
     return `
       <div class="overdue-badge">
@@ -290,6 +329,8 @@ export class EmailTemplateGenerator {
           <p>The original invoice with payment instructions is attached to this email.</p>
         </div>
       `}
+
+      ${paypalSection}
 
       <div class="help-section">
         <h3>Need Help?</h3>
@@ -391,6 +432,7 @@ export class EmailTemplateGenerator {
         <![endif]-->
         <style>
           ${this.generateCSS()}
+          ${generatePayPalCSS(this.template)}
           ${this.template.custom_css || ''}
         </style>
       </head>

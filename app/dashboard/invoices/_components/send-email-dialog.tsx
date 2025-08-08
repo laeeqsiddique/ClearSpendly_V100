@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,16 +9,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   Mail, 
   Send, 
   Clock, 
-  AlertCircle,
   Loader2,
   FileText,
   User,
   Calendar,
-  DollarSign
+  DollarSign,
+  CreditCard
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -31,6 +32,10 @@ interface SendEmailDialogProps {
     status: string;
     total_amount: number;
     due_date: string;
+    stripe_payment_link_id?: string;
+    stripe_payment_link_url?: string;
+    paypal_payment_link_id?: string;
+    paypal_payment_link_url?: string;
     client: {
       name: string;
       email: string;
@@ -69,7 +74,7 @@ export function SendEmailDialog({ open, onClose, invoice, onEmailSent }: SendEma
       icon: Send,
       defaultSubject: `Invoice ${invoice.invoice_number} from Your Business`,
       defaultMessage: 'Please find attached your invoice. Thank you for your business!',
-      available: ['draft', 'viewed'].includes(invoice.status)
+      available: ['draft', 'sent'].includes(invoice.status)
     },
     {
       type: 'reminder',
@@ -78,7 +83,7 @@ export function SendEmailDialog({ open, onClose, invoice, onEmailSent }: SendEma
       icon: Clock,
       defaultSubject: `Payment Reminder: Invoice ${invoice.invoice_number}`,
       defaultMessage: 'This is a friendly reminder that payment for this invoice is now overdue. Please process payment at your earliest convenience.',
-      available: invoice.status === 'overdue' || daysOverdue > 0
+      available: invoice.status === 'sent' && daysOverdue > 0
     },
     {
       type: 'payment_received',
@@ -93,6 +98,7 @@ export function SendEmailDialog({ open, onClose, invoice, onEmailSent }: SendEma
 
   const availableTemplates = emailTemplates.filter(template => template.available);
 
+
   const handleTemplateSelect = (templateType: string) => {
     const template = emailTemplates.find(t => t.type === templateType);
     if (template) {
@@ -101,6 +107,7 @@ export function SendEmailDialog({ open, onClose, invoice, onEmailSent }: SendEma
       setCustomMessage(template.defaultMessage);
     }
   };
+
 
   const handleSendEmail = async () => {
     if (!selectedTemplate) {
@@ -308,6 +315,18 @@ export function SendEmailDialog({ open, onClose, invoice, onEmailSent }: SendEma
                   </p>
                 </div>
               </div>
+
+              {/* Payment Options Info */}
+              {['new', 'reminder'].includes(selectedTemplate) && (
+                <div className="pt-4 border-t">
+                  <Alert className="border-blue-200 bg-blue-50">
+                    <CreditCard className="w-4 h-4 text-blue-600" />
+                    <AlertDescription className="text-blue-800 text-sm">
+                      <strong>Payment Options:</strong> Stripe and PayPal payment options are configured in your email template settings and will automatically appear in the email if enabled.
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -320,7 +339,7 @@ export function SendEmailDialog({ open, onClose, invoice, onEmailSent }: SendEma
           <Button 
             onClick={handleSendEmail} 
             disabled={!selectedTemplate || !customSubject.trim() || sending}
-            className="min-w-[120px]"
+            className="min-w-[140px]"
           >
             {sending ? (
               <>

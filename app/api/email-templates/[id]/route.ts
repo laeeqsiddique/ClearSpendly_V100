@@ -114,7 +114,14 @@ export async function PUT(request: NextRequest, context: RouteParams) {
       layout_width,
       header_padding,
       content_padding,
-      section_spacing
+      section_spacing,
+      // PayPal fields
+      enable_paypal_payments,
+      paypal_button_text,
+      paypal_instructions_text,
+      show_paypal_email,
+      show_paypal_me_link,
+      paypal_button_color
     } = body;
 
     // If this template is being set as active, deactivate other templates of the same type
@@ -151,6 +158,13 @@ export async function PUT(request: NextRequest, context: RouteParams) {
     if (header_padding !== undefined) updateData.header_padding = header_padding;
     if (content_padding !== undefined) updateData.content_padding = content_padding;
     if (section_spacing !== undefined) updateData.section_spacing = section_spacing;
+    // PayPal fields
+    if (enable_paypal_payments !== undefined) updateData.enable_paypal_payments = enable_paypal_payments;
+    if (paypal_button_text !== undefined) updateData.paypal_button_text = paypal_button_text;
+    if (paypal_instructions_text !== undefined) updateData.paypal_instructions_text = paypal_instructions_text;
+    if (show_paypal_email !== undefined) updateData.show_paypal_email = show_paypal_email;
+    if (show_paypal_me_link !== undefined) updateData.show_paypal_me_link = show_paypal_me_link;
+    if (paypal_button_color !== undefined) updateData.paypal_button_color = paypal_button_color;
 
     const { data: template, error: updateError } = await supabase
       .from('email_templates')

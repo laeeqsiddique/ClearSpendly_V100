@@ -19,7 +19,8 @@ import {
   Sparkles,
   Info,
   Plus,
-  Wand2
+  Wand2,
+  CreditCard
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -44,6 +45,13 @@ interface EmailTemplate {
   header_padding?: string;
   content_padding?: string;
   section_spacing?: string;
+  // PayPal configuration fields
+  enable_paypal_payments?: boolean;
+  paypal_button_text?: string;
+  paypal_instructions_text?: string;
+  show_paypal_email?: boolean;
+  show_paypal_me_link?: boolean;
+  paypal_button_color?: string;
 }
 
 interface EmailTemplateEditorProps {
@@ -304,7 +312,7 @@ export function EmailTemplateEditor({ template, onTemplateChange, onTemplateRefr
         <CardContent className="p-0">
           <Tabs value={activeSection} onValueChange={setActiveSection}>
             <div className="px-6 pt-6">
-              <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+              <TabsList className="grid w-full grid-cols-4 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
                 <TabsTrigger 
                   value="colors" 
                   className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900"
@@ -318,6 +326,13 @@ export function EmailTemplateEditor({ template, onTemplateChange, onTemplateRefr
                 >
                   <Type className="w-4 h-4" />
                   Content
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="payments" 
+                  className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900"
+                >
+                  <CreditCard className="w-4 h-4" />
+                  Payments
                 </TabsTrigger>
                 <TabsTrigger 
                   value="layout" 
@@ -557,6 +572,63 @@ export function EmailTemplateEditor({ template, onTemplateChange, onTemplateRefr
                 </div>
               </TabsContent>
 
+              <TabsContent value="payments" className="space-y-6 mt-6">
+                <div className="space-y-6">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <CreditCard className="w-5 h-5 text-blue-600 mt-0.5" />
+                      <div>
+                        <h3 className="font-semibold text-blue-900">PayPal Payment Options</h3>
+                        <p className="text-sm text-blue-700 mt-1">
+                          Configure PayPal payment links that will appear alongside your existing Stripe payment buttons. 
+                          PayPal options will only show if your business profile has PayPal information configured.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Enable PayPal Payments */}
+                  <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="space-y-1">
+                      <Label className="text-base font-semibold text-blue-900">Enable PayPal Payments</Label>
+                      <p className="text-sm text-blue-700">
+                        Add PayPal payment options alongside Stripe buttons
+                      </p>
+                    </div>
+                    <Switch
+                      checked={editedTemplate.enable_paypal_payments || false}
+                      onCheckedChange={(checked) => updateTemplate({ enable_paypal_payments: checked })}
+                      className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-gray-300"
+                    />
+                  </div>
+
+                  {editedTemplate.enable_paypal_payments && (
+                    <div className="space-y-6 ml-4 border-l-2 border-blue-200 pl-6">
+                      {/* Simple PayPal Button Text */}
+                      <div className="space-y-2">
+                        <Label htmlFor="paypal-button-text" className="text-sm font-medium">Button Text</Label>
+                        <Input
+                          id="paypal-button-text"
+                          value={editedTemplate.paypal_button_text || 'Pay with PayPal'}
+                          onChange={(e) => updateTemplate({ paypal_button_text: e.target.value })}
+                          placeholder="Pay with PayPal"
+                          className="text-sm"
+                        />
+                      </div>
+
+                      {/* Simplified Info Note */}
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                        <div className="flex items-start gap-2">
+                          <Info className="w-4 h-4 text-amber-600 mt-0.5" />
+                          <p className="text-xs text-amber-700">
+                            PayPal options will appear in emails when your PayPal settings are configured in the PayPal Link Settings.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
 
               <TabsContent value="layout" className="space-y-6 mt-6">
                 <div className="space-y-6">

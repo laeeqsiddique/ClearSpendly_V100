@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { emailService, calculateDaysOverdue } from '@/lib/email-service';
 
 export async function POST(request: NextRequest) {
+  console.log('🚨 SEND EMAIL API CALLED');
   try {
     const supabase = await createClient();
     
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
 
     // Get request body
     const body = await request.json();
-    const { invoiceId, emailType, customSubject, customMessage } = body;
+    const { invoiceId, emailType, customSubject, customMessage, includePaymentLink, paymentProvider } = body;
 
     if (!invoiceId || !emailType) {
       return NextResponse.json({ 
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
 
-    // Get business information from tenant
+    // Get business information from tenant - specifically including reply_to_email
     const { data: tenant, error: tenantError } = await supabase
       .from('tenant')
       .select('*')
@@ -58,13 +59,26 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (tenantError || !tenant) {
+      console.error('🚨 Tenant fetch error:', tenantError);
       return NextResponse.json({ error: 'Tenant information not found' }, { status: 404 });
     }
+
+    // Debug tenant data
+    console.log('Send Email API - Tenant Debug:', {
+      tenantName: tenant.name,
+      tenantEmail: tenant.email,
+      tenantReplyToEmail: tenant.reply_to_email,
+      userEmail: user.email,
+      paypal_email: tenant.paypal_email,
+      paypal_me_link: tenant.paypal_me_link,
+      payment_instructions: tenant.payment_instructions
+    });
 
     // Prepare business info for email
     const businessInfo = {
       name: tenant.name || "Your Business",
-      email: user.email || "",
+      email: user.email || "",  // Use user email since tenant table doesn't have email field
+      reply_to_email: tenant.reply_to_email || user.email || "",  // Use dedicated reply-to field
       phone: tenant.phone || "",
       website: tenant.website || "",
       address_line1: tenant.address_line1 || "",
@@ -72,14 +86,49 @@ export async function POST(request: NextRequest) {
       city: tenant.city || "",
       state: tenant.state || "",
       postal_code: tenant.postal_code || "",
-      country: tenant.country || "United States"
+      country: tenant.country || "United States",
+      paypal_email: tenant.paypal_email || "",
+      paypal_me_link: tenant.paypal_me_link || "",
+      payment_instructions: tenant.payment_instructions || ""
     };
+    
+    console.log('Send Email API - Business Info:', businessInfo);
+
+    // Prepare payment links based on user preference
+    let paymentLinks = {};
+    if (includePaymentLink && ['new', 'reminder'].includes(emailType)) {
+      switch (paymentProvider) {
+        case 'stripe':
+          if (invoiceData.stripe_payment_link_url) {
+            paymentLinks = {
+              stripe_payment_link: invoiceData.stripe_payment_link_url
+            };
+          }
+          break;
+        case 'paypal':
+          if (invoiceData.paypal_payment_link_url) {
+            paymentLinks = {
+              paypal_payment_link: invoiceData.paypal_payment_link_url
+            };
+          }
+          break;
+        case 'both':
+        default:
+          paymentLinks = {
+            stripe_payment_link: invoiceData.stripe_payment_link_url || undefined,
+            paypal_payment_link: invoiceData.paypal_payment_link_url || undefined
+          };
+          break;
+      }
+    }
 
     // Prepare complete invoice data for email
     const completeInvoiceData = {
       ...invoiceData,
       business: businessInfo,
       items: invoiceData.items || [],
+      ...paymentLinks,
+      // Legacy support
       payment_link: invoiceData.stripe_payment_link_url || undefined
     };
 

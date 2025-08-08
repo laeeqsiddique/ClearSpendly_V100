@@ -34,6 +34,13 @@ interface EmailTemplate {
   header_padding?: string;
   content_padding?: string;
   section_spacing?: string;
+  // PayPal fields
+  enable_paypal_payments?: boolean;
+  paypal_button_text?: string;
+  paypal_instructions_text?: string;
+  show_paypal_email?: boolean;
+  show_paypal_me_link?: boolean;
+  paypal_button_color?: string;
 }
 
 interface EmailPreviewProps {
@@ -50,7 +57,13 @@ const SAMPLE_DATA = {
     due_date: "2024-02-15",
     amount: 2500.00,
     currency: "USD",
-    payment_link: "https://pay.example.com/invoice/123"
+    payment_link: "https://pay.example.com/invoice/123",
+    business: {
+      name: "Your Business Name",
+      email: "business@example.com",
+      paypal_email: "payments@example.com",
+      paypal_me_link: "yourbusiness"
+    }
   },
   payment_reminder: {
     invoice_number: "INV-2024-001",
@@ -224,6 +237,32 @@ export function EmailPreview({ template }: EmailPreviewProps) {
                 <span class="value">$${safeData.amount.toFixed(2)}</span>
               </div>
             </div>
+            
+            ${template.enable_paypal_payments && currentData?.business ? `
+              <div class="paypal-payment-section">
+                <h3 class="paypal-instructions">${template.paypal_instructions_text || 'You can also pay using PayPal:'}</h3>
+                <div class="paypal-options">
+                  ${currentData.business.paypal_me_link ? `
+                    <div class="paypal-me-option">
+                      <a href="https://paypal.me/${currentData.business.paypal_me_link}/${safeData.amount.toFixed(2)}" 
+                         class="paypal-button" style="background-color: ${template.paypal_button_color || '#0070ba'};">
+                        💳 ${template.paypal_button_text || 'Pay with PayPal'} $${safeData.amount.toFixed(2)}
+                      </a>
+                      <div class="paypal-security-note">🔒 Secure payment via PayPal</div>
+                    </div>
+                  ` : ''}
+                  ${currentData.business.paypal_email ? `
+                    <div class="paypal-email-option">
+                      <div class="paypal-email-instructions">
+                        <strong>Or send payment to:</strong>
+                        <div class="paypal-email">${currentData.business.paypal_email}</div>
+                        <div class="payment-amount">Amount: $${safeData.amount.toFixed(2)}</div>
+                      </div>
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+            ` : ''}
           `;
         
         case 'payment_reminder':
@@ -506,11 +545,78 @@ export function EmailPreview({ template }: EmailPreviewProps) {
             color: #6b7280;
             font-style: italic;
           }
+          .paypal-payment-section {
+            margin: 32px 0;
+            padding: 24px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+          }
+          .paypal-instructions {
+            margin: 0 0 16px 0;
+            color: #374151;
+            font-size: 18px;
+            font-weight: 600;
+          }
+          .paypal-options {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+          }
+          .paypal-me-option {
+            text-align: center;
+          }
+          .paypal-button {
+            display: inline-block;
+            color: white !important;
+            padding: 16px 32px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 112, 186, 0.2);
+          }
+          .paypal-security-note {
+            color: #6b7280;
+            font-size: 14px;
+            margin-top: 8px;
+          }
+          .paypal-email-option {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid #d1d5db;
+          }
+          .paypal-email-instructions strong {
+            color: #374151;
+            font-size: 14px;
+            display: block;
+            margin-bottom: 8px;
+          }
+          .paypal-email {
+            font-family: monospace;
+            background: #f3f4f6;
+            padding: 8px 12px;
+            border-radius: 6px;
+            color: #1f2937;
+            font-weight: 600;
+            font-size: 15px;
+            margin: 4px 0;
+          }
+          .payment-amount {
+            color: #059669;
+            font-weight: 600;
+            font-size: 16px;
+            margin-top: 8px;
+          }
           @media (max-width: 600px) {
             .wrapper { padding: 20px 10px; }
             .header { padding: 32px 24px; }
             .content { padding: 32px 24px; }
             .invoice-grid, .payment-grid { grid-template-columns: 1fr; gap: 16px; }
+            .paypal-payment-section { padding: 16px; }
+            .paypal-button { padding: 14px 24px; font-size: 15px; }
           }
         </style>
       </head>

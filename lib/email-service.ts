@@ -55,6 +55,7 @@ export class InvoiceEmailService {
   }
 
   async sendInvoiceEmail(options: EmailSendOptions): Promise<InvoiceEmailResult> {
+    console.log('🚨 EMAIL SERVICE CALLED - sendInvoiceEmail');
     try {
       if (!process.env.RESEND_API_KEY) {
         throw new Error('Resend API key not configured');
@@ -76,6 +77,8 @@ export class InvoiceEmailService {
 
       if (customTemplate) {
         // Use custom template from database
+        console.log('USING DATABASE TEMPLATE');
+        console.log('🚨 Database template data:', customTemplate);
         const generator = new EmailTemplateGenerator(customTemplate, data);
         emailContent = {
           subject: customTemplate.subject_template || '',
@@ -118,6 +121,7 @@ export class InvoiceEmailService {
       }
 
       // Prepare email data
+      const replyToEmail = data.business?.reply_to_email || data.business?.email || this.fromEmail;
       const emailData: any = {
         from: this.fromEmail,
         to: [to],
@@ -125,12 +129,64 @@ export class InvoiceEmailService {
         html: emailContent.html,
         text: emailContent.text,
       };
+      
+      // Always set reply_to if we have a valid reply-to email (Resend API expects 'replyTo' field)
+      if (replyToEmail && replyToEmail !== this.fromEmail) {
+        emailData.replyTo = replyToEmail;  // Changed from reply_to to replyTo for Resend API
+      }
+      
+      // Debug email configuration
+      console.log('🚨 Email Service - Detailed Email Configuration:', {
+        from: emailData.from,
+        replyTo: emailData.replyTo,  // Updated field name
+        to: emailData.to,
+        subject: emailData.subject,
+        replyToEmailSource: replyToEmail,
+        businessReplyTo: data.business?.reply_to_email,
+        businessEmail: data.business?.email,
+        fallbackFromEmail: this.fromEmail,
+        willSetReplyTo: !!(replyToEmail && replyToEmail !== this.fromEmail)
+      });
+      
+      // Debug PayPal settings
+      console.log('Email Service - PayPal Debug:', {
+        hasPayPalEmail: !!data.business?.paypal_email,
+        hasPayPalMeLink: !!data.business?.paypal_me_link,
+        hasPaymentInstructions: !!data.business?.payment_instructions,
+        paypalEmail: data.business?.paypal_email,
+        paypalMeLink: data.business?.paypal_me_link,
+        paymentInstructions: data.business?.payment_instructions?.substring(0, 50) + '...'
+      });
+      
+      // Debug what's being passed to email template
+      console.log('Email Service - Template Data Preview:', {
+        templateType: template,
+        hasBusinessData: !!data.business,
+        businessPayPalEmail: data.business?.paypal_email,
+        businessPayPalMeLink: data.business?.paypal_me_link,
+        paymentLinkLegacy: data.payment_link,
+        totalAmount: data.total_amount
+      });
 
       // Attach PDF if requested and it's not a payment received email
       if (attachPDF && template !== 'paymentReceived' && data.id) {
         try {
-          const pdfBlob = await generateInvoicePDF(data);
-          const pdfBuffer = Buffer.from(await pdfBlob.arrayBuffer());
+          // Use the SAME PDF API as the download function to ensure consistency
+          const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/invoices/pdf`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              invoiceData: data // Pass the complete invoice data directly
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error(`PDF API responded with status: ${response.status}`);
+          }
+
+          const pdfBuffer = Buffer.from(await response.arrayBuffer());
           
           emailData.attachments = [{
             filename: `Invoice-${data.invoice_number}.pdf`,
@@ -174,6 +230,11 @@ export class InvoiceEmailService {
   }
 
   async sendNewInvoiceEmail(invoiceData: any, tenantId: string, customOptions?: { subject?: string; message?: string }): Promise<InvoiceEmailResult> {
+    console.log('🚨 sendNewInvoiceEmail CALLED');
+    console.log('🚨 invoiceData.business:', invoiceData.business);
+    console.log('🚨 invoiceData.business.paypal_me_link:', invoiceData.business?.paypal_me_link);
+    console.log('🚨 invoiceData.business.reply_to_email:', invoiceData.business?.reply_to_email);
+    
     return this.sendInvoiceEmail({
       to: invoiceData.client.email,
       template: 'newInvoice',
