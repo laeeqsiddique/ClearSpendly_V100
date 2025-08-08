@@ -2,11 +2,8 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
-  PieChart, 
-  Pie, 
   Cell, 
   ResponsiveContainer, 
-  Legend, 
   Tooltip,
   BarChart,
   Bar,
@@ -101,11 +98,6 @@ export function ExpenseChart({ data, detailed = false }: ExpenseChartProps) {
 
   const totalExpenses = chartData.reduce((sum, item) => sum + item.value, 0);
 
-  const renderCustomLabel = (entry: any) => {
-    const percent = ((entry.value / totalExpenses) * 100).toFixed(0);
-    return `${percent}%`;
-  };
-
   return (
     <Card className={detailed ? "col-span-full" : ""}>
       <CardHeader>
@@ -116,59 +108,29 @@ export function ExpenseChart({ data, detailed = false }: ExpenseChartProps) {
       </CardHeader>
       <CardContent>
         <div className="h-[350px]">
-          {detailed ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} layout="horizontal">
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis 
-                  type="number"
-                  tick={{ fill: 'currentColor' }}
-                  tickFormatter={(value) => `$${(value / 1000).toFixed(1)}k`}
-                />
-                <YAxis 
-                  type="category"
-                  dataKey="name"
-                  tick={{ fill: 'currentColor' }}
-                  width={120}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="value" radius={[0, 8, 8, 0]}>
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={chartData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={renderCustomLabel}
-                  outerRadius={120}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-                <Legend 
-                  verticalAlign="bottom" 
-                  height={36}
-                  formatter={(value, entry: any) => (
-                    <span className="text-sm">
-                      {value}: {formatCurrency(entry.value)}
-                    </span>
-                  )}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <XAxis 
+                dataKey="name"
+                tick={{ fill: 'currentColor', fontSize: 12 }}
+                angle={-45}
+                textAnchor="end"
+                height={80}
+                interval={0}
+              />
+              <YAxis 
+                tick={{ fill: 'currentColor' }}
+                tickFormatter={(value) => `$${(value / 1000).toFixed(1)}k`}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </div>
         
         {detailed && (

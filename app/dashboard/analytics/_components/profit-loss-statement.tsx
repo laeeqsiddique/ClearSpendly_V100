@@ -9,8 +9,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Download, 
   FileText, 
-  TrendingUp, 
-  TrendingDown,
   Printer,
   FileSpreadsheet
 } from "lucide-react";
@@ -89,10 +87,34 @@ export function ProfitLossStatement({ data, dateRange }: ProfitLossStatementProp
     }).format(amount);
   };
 
-  const handleExport = async (format: 'pdf' | 'excel') => {
+  const handleExport = async (exportFormat: 'pdf' | 'excel') => {
     try {
-      toast.success(`P&L statement exported as ${format.toUpperCase()}`);
+      const params = new URLSearchParams();
+      params.append('format', exportFormat);
+      
+      if (dateRange?.from) {
+        params.append('from', format(dateRange.from, 'yyyy-MM-dd'));
+      }
+      if (dateRange?.to) {
+        params.append('to', format(dateRange.to, 'yyyy-MM-dd'));
+      }
+
+      const response = await fetch(`/api/analytics/export?${params}`);
+      if (!response.ok) throw new Error('Export failed');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `P&L-Statement-${format(new Date(), 'yyyy-MM-dd')}.${exportFormat === 'pdf' ? 'pdf' : 'xlsx'}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success(`P&L statement exported as ${exportFormat.toUpperCase()}`);
     } catch (error) {
+      console.error('Export error:', error);
       toast.error('Failed to export P&L statement');
     }
   };
@@ -132,15 +154,6 @@ export function ProfitLossStatement({ data, dateRange }: ProfitLossStatementProp
 
   // Use real data
   const realPnLData: PnLData = pnlData;
-  const revenueChange = realPnLData.previousPeriod 
-    ? ((realPnLData.revenue.total - realPnLData.previousPeriod.revenue) / realPnLData.previousPeriod.revenue) * 100
-    : 0;
-  const expenseChange = realPnLData.previousPeriod
-    ? ((realPnLData.expenses.total - realPnLData.previousPeriod.expenses) / realPnLData.previousPeriod.expenses) * 100
-    : 0;
-  const profitChange = realPnLData.previousPeriod
-    ? ((realPnLData.netProfit - realPnLData.previousPeriod.netProfit) / realPnLData.previousPeriod.netProfit) * 100
-    : 0;
 
   return (
     <Card className="print:shadow-none">
@@ -189,12 +202,6 @@ export function ProfitLossStatement({ data, dateRange }: ProfitLossStatementProp
             <h3 className="text-lg font-semibold">REVENUE</h3>
             <div className="flex items-center gap-2">
               <span className="text-2xl font-bold">{formatCurrency(realPnLData.revenue.total)}</span>
-              {revenueChange !== 0 && (
-                <Badge variant={revenueChange > 0 ? "default" : "destructive"} className="ml-2">
-                  {revenueChange > 0 ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
-                  {Math.abs(revenueChange).toFixed(1)}%
-                </Badge>
-              )}
             </div>
           </div>
           <div className="space-y-2 ml-4">
@@ -215,12 +222,6 @@ export function ProfitLossStatement({ data, dateRange }: ProfitLossStatementProp
             <h3 className="text-lg font-semibold">EXPENSES</h3>
             <div className="flex items-center gap-2">
               <span className="text-2xl font-bold">{formatCurrency(realPnLData.expenses.total)}</span>
-              {expenseChange !== 0 && (
-                <Badge variant={expenseChange > 0 ? "destructive" : "default"} className="ml-2">
-                  {expenseChange > 0 ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
-                  {Math.abs(expenseChange).toFixed(1)}%
-                </Badge>
-              )}
             </div>
           </div>
           <div className="space-y-2 ml-4">
@@ -246,12 +247,6 @@ export function ProfitLossStatement({ data, dateRange }: ProfitLossStatementProp
               )}>
                 {formatCurrency(realPnLData.netProfit)}
               </span>
-              {profitChange !== 0 && (
-                <Badge variant={profitChange > 0 ? "default" : "destructive"} className="ml-2">
-                  {profitChange > 0 ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
-                  {Math.abs(profitChange).toFixed(1)}%
-                </Badge>
-              )}
             </div>
           </div>
           

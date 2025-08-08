@@ -34,7 +34,6 @@ import { parseLocalDate } from "@/lib/date-utils";
 import { toast } from "sonner";
 import { InvoicePDFViewer } from "./invoice-pdf-viewer";
 import { SendEmailDialog } from "./send-email-dialog";
-import { PaymentLinkManager } from "./payment-link-manager";
 import { InvoicePaymentHistory } from "./invoice-payment-history";
 
 interface Invoice {
@@ -71,18 +70,14 @@ interface InvoiceListProps {
 const statusColors = {
   draft: "bg-gray-100 text-gray-800",
   sent: "bg-blue-100 text-blue-800",
-  viewed: "bg-purple-100 text-purple-800",
   paid: "bg-green-100 text-green-800",
-  overdue: "bg-red-100 text-red-800",
   cancelled: "bg-gray-100 text-gray-800"
 };
 
 const statusLabels = {
   draft: "Draft",
   sent: "Sent",
-  viewed: "Viewed",
   paid: "Paid",
-  overdue: "Overdue",
   cancelled: "Cancelled"
 };
 
@@ -97,7 +92,6 @@ export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListP
   const [showPDFViewer, setShowPDFViewer] = useState(false);
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-  const [showPaymentManager, setShowPaymentManager] = useState(false);
 
   const supabase = createClient();
 
@@ -110,6 +104,13 @@ export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListP
   const getDisplayBalanceDue = (invoice: Invoice) => {
     const displayAmount = getDisplayAmount(invoice);
     return displayAmount - invoice.amount_paid;
+  };
+
+  // Check if invoice is overdue
+  const isOverdue = (invoice: Invoice) => {
+    if (['paid', 'cancelled', 'draft'].includes(invoice.status)) return false;
+    const today = new Date().toISOString().split('T')[0];
+    return invoice.due_date < today;
   };
 
   useEffect(() => {
@@ -169,16 +170,9 @@ export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListP
 
       if (error) throw error;
       
-      // Update overdue status for invoices past due date
-      const today = new Date().toISOString().split('T')[0];
-      const updatedInvoices = (data || []).map(invoice => {
-        if (invoice.due_date < today && ['sent', 'viewed'].includes(invoice.status)) {
-          return { ...invoice, status: 'overdue' };
-        }
-        return invoice;
-      });
+      // Don't modify status for overdue - it's just a visual indicator now
 
-      setInvoices(updatedInvoices);
+      setInvoices(data || []);
     } catch (error) {
       console.error('Error fetching invoices:', error);
       toast.error("Failed to load invoices");
@@ -208,13 +202,90 @@ export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListP
     fetchInvoices(); // Refresh to update status
   };
 
-  const handleManagePayment = (invoice: Invoice) => {
-    setSelectedInvoice(invoice);
-    setShowPaymentManager(true);
+  // Status change handler
+  const handleStatusChange = async (invoiceId: string, newStatus: string) => {
+    try {
+      const response = await fetch(`/api/invoices/${invoiceId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update status');
+      }
+
+      toast.success(`Invoice status updated to ${statusLabels[newStatus as keyof typeof statusLabels]}`);
+      fetchInvoices(); // Refresh list
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Failed to update invoice status');
+    }
   };
 
-  const handlePaymentLinkUpdated = () => {
-    fetchInvoices(); // Refresh to update payment link info
+  // Inline status selector component
+  const InvoiceStatusSelector = ({ invoice }: { invoice: Invoice }) => {
+    const [isChanging, setIsChanging] = useState(false);
+    
+    // Define allowed status transitions
+    const allowedTransitions: { [key: string]: string[] } = {
+      draft: ['sent', 'cancelled'],
+      sent: ['paid', 'cancelled', 'draft'],
+      paid: ['sent'], // Can reopen if needed
+      cancelled: ['draft'] // Can reactivate
+    };
+
+    const availableStatuses = allowedTransitions[invoice.status] || [];
+    
+    // If no transitions available, show as static badge
+    if (availableStatuses.length === 0) {
+      return (
+        <Badge 
+          variant="secondary" 
+          className={statusColors[invoice.status as keyof typeof statusColors]}
+        >
+          {statusLabels[invoice.status as keyof typeof statusLabels]}
+        </Badge>
+      );
+    }
+
+    return (
+      <Select 
+        value={invoice.status} 
+        onValueChange={async (newStatus) => {
+          setIsChanging(true);
+          await handleStatusChange(invoice.id, newStatus);
+          setIsChanging(false);
+        }}
+        disabled={isChanging}
+      >
+        <SelectTrigger 
+          className={`w-auto h-6 border-0 px-2 text-xs font-medium ${statusColors[invoice.status as keyof typeof statusColors]} hover:opacity-80 transition-opacity`}
+        >
+          <SelectValue>
+            {isChanging ? 'Updating...' : statusLabels[invoice.status as keyof typeof statusLabels]}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {availableStatuses.map(status => (
+            <SelectItem key={status} value={status}>
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${
+                  statusColors[status as keyof typeof statusColors].includes('red') ? 'bg-red-500' : 
+                  statusColors[status as keyof typeof statusColors].includes('green') ? 'bg-green-500' : 
+                  statusColors[status as keyof typeof statusColors].includes('blue') ? 'bg-blue-500' : 
+                  statusColors[status as keyof typeof statusColors].includes('yellow') ? 'bg-yellow-500' : 
+                  'bg-gray-500'
+                }`}></div>
+                {statusLabels[status as keyof typeof statusLabels]}
+              </div>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
   };
 
   const handleViewPDF = (invoiceId: string) => {
@@ -244,40 +315,14 @@ export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListP
     }
   };
 
-  const handleStatusChange = async (invoiceId: string, newStatus: string) => {
-    try {
-      const statusLabels = {
-        'sent': 'sent',
-        'paid': 'paid',
-        'cancelled': 'cancelled'
-      };
-
-      const { error } = await supabase
-        .from('invoice')
-        .update({ 
-          status: newStatus
-        })
-        .eq('id', invoiceId);
-
-      if (error) throw error;
-      
-      toast.success(`Invoice marked as ${statusLabels[newStatus as keyof typeof statusLabels] || newStatus}`);
-      fetchInvoices();
-    } catch (error) {
-      console.error('Error updating invoice status:', error);
-      toast.error("Failed to update invoice status");
-    }
-  };
-
   const getActionButtons = (invoice: Invoice) => {
-    const canSend = ['draft', 'viewed'].includes(invoice.status);
+    const canSend = ['draft'].includes(invoice.status);
     const canEdit = ['draft'].includes(invoice.status);
     const canDelete = ['draft', 'cancelled'].includes(invoice.status);
-    const canManagePayment = !['cancelled'].includes(invoice.status);
     const canMarkSent = ['draft'].includes(invoice.status);
-    const canMarkPaid = ['sent', 'viewed', 'overdue'].includes(invoice.status);
+    const canMarkPaid = ['sent'].includes(invoice.status);
     const canCancel = !['paid', 'cancelled'].includes(invoice.status);
-    const canMarkDraft = ['sent', 'viewed'].includes(invoice.status);
+    const canMarkDraft = ['sent'].includes(invoice.status);
     const canRecordPayment = !['cancelled'].includes(invoice.status) && getDisplayBalanceDue(invoice) > 0;
 
     return (
@@ -361,12 +406,6 @@ export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListP
               }
             />
           </DropdownMenuItem>
-          {canManagePayment && (
-            <DropdownMenuItem onClick={() => handleManagePayment(invoice)}>
-              <CreditCard className="w-4 h-4 mr-2" />
-              Payment Link
-            </DropdownMenuItem>
-          )}
           {canDelete && (
             <DropdownMenuItem 
               onClick={() => handleDeleteInvoice(invoice.id)}
@@ -416,9 +455,7 @@ export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListP
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="draft">Draft</SelectItem>
                 <SelectItem value="sent">Sent</SelectItem>
-                <SelectItem value="viewed">Viewed</SelectItem>
                 <SelectItem value="paid">Paid</SelectItem>
-                <SelectItem value="overdue">Overdue</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
@@ -482,19 +519,24 @@ export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListP
                       </TableCell>
                       <TableCell>
                         <span className={`${
-                          invoice.status === 'overdue' ? 'text-red-600 font-medium' : ''
+                          isOverdue(invoice) ? 'text-red-600 font-medium' : ''
                         }`}>
                           {format(parseLocalDate(invoice.due_date), 'MMM dd, yyyy')}
                         </span>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Badge 
-                            variant="secondary" 
-                            className={statusColors[invoice.status as keyof typeof statusColors]}
-                          >
-                            {statusLabels[invoice.status as keyof typeof statusLabels]}
-                          </Badge>
+                          <InvoiceStatusSelector invoice={invoice} />
+                          {/* Overdue indicator */}
+                          {isOverdue(invoice) && (
+                            <Badge 
+                              variant="secondary" 
+                              className="bg-red-100 text-red-800"
+                            >
+                              Overdue
+                            </Badge>
+                          )}
+                          {/* Payment status indicator */}
                           {invoice.payment_status && invoice.payment_status !== 'unpaid' && (
                             <Badge 
                               variant="secondary" 
@@ -594,18 +636,6 @@ export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListP
         />
       )}
 
-      {/* Payment Link Manager */}
-      {selectedInvoice && (
-        <PaymentLinkManager
-          open={showPaymentManager}
-          onClose={() => {
-            setShowPaymentManager(false);
-            setSelectedInvoice(null);
-          }}
-          invoice={selectedInvoice}
-          onPaymentLinkUpdated={handlePaymentLinkUpdated}
-        />
-      )}
     </Card>
   );
 }

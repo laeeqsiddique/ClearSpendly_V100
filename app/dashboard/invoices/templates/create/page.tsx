@@ -970,7 +970,7 @@ function CreateTemplateContent() {
       <div className="container mx-auto py-6">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-muted-foreground">Loading template...</p>
           </div>
         </div>
@@ -1047,6 +1047,7 @@ function CreateTemplateContent() {
                   value={settings.name}
                   onChange={(e) => setSettings(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="Enter template name"
+                  className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
                 />
               </div>
 
@@ -1058,7 +1059,7 @@ function CreateTemplateContent() {
                     <div
                       key={style.id}
                       className={`border rounded-lg p-3 cursor-pointer transition-colors ${
-                        selectedStyle === style.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                        selectedStyle === style.id ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-purple-300'
                       }`}
                       onClick={() => {
                         setSelectedStyle(style.id);
@@ -1084,10 +1085,10 @@ function CreateTemplateContent() {
                   value={settings.color_scheme} 
                   onValueChange={(value) => setSettings(prev => ({ ...prev, color_scheme: value }))}
                 >
-                  <SelectTrigger id="color-scheme">
+                  <SelectTrigger id="color-scheme" className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200">
                     <div className="flex items-center gap-2">
                       <div className={`w-4 h-4 rounded ${colorOptions.find(c => c.value === settings.color_scheme)?.sample || 'bg-blue-700'}`}></div>
-                      <SelectValue />
+                      <span>{colorOptions.find(c => c.value === settings.color_scheme)?.label || "Select a color"}</span>
                     </div>
                   </SelectTrigger>
                   <SelectContent className="max-h-80">
@@ -1180,7 +1181,7 @@ function CreateTemplateContent() {
                   value={settings.font_family || 'font-sans'} 
                   onValueChange={(value) => setSettings(prev => ({ ...prev, font_family: value }))}
                 >
-                  <SelectTrigger id="font-family">
+                  <SelectTrigger id="font-family" className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="max-h-80">
@@ -1272,7 +1273,7 @@ function CreateTemplateContent() {
                         type="button" 
                         variant="outline" 
                         disabled={uploadingLogo}
-                        className="w-full"
+                        className="w-full border-2 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300"
                       >
                         <Upload className="h-4 w-4 mr-2" />
                         {uploadingLogo ? "Uploading..." : settings.logo_url ? "Replace Logo" : "Choose File"}
@@ -1293,7 +1294,7 @@ function CreateTemplateContent() {
                             setSettings(prev => ({ ...prev, logo_position: value }))
                           }
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -1314,7 +1315,7 @@ function CreateTemplateContent() {
                             setSettings(prev => ({ ...prev, logo_size: value }))
                           }
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -1343,6 +1344,7 @@ function CreateTemplateContent() {
                     id="company-name"
                     value={settings.company_name}
                     onChange={(e) => setSettings(prev => ({ ...prev, company_name: e.target.value }))}
+                    className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
                   />
                 </div>
 
@@ -1352,7 +1354,7 @@ function CreateTemplateContent() {
                     id="company-address"
                     value={settings.company_address}
                     onChange={(e) => setSettings(prev => ({ ...prev, company_address: e.target.value }))}
-                    className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex min-h-[80px] w-full rounded-md border-2 border-purple-200 bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                     placeholder="Enter company address..."
                   />
                 </div>
@@ -1364,6 +1366,7 @@ function CreateTemplateContent() {
                       id="company-phone"
                       value={settings.company_phone}
                       onChange={(e) => setSettings(prev => ({ ...prev, company_phone: e.target.value }))}
+                      className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
                     />
                   </div>
                   <div className="space-y-2">
@@ -1372,6 +1375,7 @@ function CreateTemplateContent() {
                       id="company-email"
                       value={settings.company_email}
                       onChange={(e) => setSettings(prev => ({ ...prev, company_email: e.target.value }))}
+                      className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
                     />
                   </div>
                 </div>
@@ -1390,6 +1394,7 @@ function CreateTemplateContent() {
                       id="invoice-prefix"
                       value={settings.invoice_prefix}
                       onChange={(e) => setSettings(prev => ({ ...prev, invoice_prefix: e.target.value }))}
+                      className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
                     />
                   </div>
                   <div className="space-y-2">
@@ -1399,6 +1404,7 @@ function CreateTemplateContent() {
                       type="number"
                       value={settings.next_invoice_number}
                       onChange={(e) => setSettings(prev => ({ ...prev, next_invoice_number: parseInt(e.target.value) || 1 }))}
+                      className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
                     />
                   </div>
                 </div>
@@ -1406,7 +1412,7 @@ function CreateTemplateContent() {
                 <div className="space-y-2">
                   <Label htmlFor="payment-terms">Payment Terms</Label>
                   <Select value={settings.default_payment_terms} onValueChange={(value) => setSettings(prev => ({ ...prev, default_payment_terms: value }))}>
-                    <SelectTrigger>
+                    <SelectTrigger className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1426,6 +1432,7 @@ function CreateTemplateContent() {
                     value={settings.default_notes}
                     onChange={(e) => setSettings(prev => ({ ...prev, default_notes: e.target.value }))}
                     placeholder="Thank you for your business!"
+                    className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
                   />
                 </div>
               </div>
@@ -1452,7 +1459,7 @@ function CreateTemplateContent() {
                 </div>
                 
                 {settings.show_tax && (
-                  <div className="space-y-4 pl-4 border-l-2 border-blue-100">
+                  <div className="space-y-4 pl-4 border-l-2 border-purple-100">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="tax-rate">Tax Rate (%)</Label>
@@ -1471,6 +1478,7 @@ function CreateTemplateContent() {
                             }));
                           }}
                           placeholder="8.5"
+                          className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
                         />
                       </div>
                       <div className="space-y-2">
@@ -1480,6 +1488,7 @@ function CreateTemplateContent() {
                           value={settings.tax_label}
                           onChange={(e) => setSettings(prev => ({ ...prev, tax_label: e.target.value }))}
                           placeholder="Tax"
+                          className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
                         />
                       </div>
                     </div>

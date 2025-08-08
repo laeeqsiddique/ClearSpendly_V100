@@ -147,6 +147,27 @@ if (!dev) {
   });
 }
 
+// Initialize subscription cron job for Railway deployment
+if (!dev && process.env.RAILWAY_ENVIRONMENT) {
+  console.log('> Initializing subscription cron job for Railway...');
+  try {
+    // Use dynamic import to handle ES modules in CommonJS
+    import('./lib/cron/subscription-processor.js')
+      .then(({ startSubscriptionCron }) => {
+        startSubscriptionCron();
+        console.log('> Subscription cron job initialized successfully');
+        console.log('> Cron schedule: Daily at 6:00 AM');
+      })
+      .catch((error) => {
+        console.error('> Failed to initialize subscription cron job:', error);
+        console.log('> Subscription processing will only be available via manual API calls');
+      });
+  } catch (error) {
+    console.error('> Error importing subscription cron module:', error);
+    console.log('> Subscription processing will only be available via manual API calls');
+  }
+}
+
 // Start the server
 console.log('Starting ClearSpendly server...');
 startServer();

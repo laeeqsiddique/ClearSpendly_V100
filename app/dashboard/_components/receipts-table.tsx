@@ -62,7 +62,8 @@ import {
   Edit3,
   Save,
   Image as ImageIcon,
-  ExternalLink
+  ExternalLink,
+  Repeat
 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -102,6 +103,7 @@ interface Receipt {
   receipt_type?: 'scanned' | 'manual' | 'imported';
   manual_entry_reason?: string;
   business_purpose?: string;
+  source_subscription_id?: string;
 }
 
 interface ReceiptData {
@@ -123,6 +125,7 @@ interface ReceiptData {
   receipt_type?: 'scanned' | 'manual' | 'imported';
   manual_entry_reason?: string;
   business_purpose?: string;
+  source_subscription_id?: string;
   vendor: {
     id: string;
     name: string;
@@ -208,6 +211,12 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
   const [exporting, setExporting] = useState(false);
   const [searching, setSearching] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
+  
+  // Pagination states
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [currentLimit, setCurrentLimit] = useState(20); // Start with 20 items
+  const [totalCount, setTotalCount] = useState<number | null>(null);
   
   // Team context for user filtering
   const isDevelopment = process.env.NODE_ENV === 'development';
@@ -307,8 +316,12 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
   }, []);
 
   // Search function
-  const searchReceipts = async (query: string, tagIds?: string[], tagCategoryId?: string, limit: number = 10) => {
-    setSearching(true);
+  const searchReceipts = async (query: string, tagIds?: string[], tagCategoryId?: string, limit: number = 20, append: boolean = false) => {
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setSearching(true);
+    }
     try {
       const params = new URLSearchParams();
       if (query) params.append('q', query);
@@ -339,7 +352,8 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
           items: receipt.lineItems?.length || 0,
           receipt_type: receipt.receipt_type || 'scanned',
           manual_entry_reason: receipt.manual_entry_reason,
-          business_purpose: receipt.business_purpose
+          business_purpose: receipt.business_purpose,
+          source_subscription_id: receipt.source_subscription_id
         })) || [];
         
         // Calculate stats
@@ -347,19 +361,33 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
         const totalReceipts = transformedReceipts.length;
         const uniqueVendors = new Set(transformedReceipts.map((r: any) => r.vendor)).size;
         
-        setReceipts(transformedReceipts);
+        if (append) {
+          setReceipts(prev => [...prev, ...transformedReceipts]);
+          setRawReceiptData(prev => [...prev, ...(result.data || [])]);
+        } else {
+          setReceipts(transformedReceipts);
+          setRawReceiptData(result.data || []);
+        }
+        
         setStats({
-          totalAmount,
-          totalReceipts,
-          uniqueVendors
+          totalAmount: append ? stats.totalAmount + totalAmount : totalAmount,
+          totalReceipts: append ? stats.totalReceipts + totalReceipts : totalReceipts,
+          uniqueVendors: append ? new Set([...receipts.map(r => r.vendor), ...transformedReceipts.map((r: any) => r.vendor)]).size : uniqueVendors
         });
+        
+        // Update pagination state
+        setHasMore(transformedReceipts.length === limit);
         setError(null);
       }
     } catch (error) {
       console.error('Search failed:', error);
       setError('Failed to load receipts');
     } finally {
-      setSearching(false);
+      if (append) {
+        setLoadingMore(false);
+      } else {
+        setSearching(false);
+      }
     }
   };
 
@@ -373,20 +401,35 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
 
   const fetchRecentReceipts = async () => {
     setLoading(true);
-    await searchReceipts("", [], "all", 10);
+    setCurrentLimit(20);
+    setHasMore(true);
+    await searchReceipts("", [], "all", 20);
     setLoading(false);
+  };
+  
+  // Load more function
+  const loadMoreReceipts = async () => {
+    if (!hasMore || loadingMore) return;
+    
+    const newLimit = currentLimit + 20;
+    setCurrentLimit(newLimit);
+    await searchReceipts(searchQuery, selectedTagIds, selectedTagCategory, newLimit, true);
   };
 
   // Search when filters change
   useEffect(() => {
     if (!loading) {
-      debouncedSearch(searchQuery, selectedTagIds, selectedTagCategory, 10);
+      setCurrentLimit(20);
+      setHasMore(true);
+      debouncedSearch(searchQuery, selectedTagIds, selectedTagCategory, 20);
     }
   }, [searchQuery, selectedTagIds, selectedTagCategory, debouncedSearch, loading]);
   
   // Update when external date range changes
   useEffect(() => {
-    debouncedSearch(searchQuery, selectedTagIds, selectedTagCategory, 10);
+    setCurrentLimit(20);
+    setHasMore(true);
+    debouncedSearch(searchQuery, selectedTagIds, selectedTagCategory, 20);
   }, [globalStartDate, globalEndDate, debouncedSearch, searchQuery, selectedTagIds, selectedTagCategory, showMyDataOnly]);
 
   // Edit functions
@@ -580,7 +623,9 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
         setShowDeleteModal(false);
         setDeletingReceiptId(null);
         // Refresh the receipts list
-        debouncedSearch(searchQuery, selectedTagIds, selectedTagCategory, 10);
+        setCurrentLimit(20);
+        setHasMore(true);
+        debouncedSearch(searchQuery, selectedTagIds, selectedTagCategory, 20);
       } else {
         const error = await response.json();
         toast.error(error.message || "Failed to delete entry");
@@ -678,7 +723,9 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
         toast.success('Receipt updated successfully');
         setShowEditModal(false);
         // Refresh the receipts list
-        debouncedSearch(searchQuery, selectedTagIds, selectedTagCategory, 10);
+        setCurrentLimit(20);
+        setHasMore(true);
+        debouncedSearch(searchQuery, selectedTagIds, selectedTagCategory, 20);
       } else {
         toast.error('Failed to update receipt');
       }
@@ -1213,8 +1260,8 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                       </div>
                     )}
                     
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <div className="flex items-center gap-2 text-xs text-blue-800">
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                      <div className="flex items-center gap-2 text-xs text-purple-800">
                         <GripVertical className="h-3 w-3" />
                         <span className="font-medium">Pro Tip:</span>
                         <span>Drag to reorder, hover to remove columns, or add columns from the available list above.</span>
@@ -1283,8 +1330,8 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
         <div className="px-6 pb-4 border-b">
           <div className="space-y-4">
             {/* Info about global date filter */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <p className="text-xs text-blue-800">
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+              <p className="text-xs text-purple-800">
                 <span className="font-medium">Date Range:</span> Controlled by the date filter above. Use the filters below to refine by content and tags.
               </p>
             </div>
@@ -1579,18 +1626,23 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                       key={receipt.id} 
                       className={cn(
                         "hover:bg-muted/50 transition-colors",
-                        receipt.receipt_type === 'manual' && "bg-gradient-to-r from-purple-50 to-blue-50 border-l-4 border-l-purple-400"
+                        receipt.receipt_type === 'manual' && "bg-gradient-to-r from-purple-50 to-blue-50 border-l-4 border-l-purple-400",
+                        receipt.source_subscription_id && "bg-gradient-to-r from-green-50 to-teal-50 border-l-4 border-l-green-400"
                       )}
                     >
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           <div className={cn(
                             "w-10 h-10 rounded-full flex items-center justify-center shadow-sm",
-                            receipt.receipt_type === 'manual' 
-                              ? "bg-gradient-to-r from-purple-500 to-blue-500" 
-                              : "bg-gradient-to-r from-purple-100 to-blue-100"
+                            receipt.source_subscription_id
+                              ? "bg-gradient-to-r from-green-500 to-teal-500"
+                              : receipt.receipt_type === 'manual' 
+                                ? "bg-gradient-to-r from-purple-500 to-blue-500" 
+                                : "bg-gradient-to-r from-purple-100 to-blue-100"
                           )}>
-                            {receipt.receipt_type === 'manual' ? (
+                            {receipt.source_subscription_id ? (
+                              <Repeat className="h-5 w-5 text-white" />
+                            ) : receipt.receipt_type === 'manual' ? (
                               <PenTool className="h-5 w-5 text-white" />
                             ) : (
                               <Store className="h-4 w-4 text-purple-600" />
@@ -1598,6 +1650,16 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                           </div>
                           <div className="flex flex-col">
                             <span>{receipt.vendor}</span>
+                            {receipt.source_subscription_id && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-200">
+                                  Subscription
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  • Auto-generated
+                                </span>
+                              </div>
+                            )}
                             {receipt.receipt_type === 'manual' && receipt.manual_entry_reason && (
                               <div className="flex items-center gap-1 mt-1">
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200">
@@ -1706,7 +1768,14 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                       )}
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          {receipt.receipt_type === 'manual' ? (
+                          {receipt.source_subscription_id ? (
+                            <>
+                              <div className="w-6 h-6 rounded-full bg-gradient-to-r from-green-500 to-teal-500 flex items-center justify-center">
+                                <Repeat className="h-3 w-3 text-white" />
+                              </div>
+                              <span className="text-sm font-medium text-green-700">Subscription</span>
+                            </>
+                          ) : receipt.receipt_type === 'manual' ? (
                             <>
                               <div className="w-6 h-6 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center">
                                 <PenTool className="h-3 w-3 text-white" />
@@ -1729,7 +1798,11 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                         </span>
                       </TableCell>
                       <TableCell>
-                        {receipt.receipt_type === 'manual' ? (
+                        {receipt.source_subscription_id ? (
+                          <Badge className="text-xs bg-gradient-to-r from-green-500 to-teal-500 text-white border-0 shadow-sm">
+                            Subscription Auto
+                          </Badge>
+                        ) : receipt.receipt_type === 'manual' ? (
                           <Badge className="text-xs bg-gradient-to-r from-purple-500 to-blue-500 text-white border-0 shadow-sm">
                             Manual Entry
                           </Badge>
@@ -1749,10 +1822,10 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                               variant="ghost"
                               size="sm"
                               onClick={() => handleViewImage(receipt.id)}
-                              className="h-8 w-8 p-0 hover:bg-blue-50"
+                              className="h-8 w-8 p-0 hover:bg-purple-50"
                               title="View Image"
                             >
-                              <ImageIcon className="h-4 w-4 text-blue-600" />
+                              <ImageIcon className="h-4 w-4 text-purple-600" />
                             </Button>
                           )}
                           <Button
@@ -1779,6 +1852,40 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                   ))}
                 </TableBody>
               </Table>
+              
+              {/* Load More Button */}
+              {hasMore && receipts.length > 0 && (
+                <div className="flex justify-center py-6 border-t">
+                  <Button 
+                    onClick={loadMoreReceipts}
+                    disabled={loadingMore}
+                    variant="outline"
+                    className="border-purple-200 hover:bg-purple-50"
+                  >
+                    {loadingMore ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Loading more...
+                      </>
+                    ) : (
+                      <>
+                        <ArrowUpRight className="h-4 w-4 mr-2" />
+                        Load More ({totalCount ? `${receipts.length} of ${totalCount}` : 'Show more'})
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+              
+              {/* Results info */}
+              {receipts.length > 0 && (
+                <div className="text-center text-sm text-muted-foreground py-2 border-t">
+                  {hasMore 
+                    ? `Showing ${receipts.length} receipts${totalCount ? ` of ${totalCount}` : ''}` 
+                    : `All ${receipts.length} receipts loaded`
+                  }
+                </div>
+              )}
             </div>
           </>
         )}
@@ -2053,8 +2160,17 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
             <DialogDescription>
               {(() => {
                 const receipt = receipts.find(r => r.id === deletingReceiptId);
-                const entryType = receipt?.receipt_type === 'manual' ? 'expense' : 'receipt';
-                return `Are you sure you want to delete this ${entryType}? This action cannot be undone.`;
+                let entryType = 'receipt';
+                let warning = 'This action cannot be undone.';
+                
+                if (receipt?.source_subscription_id) {
+                  entryType = 'subscription expense';
+                  warning = 'This expense was auto-generated from a subscription. Deleting it may cause issues with subscription tracking.';
+                } else if (receipt?.receipt_type === 'manual') {
+                  entryType = 'expense';
+                }
+                
+                return `Are you sure you want to delete this ${entryType}? ${warning}`;
               })()}
             </DialogDescription>
           </DialogHeader>
@@ -2066,9 +2182,16 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
             return (
               <div className="bg-gray-50 rounded-lg p-4 my-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-100 to-blue-100 flex items-center justify-center">
-                    {receipt.receipt_type === 'manual' ? (
-                      <PenTool className="h-5 w-5 text-blue-600" />
+                  <div className={cn(
+                    "w-10 h-10 rounded-full flex items-center justify-center",
+                    receipt.source_subscription_id
+                      ? "bg-gradient-to-r from-green-100 to-teal-100"
+                      : "bg-gradient-to-r from-purple-100 to-blue-100"
+                  )}>
+                    {receipt.source_subscription_id ? (
+                      <Repeat className="h-5 w-5 text-green-600" />
+                    ) : receipt.receipt_type === 'manual' ? (
+                      <PenTool className="h-5 w-5 text-purple-600" />
                     ) : (
                       <Store className="h-5 w-5 text-purple-600" />
                     )}
@@ -2092,8 +2215,13 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                         return new Date(dateStr).toLocaleDateString();
                       })()} • ${receipt.amount.toFixed(2)}
                     </div>
+                    {receipt.source_subscription_id && (
+                      <div className="text-xs text-green-600 mt-1">
+                        Subscription: Auto-generated expense
+                      </div>
+                    )}
                     {receipt.receipt_type === 'manual' && receipt.manual_entry_reason && (
-                      <div className="text-xs text-blue-600 mt-1">
+                      <div className="text-xs text-purple-600 mt-1">
                         Manual: {receipt.manual_entry_reason.replace(/_/g, ' ')}
                       </div>
                     )}

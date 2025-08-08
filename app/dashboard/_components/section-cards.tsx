@@ -1,6 +1,7 @@
 "use client";
 
 import { IconTrendingDown, IconTrendingUp, IconAlertTriangle, IconReceipt, IconBuilding, IconCreditCard } from "@tabler/icons-react";
+import { RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,9 @@ interface DashboardStats {
   receiptsNeedReview: number;
   topVendors: Array<{ name: string; count: number }>;
   previousPeriodTotal: number;
+  // Subscription fields
+  subscriptionMonthly: number;
+  activeSubscriptions: number;
 }
 
 async function fetchDashboardStats(startDate?: string, endDate?: string): Promise<DashboardStats> {
@@ -102,11 +106,26 @@ interface SectionCardsProps {
 export function SectionCards({ startDate, endDate }: SectionCardsProps = {}) {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [subscriptionData, setSubscriptionData] = useState<{ total_monthly: number; active_count: number } | null>(null);
 
   useEffect(() => {
+    // Fetch dashboard stats
     fetchDashboardStats(startDate, endDate)
       .then(setStats)
       .finally(() => setLoading(false));
+    
+    // Fetch subscription data
+    fetch('/api/subscriptions?status=active')
+      .then(res => res.json())
+      .then(data => {
+        if (data.summary) {
+          setSubscriptionData({
+            total_monthly: data.summary.total_monthly,
+            active_count: data.summary.active_count
+          });
+        }
+      })
+      .catch(err => console.error('Failed to fetch subscriptions:', err));
   }, [startDate, endDate]);
 
   if (loading) {
@@ -127,7 +146,7 @@ export function SectionCards({ startDate, endDate }: SectionCardsProps = {}) {
   if (!stats) return null;
 
   return (
-    <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-2 @4xl/main:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-2 @4xl/main:grid-cols-4">
       <Card className="@container/card bg-white/80 backdrop-blur-sm border-0 shadow-lg">
         <CardHeader>
           <CardDescription className="flex items-center gap-2">
@@ -222,6 +241,30 @@ export function SectionCards({ startDate, endDate }: SectionCardsProps = {}) {
             {stats.uniqueVendorsChange > 0 ? `${Math.abs(stats.uniqueVendorsChange)} new` : 
              stats.uniqueVendorsChange < 0 ? `${Math.abs(stats.uniqueVendorsChange)} fewer` : 
              'Same as last period'} vendors
+          </div>
+        </CardFooter>
+      </Card>
+      <Card className="@container/card bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+        <CardHeader>
+          <CardDescription className="flex items-center gap-2">
+            <RefreshCw className="h-4 w-4 text-blue-500" />
+            Monthly Subscriptions
+          </CardDescription>
+          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl bg-gradient-to-r from-blue-500 to-cyan-500 bg-clip-text text-transparent">
+            ${subscriptionData?.total_monthly.toFixed(2) || '0.00'}
+          </CardTitle>
+          <CardAction>
+            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+              {subscriptionData?.active_count || 0} active
+            </Badge>
+          </CardAction>
+        </CardHeader>
+        <CardFooter className="flex-col items-start gap-1.5 text-sm">
+          <div className="line-clamp-1 flex gap-2 font-medium">
+            Recurring services
+          </div>
+          <div className="text-muted-foreground">
+            ${(subscriptionData?.total_monthly * 12 || 0).toFixed(2)} yearly total
           </div>
         </CardFooter>
       </Card>

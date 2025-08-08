@@ -53,7 +53,8 @@ export async function GET(req: NextRequest) {
           receipt_type,
           manual_entry_reason,
           business_purpose,
-          vendor!inner(
+          source_subscription_id,
+          vendor(
             id,
             name,
             category
@@ -89,7 +90,8 @@ export async function GET(req: NextRequest) {
           receipt_type,
           manual_entry_reason,
           business_purpose,
-          vendor!inner(
+          source_subscription_id,
+          vendor(
             id,
             name,
             category

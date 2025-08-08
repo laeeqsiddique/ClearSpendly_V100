@@ -24,7 +24,10 @@ interface InvoiceEmailData {
 }
 
 export const invoiceEmailTemplates = {
-  newInvoice: (data: InvoiceEmailData) => ({
+  newInvoice: (data: InvoiceEmailData) => {
+    console.log('🚨 EMAIL TEMPLATE CALLED - newInvoice');
+    console.log('🚨 TEMPLATE DATA:', { business: data.business, paypal_me_link: data.business?.paypal_me_link });
+    return {
     subject: `Invoice ${data.invoice_number} from ${data.business.name}`,
     html: `
       <!DOCTYPE html>
@@ -312,7 +315,25 @@ export const invoiceEmailTemplates = {
               ` : ''}
 
               <!-- Payment Options Section -->
-              ${data.payment_link || data.business.paypal_email || data.business.paypal_me_link ? `
+              ${(() => {
+                const hasPaymentLink = !!data.payment_link;
+                const hasPaypalEmail = !!data.business?.paypal_email;
+                const hasPaypalMeLink = !!data.business?.paypal_me_link;
+                const showPaymentSection = hasPaymentLink || hasPaypalEmail || hasPaypalMeLink;
+                
+                console.log('Email Template - Payment Section Debug:', {
+                  hasPaymentLink,
+                  hasPaypalEmail,
+                  hasPaypalMeLink,
+                  showPaymentSection,
+                  paymentLink: data.payment_link,
+                  paypalEmail: data.business?.paypal_email,
+                  paypalMeLink: data.business?.paypal_me_link,
+                  businessData: !!data.business
+                });
+                
+                return showPaymentSection;
+              })() ? `
                 <div class="cta-section">
                   <h3 style="color: #1a1a1a; margin-bottom: 16px; font-size: 18px;">💳 Payment Options</h3>
                   
@@ -326,7 +347,7 @@ export const invoiceEmailTemplates = {
                   ` : ''}
                   
                   ${data.business.paypal_me_link ? `
-                    <a href="https://paypal.me/${data.business.paypal_me_link.replace(/^https?:\/\/(www\.)?paypal\.me\//, '')}/${data.total_amount.toFixed(2)}" class="cta-button" style="background: #0070ba; margin-bottom: 12px;">
+                    <a href="https://paypal.me/${data.business.paypal_me_link.replace(/^[@]/, '').replace(/^https?:\/\/(www\.)?paypal\.me\//, '')}/${data.total_amount.toFixed(2)}" class="cta-button" style="background: #0070ba; margin-bottom: 12px;">
                       💰 Pay $${data.total_amount.toFixed(2)} via PayPal
                     </a>
                     <div class="security-note" style="margin-bottom: 20px;">
@@ -396,7 +417,8 @@ If you have any questions, please contact us at ${data.business.email}.
 Best regards,
 ${data.business.name}
     `
-  }),
+    };
+  },
 
   paymentReminder: (data: InvoiceEmailData, daysOverdue: number) => ({
     subject: `Friendly Reminder: Invoice ${data.invoice_number} is ${daysOverdue} days overdue`,
@@ -751,7 +773,7 @@ ${data.business.name}
                   ` : ''}
                   
                   ${data.business.paypal_me_link ? `
-                    <a href="https://paypal.me/${data.business.paypal_me_link.replace(/^https?:\/\/(www\.)?paypal\.me\//, '')}/${data.total_amount.toFixed(2)}" class="cta-button" style="background: #0070ba; margin-bottom: 12px;">
+                    <a href="https://paypal.me/${data.business.paypal_me_link.replace(/^[@]/, '').replace(/^https?:\/\/(www\.)?paypal\.me\//, '')}/${data.total_amount.toFixed(2)}" class="cta-button" style="background: #0070ba; margin-bottom: 12px;">
                       💰 Pay $${data.total_amount.toFixed(2)} via PayPal
                     </a>
                     <div style="color: #6b7280; font-size: 14px; margin-bottom: 20px;">
@@ -821,7 +843,7 @@ To avoid any service interruption or late fees, please process this payment at y
 
 Payment Options:
 ${data.payment_link ? `• Pay with Card: ${data.payment_link}` : ''}
-${data.business.paypal_me_link ? `• PayPal: https://paypal.me/${data.business.paypal_me_link.replace(/^https?:\/\/(www\.)?paypal\.me\//, '')}/${data.total_amount.toFixed(2)}` : ''}
+${data.business.paypal_me_link ? `• PayPal: https://paypal.me/${data.business.paypal_me_link.replace(/^[@]/, '').replace(/^https?:\/\/(www\.)?paypal\.me\//, '')}/${data.total_amount.toFixed(2)}` : ''}
 ${data.business.paypal_email ? `• Send PayPal payment to: ${data.business.paypal_email} (Reference: Invoice ${data.invoice_number})` : ''}
 ${data.business.payment_instructions ? `\nPayment Instructions:\n${data.business.payment_instructions}` : ''}
 

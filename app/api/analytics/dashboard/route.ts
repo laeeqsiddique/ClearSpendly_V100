@@ -135,81 +135,52 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 5) || [];
 
-    // Fetch monthly revenue data for chart (last 6 months)
-    const sixMonthsAgo = format(subMonths(new Date(fromDate), 6), 'yyyy-MM-dd');
-    let monthlyRevenue = null;
+    // Simple monthly revenue data for last 3 months
+    const threeMonthsAgo = format(subMonths(new Date(), 3), 'yyyy-MM-dd');
+    const monthlyRevenue = [];
     
-    try {
-      const { data, error: revenueError } = await supabase
-        .rpc('get_monthly_revenue', {
-          p_tenant_id: tenant_id,
-          p_start_date: sixMonthsAgo,
-          p_end_date: toDate
-        });
-
-      if (revenueError) {
-        console.error('Revenue query error:', revenueError);
-        // Fallback to basic query if function doesn't exist
-        monthlyRevenue = [];
-      } else {
-        monthlyRevenue = data;
-      }
-    } catch (error) {
-      console.error('Revenue function error:', error);
-      monthlyRevenue = [];
-    }
-
-    // Fetch expense breakdown using the database function
-    let expensesByCategory = {};
-    
-    try {
-      const { data: expenseBreakdown, error: expenseError } = await supabase
-        .rpc('get_expense_breakdown', {
-          p_tenant_id: tenant_id,
-          p_start_date: fromDate,
-          p_end_date: toDate
-        });
-
-      if (expenseError) {
-        console.error('Expense query error:', expenseError);
-        // Fallback to direct receipt query if function fails
-        const { data: receipts } = await supabase
-          .from('receipt')
-          .select('category, total_amount')
-              .gte('receipt_date', fromDate)
-          .lte('receipt_date', toDate);
-        
-        if (receipts && receipts.length > 0) {
-          expensesByCategory = receipts.reduce((acc: any, receipt) => {
-            const category = receipt.category || 'Uncategorized';
-            acc[category] = (acc[category] || 0) + (receipt.total_amount || 0);
-            return acc;
-          }, {});
-        }
-      } else {
-        // Convert to expected format
-        expensesByCategory = expenseBreakdown?.reduce((acc: any, item) => {
-          acc[item.category] = item.total_amount;
-          return acc;
-        }, {}) || {};
-      }
-    } catch (error) {
-      console.error('Expense function error:', error);
-      // Fallback to direct receipt query
-      const { data: receipts } = await supabase
-        .from('receipt')
-        .select('category, total_amount')
-          .gte('receipt_date', fromDate)
-        .lte('receipt_date', toDate);
+    // Create simple monthly data for last 3 months
+    for (let i = 2; i >= 0; i--) {
+      const monthStart = format(subMonths(startOfMonth(new Date()), i), 'yyyy-MM-dd');
+      const monthEnd = format(endOfMonth(subMonths(new Date(), i)), 'yyyy-MM-dd');
+      const monthLabel = format(subMonths(new Date(), i), 'yyyy-MM');
       
-      if (receipts && receipts.length > 0) {
-        expensesByCategory = receipts.reduce((acc: any, receipt) => {
-          const category = receipt.category || 'Uncategorized';
-          acc[category] = (acc[category] || 0) + (receipt.total_amount || 0);
-          return acc;
-        }, {});
-      }
+      // Get payments for this month
+      const { data: monthPayments } = await supabase
+        .from('payment')
+        .select('amount')
+        .gte('payment_date', monthStart)
+        .lte('payment_date', monthEnd);
+      
+      // Get expenses for this month  
+      const { data: monthExpenses } = await supabase
+        .from('receipt')
+        .select('total_amount')
+        .gte('receipt_date', monthStart)
+        .lte('receipt_date', monthEnd);
+      
+      const monthIncome = monthPayments?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
+      const monthExpenseTotal = monthExpenses?.reduce((sum, e) => sum + (e.total_amount || 0), 0) || 0;
+      
+      monthlyRevenue.push({
+        month: monthLabel,
+        revenue: monthIncome,
+        expenses: monthExpenseTotal
+      });
     }
+
+    // Fetch expense breakdown with direct query (RLS handles tenant filtering)
+    const { data: receipts } = await supabase
+      .from('receipt')
+      .select('category, total_amount')
+      .gte('receipt_date', fromDate)
+      .lte('receipt_date', toDate);
+    
+    const expensesByCategory = receipts?.reduce((acc: any, receipt) => {
+      const category = receipt.category || 'Uncategorized';
+      acc[category] = (acc[category] || 0) + (receipt.total_amount || 0);
+      return acc;
+    }, {}) || {};
 
     // Quick actions data
     const { data: overdueInvoices } = await supabase
@@ -259,13 +230,83 @@ export async function GET(request: NextRequest) {
       taxDeductible: currentExpensesTotal * 0.7, // Rough estimate
     };
 
+    // Simple expense breakdown for new components
+    const expenseBreakdown = {
+      categories: Object.entries(expensesByCategory).map(([category, amount]) => ({
+        category,
+        amount: Number(amount),
+        count: currentExpenses?.filter(e => (e.category || 'Uncategorized') === category).length || 0
+      })),
+      totalExpenses: currentExpensesTotal
+    };
+
+    // Cash flow data
+    const cashFlowData = {
+      monthlyData: monthlyRevenue?.map((month: any) => ({
+        month: new Date(month.month + '-01').toLocaleDateString('en-US', { month: 'short' }),
+        income: month.revenue || 0,
+        expenses: month.expenses || 0,
+        profit: (month.revenue || 0) - (month.expenses || 0)
+      })) || [],
+      currentMonth: {
+        income: currentRevenueTotal,
+        expenses: currentExpensesTotal,
+        profit: currentProfit
+      }
+    };
+
+    // Unpaid invoices data
+    const { data: unpaidInvoicesData } = await supabase
+      .from('invoice')
+      .select(`
+        id,
+        invoice_number,
+        client:client(name),
+        total_amount,
+        balance_due,
+        issue_date,
+        status,
+        due_date
+      `)
+      .gt('balance_due', 0)
+      .order('issue_date', { ascending: false })
+      .limit(10);
+
+    const unpaidInvoices = {
+      unpaidInvoices: unpaidInvoicesData?.map(invoice => {
+        const dueDate = new Date(invoice.due_date || invoice.issue_date);
+        const today = new Date();
+        const daysOverdue = Math.max(0, Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)));
+        
+        return {
+          id: invoice.invoice_number || invoice.id, // Use invoice_number if available, fallback to id
+          clientName: invoice.client?.name || 'Unknown Client',
+          amount: invoice.balance_due || 0,
+          daysOverdue,
+          issueDate: new Date(invoice.issue_date).toLocaleDateString(),
+          status: daysOverdue > 0 ? 'overdue' : invoice.status || 'sent'
+        };
+      }) || [],
+      totalUnpaid: outstandingTotal,
+      overdueAmount: unpaidInvoicesData?.reduce((sum, inv) => {
+        const dueDate = new Date(inv.due_date || inv.issue_date);
+        const today = new Date();
+        const isOverdue = today > dueDate;
+        return sum + (isOverdue ? (inv.balance_due || 0) : 0);
+      }, 0) || 0
+    };
+
     return NextResponse.json({
       heroMetrics,
       quickActions,
       topClients: processedClients,
       clientData: processedClients,
-      revenueData: monthlyRevenue || [],
+      revenueData: monthlyRevenue,
       expenseData: expensesByCategory || {},
+      // New simple component data
+      expenseBreakdown,
+      cashFlowData,
+      unpaidInvoices,
       dateRange: { from: fromDate, to: toDate }
     });
 

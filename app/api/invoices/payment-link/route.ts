@@ -3,9 +3,11 @@ import { createClient } from '@/lib/supabase/server';
 import { stripeService } from '@/lib/stripe-service';
 import { paypalService } from '@/lib/paypal-service';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser();

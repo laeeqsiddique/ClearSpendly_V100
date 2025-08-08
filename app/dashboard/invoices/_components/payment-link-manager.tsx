@@ -173,7 +173,7 @@ export function PaymentLinkManager({ open, onClose, invoice, onPaymentLinkUpdate
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="border-b pb-4">
           <DialogTitle className="flex items-center gap-2">
             <CreditCard className="w-5 h-5" />

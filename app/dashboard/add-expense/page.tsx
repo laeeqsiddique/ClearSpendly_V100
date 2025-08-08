@@ -151,7 +151,6 @@ export default function AddExpensePage() {
   const [businessPurpose, setBusinessPurpose] = useState("");
   const [manualEntryReason, setManualEntryReason] = useState("");
   const [notes, setNotes] = useState("");
-  const [recurring, setRecurring] = useState(false);
 
   const applyTemplate = (templateId: string) => {
     const template = EXPENSE_TEMPLATES.find(t => t.id === templateId);
@@ -209,7 +208,6 @@ export default function AddExpensePage() {
           business_purpose: businessPurpose,
           manual_entry_reason: manualEntryReason,
           notes,
-          recurring,
           // These fields are required by the receipt table but not applicable for manual entries
           original_file_url: null,
           ocr_status: "completed",
@@ -232,61 +230,35 @@ export default function AddExpensePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 relative overflow-hidden">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-purple-400/20 to-blue-400/20 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-blue-400/20 to-purple-400/20 rounded-full blur-3xl"></div>
-      </div>
-      <div className="container mx-auto px-4 py-8 max-w-4xl relative z-10">
-        <div className="space-y-8">
+    <section className="flex flex-col items-start justify-start p-6 w-full bg-gradient-to-br from-purple-50 via-white to-blue-50 min-h-screen">
+      <div className="w-full max-w-7xl mx-auto">
+        <div className="flex flex-col gap-6">
           {/* Header */}
-          <div className="flex flex-col gap-4">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              asChild 
-              className="w-fit hover:bg-purple-50"
-            >
-              <Link href="/dashboard">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Dashboard
-              </Link>
-            </Button>
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 mb-6 shadow-lg">
-                <FileText className="h-10 w-10 text-white" />
-              </div>
-              <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-3">
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+            <div className="flex flex-col items-start justify-center gap-2">
+              <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                 Add Manual Expense
               </h1>
-              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                Record business expenses when you don't have a receipt. Perfect for parking, tips, tolls, and small cash purchases.
+              <p className="text-muted-foreground">
+                Record business expenses when you don't have a receipt
               </p>
             </div>
           </div>
 
-          {/* IRS Notice */}
-          <Alert className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-md">
-            <AlertCircle className="h-5 w-5 text-blue-600" />
-            <AlertDescription className="text-blue-800 font-medium">
-              <strong className="text-blue-900">IRS Notice:</strong> Keep supporting documentation (bank statements, emails, etc.) for all manual entries. 
-              Expenses over $75 require additional proof for meals and entertainment.
+          {/* Documentation Tip */}
+          <Alert className="bg-white/80 backdrop-blur-sm border-purple-200">
+            <AlertCircle className="h-4 w-4 text-purple-600" />
+            <AlertDescription>
+              <strong>Pro Tip:</strong> Consider keeping supporting documentation like bank statements or emails for manual entries. 
+              This helps maintain accurate records for your business expenses.
             </AlertDescription>
           </Alert>
 
           {/* Quick Templates */}
-          <Card className="bg-gradient-to-br from-white via-purple-50/30 to-blue-50/30 backdrop-blur-sm border-0 shadow-xl">
-            <CardHeader className="pb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center">
-                  <Clock className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <CardTitle className="text-2xl font-bold text-gray-900">Quick Templates</CardTitle>
-                  <CardDescription className="text-gray-600">Select a common expense type to pre-fill the form</CardDescription>
-                </div>
-              </div>
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader>
+              <CardTitle>Quick Templates</CardTitle>
+              <CardDescription>Select a common expense type to pre-fill the form</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -319,17 +291,10 @@ export default function AddExpensePage() {
 
           {/* Main Form */}
           <form onSubmit={handleSubmit}>
-            <Card className="bg-gradient-to-br from-white via-gray-50/50 to-purple-50/30 backdrop-blur-sm border-0 shadow-xl">
-              <CardHeader className="pb-8">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 flex items-center justify-center">
-                    <DollarSign className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-2xl font-bold text-gray-900">Expense Details</CardTitle>
-                    <CardDescription className="text-gray-600">All fields marked with * are required for IRS compliance</CardDescription>
-                  </div>
-                </div>
+            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle>Expense Details</CardTitle>
+                <CardDescription>All fields marked with * are required for IRS compliance</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Date and Amount Row */}
@@ -374,8 +339,8 @@ export default function AddExpensePage() {
                 {/* Vendor */}
                 <div className="space-y-3">
                   <Label htmlFor="vendor" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                    <div className="w-5 h-5 rounded bg-blue-100 flex items-center justify-center">
-                      <Store className="h-3 w-3 text-blue-600" />
+                    <div className="w-5 h-5 rounded bg-purple-100 flex items-center justify-center">
+                      <Store className="h-3 w-3 text-purple-600" />
                     </div>
                     Vendor/Description *
                   </Label>
@@ -492,24 +457,6 @@ export default function AddExpensePage() {
                   />
                 </div>
 
-                {/* Recurring Checkbox */}
-                <div className="flex items-center space-x-3 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
-                  <Checkbox
-                    id="recurring"
-                    checked={recurring}
-                    onCheckedChange={(checked) => setRecurring(checked as boolean)}
-                    className="border-purple-300 data-[state=checked]:bg-purple-600"
-                  />
-                  <Label
-                    htmlFor="recurring"
-                    className="text-base font-medium text-gray-700 cursor-pointer flex items-center gap-2"
-                  >
-                    <div className="w-5 h-5 rounded bg-purple-100 flex items-center justify-center">
-                      <Clock className="h-3 w-3 text-purple-600" />
-                    </div>
-                    This is a recurring expense
-                  </Label>
-                </div>
               </CardContent>
             </Card>
 
@@ -545,6 +492,6 @@ export default function AddExpensePage() {
           </form>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

@@ -19,37 +19,32 @@ export async function GET(request: NextRequest) {
 
     // RLS will handle tenant filtering automatically based on user membership
 
-    // Get basic P&L data using the database function
-    let pnlData = null;
-    
-    try {
-      const { data, error: pnlError } = await supabase
-        .rpc('get_basic_pnl', {
-          p_start_date: fromDate,
-          p_end_date: toDate
-        });
+    // Get basic P&L data with direct queries
+    const { data: payments } = await supabase
+      .from('payment')
+      .select('amount')
+      .gte('payment_date', fromDate)
+      .lte('payment_date', toDate);
 
-      if (pnlError) {
-        console.error('P&L query error:', pnlError);
-        // Use fallback calculations
-        pnlData = [{ total_revenue: 0, total_expenses: 0, net_profit: 0, profit_margin: 0 }];
-      } else {
-        pnlData = data;
-      }
-    } catch (error) {
-      console.error('P&L function error:', error);
-      // Use fallback calculations
-      pnlData = [{ total_revenue: 0, total_expenses: 0, net_profit: 0, profit_margin: 0 }];
-    }
+    const { data: expenses } = await supabase
+      .from('receipt')
+      .select('total_amount')
+      .gte('receipt_date', fromDate)
+      .lte('receipt_date', toDate);
 
-    const basicPnL = pnlData?.[0] || {
-      total_revenue: 0,
-      total_expenses: 0,
-      net_profit: 0,
-      profit_margin: 0
+    const totalRevenue = payments?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
+    const totalExpenses = expenses?.reduce((sum, e) => sum + (e.total_amount || 0), 0) || 0;
+    const netProfit = totalRevenue - totalExpenses;
+    const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+
+    const basicPnL = {
+      total_revenue: totalRevenue,
+      total_expenses: totalExpenses,
+      net_profit: netProfit,
+      profit_margin: profitMargin
     };
 
-    // Get revenue breakdown by client
+    // Get revenue breakdown by client (RLS handles tenant filtering)
     const { data: revenueByClient } = await supabase
       .from('client')
       .select(`
@@ -60,8 +55,7 @@ export async function GET(request: NextRequest) {
             payment:payment(payment_date)
           )
         )
-      `)
-      .eq('tenant_id', tenant_id);
+      `);
 
     const clientRevenue = revenueByClient?.map(client => {
       const payments = client.invoice
@@ -80,18 +74,23 @@ export async function GET(request: NextRequest) {
     }).filter(client => client.amount > 0)
       .sort((a, b) => b.amount - a.amount) || [];
 
-    // Get expense breakdown using the database function
+    // Get expense breakdown with direct query (RLS handles tenant filtering)
     const { data: expenseBreakdown } = await supabase
-      .rpc('get_expense_breakdown', {
-        p_tenant_id: tenant_id,
-        p_start_date: fromDate,
-        p_end_date: toDate
-      });
+      .from('receipt')
+      .select('category, total_amount')
+      .gte('receipt_date', fromDate)
+      .lte('receipt_date', toDate);
 
-    const expenseCategories = expenseBreakdown?.map(expense => ({
-      category: expense.category,
-      amount: parseFloat(expense.total_amount)
-    })) || [];
+    const expenseCategories = expenseBreakdown?.reduce((acc: any, expense) => {
+      const category = expense.category || 'Uncategorized';
+      acc[category] = (acc[category] || 0) + (expense.total_amount || 0);
+      return acc;
+    }, {});
+
+    const expenseCategoriesArray = Object.entries(expenseCategories || {}).map(([category, amount]) => ({
+      category,
+      amount: Number(amount)
+    })).sort((a, b) => b.amount - a.amount);
 
     // Get previous period for comparison
     const periodLength = Math.ceil(
@@ -100,39 +99,48 @@ export async function GET(request: NextRequest) {
     const prevStartDate = new Date(new Date(fromDate).getTime() - periodLength * 24 * 60 * 60 * 1000);
     const prevEndDate = new Date(new Date(fromDate).getTime() - 24 * 60 * 60 * 1000);
 
-    let previousPnL = null;
-    
-    try {
-      const { data } = await supabase
-        .rpc('get_basic_pnl', {
-          p_start_date: format(prevStartDate, 'yyyy-MM-dd'),
-          p_end_date: format(prevEndDate, 'yyyy-MM-dd')
-        });
-      previousPnL = data;
-    } catch (error) {
-      console.error('Previous P&L error:', error);
-      previousPnL = null;
-    }
+    // Get previous period data with direct queries
+    const { data: prevPayments } = await supabase
+      .from('payment')
+      .select('amount')
+      .gte('payment_date', format(prevStartDate, 'yyyy-MM-dd'))
+      .lte('payment_date', format(prevEndDate, 'yyyy-MM-dd'));
 
-    const prevPeriod = previousPnL?.[0];
+    const { data: prevExpenses } = await supabase
+      .from('receipt')
+      .select('total_amount')
+      .gte('receipt_date', format(prevStartDate, 'yyyy-MM-dd'))
+      .lte('receipt_date', format(prevEndDate, 'yyyy-MM-dd'));
+
+    const prevRevenue = prevPayments?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
+    const prevExpenseTotal = prevExpenses?.reduce((sum, e) => sum + (e.total_amount || 0), 0) || 0;
+    const prevNetProfit = prevRevenue - prevExpenseTotal;
+    const prevProfitMargin = prevRevenue > 0 ? (prevNetProfit / prevRevenue) * 100 : 0;
+
+    const prevPeriod = {
+      total_revenue: prevRevenue,
+      total_expenses: prevExpenseTotal,
+      net_profit: prevNetProfit,
+      profit_margin: prevProfitMargin
+    };
 
     const response = {
       revenue: {
-        total: parseFloat(basicPnL.total_revenue),
+        total: basicPnL.total_revenue,
         byClient: clientRevenue
       },
       expenses: {
-        total: parseFloat(basicPnL.total_expenses),
-        byCategory: expenseCategories
+        total: basicPnL.total_expenses,
+        byCategory: expenseCategoriesArray
       },
-      netProfit: parseFloat(basicPnL.net_profit),
-      profitMargin: parseFloat(basicPnL.profit_margin),
-      previousPeriod: prevPeriod ? {
-        revenue: parseFloat(prevPeriod.total_revenue),
-        expenses: parseFloat(prevPeriod.total_expenses),
-        netProfit: parseFloat(prevPeriod.net_profit),
-        profitMargin: parseFloat(prevPeriod.profit_margin)
-      } : undefined
+      netProfit: basicPnL.net_profit,
+      profitMargin: basicPnL.profit_margin,
+      previousPeriod: {
+        revenue: prevPeriod.total_revenue,
+        expenses: prevPeriod.total_expenses,
+        netProfit: prevPeriod.net_profit,
+        profitMargin: prevPeriod.profit_margin
+      }
     };
 
     return NextResponse.json(response);

@@ -72,7 +72,7 @@ const cardData = [
     title: "Expenses",
     description: "Track receipts & spending",
     icon: Receipt,
-    href: "/dashboard/receipts",
+    href: "/dashboard/expenses",
     color: "text-purple-600",
     bgColor: "bg-purple-100 dark:bg-purple-900/20",
     gradient: "from-purple-50 via-blue-50 to-indigo-50 dark:from-purple-950/20 dark:via-blue-950/20 dark:to-indigo-950/20",

@@ -236,6 +236,195 @@ export interface Database {
           deleted_at?: string | null
         }
       }
+      subscription: {
+        Row: {
+          id: string
+          tenant_id: string
+          name: string
+          vendor_id: string | null
+          amount: number
+          currency: string
+          frequency: 'monthly' | 'yearly' | 'quarterly' | 'weekly' | 'custom'
+          custom_frequency_days: number | null
+          status: 'active' | 'paused' | 'cancelled' | 'expired' | 'upcoming'
+          start_date: string
+          end_date: string | null
+          next_charge_date: string
+          last_charge_date: string | null
+          category: string | null
+          tags: string[] | null
+          account_number: string | null
+          billing_cycle_anchor: number
+          payment_method: string | null
+          payment_account_last4: string | null
+          auto_create_expenses: boolean
+          expense_category: string | null
+          expense_notes_template: string | null
+          description: string | null
+          notes: string | null
+          subscription_url: string | null
+          cancellation_url: string | null
+          created_by: string | null
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          name: string
+          vendor_id?: string | null
+          amount: number
+          currency?: string
+          frequency?: 'monthly' | 'yearly' | 'quarterly' | 'weekly' | 'custom'
+          custom_frequency_days?: number | null
+          status?: 'active' | 'paused' | 'cancelled' | 'expired' | 'upcoming'
+          start_date: string
+          end_date?: string | null
+          next_charge_date: string
+          last_charge_date?: string | null
+          category?: string | null
+          tags?: string[] | null
+          account_number?: string | null
+          billing_cycle_anchor?: number
+          payment_method?: string | null
+          payment_account_last4?: string | null
+          auto_create_expenses?: boolean
+          expense_category?: string | null
+          expense_notes_template?: string | null
+          description?: string | null
+          notes?: string | null
+          subscription_url?: string | null
+          cancellation_url?: string | null
+          created_by?: string | null
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          name?: string
+          vendor_id?: string | null
+          amount?: number
+          currency?: string
+          frequency?: 'monthly' | 'yearly' | 'quarterly' | 'weekly' | 'custom'
+          custom_frequency_days?: number | null
+          status?: 'active' | 'paused' | 'cancelled' | 'expired' | 'upcoming'
+          start_date?: string
+          end_date?: string | null
+          next_charge_date?: string
+          last_charge_date?: string | null
+          category?: string | null
+          tags?: string[] | null
+          account_number?: string | null
+          billing_cycle_anchor?: number
+          payment_method?: string | null
+          payment_account_last4?: string | null
+          auto_create_expenses?: boolean
+          expense_category?: string | null
+          expense_notes_template?: string | null
+          description?: string | null
+          notes?: string | null
+          subscription_url?: string | null
+          cancellation_url?: string | null
+          created_by?: string | null
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+      }
+      subscription_charge: {
+        Row: {
+          id: string
+          subscription_id: string
+          tenant_id: string
+          amount: number
+          currency: string
+          charge_date: string
+          receipt_id: string | null
+          status: 'pending' | 'processed' | 'failed' | 'cancelled'
+          processed_at: string | null
+          notes: string | null
+          external_transaction_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          subscription_id: string
+          tenant_id: string
+          amount: number
+          currency?: string
+          charge_date: string
+          receipt_id?: string | null
+          status?: 'pending' | 'processed' | 'failed' | 'cancelled'
+          processed_at?: string | null
+          notes?: string | null
+          external_transaction_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          subscription_id?: string
+          tenant_id?: string
+          amount?: number
+          currency?: string
+          charge_date?: string
+          receipt_id?: string | null
+          status?: 'pending' | 'processed' | 'failed' | 'cancelled'
+          processed_at?: string | null
+          notes?: string | null
+          external_transaction_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      subscription_reminder: {
+        Row: {
+          id: string
+          subscription_id: string
+          tenant_id: string
+          reminder_type: 'upcoming_charge' | 'overdue' | 'renewal' | 'cancellation'
+          days_before: number
+          email_enabled: boolean
+          in_app_enabled: boolean
+          is_active: boolean
+          last_sent_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          subscription_id: string
+          tenant_id: string
+          reminder_type: 'upcoming_charge' | 'overdue' | 'renewal' | 'cancellation'
+          days_before?: number
+          email_enabled?: boolean
+          in_app_enabled?: boolean
+          is_active?: boolean
+          last_sent_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          subscription_id?: string
+          tenant_id?: string
+          reminder_type?: 'upcoming_charge' | 'overdue' | 'renewal' | 'cancellation'
+          days_before?: number
+          email_enabled?: boolean
+          in_app_enabled?: boolean
+          is_active?: boolean
+          last_sent_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
       // Add more table types as needed
     }
     Views: {

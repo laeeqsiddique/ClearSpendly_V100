@@ -1,24 +1,28 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
-  ArrowLeft, 
   Save, 
   Wallet, 
   Mail, 
   Link as LinkIcon,
   FileText,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  DollarSign,
+  CreditCard,
+  ExternalLink
 } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
-import Link from "next/link";
 
 interface PaymentSettings {
   paypal_email: string;
@@ -136,37 +140,53 @@ export default function PaymentSettings() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
-      <div className="container mx-auto p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard/admin">
-            <Button variant="ghost" size="sm" className="gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Back to Settings
+    <section className="flex flex-col items-start justify-start p-6 w-full bg-gradient-to-br from-purple-50 via-white to-blue-50 min-h-screen">
+      <div className="w-full">
+        <div className="flex flex-col gap-6">
+          {/* Header */}
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+            <div className="flex flex-col items-start justify-center gap-2">
+              <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                PayPal Link Settings
+              </h1>
+              <p className="text-muted-foreground">
+                Configure PayPal.me links and payment instructions for your invoices.
+              </p>
+            </div>
+            <Button 
+              onClick={saveSettings} 
+              disabled={saving}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+            >
+              {saving ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4 mr-2 animate-pulse" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Settings
+                </>
+              )}
             </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-              Payment Settings
-            </h1>
-            <p className="text-muted-foreground">
-              Configure payment options for your invoices
-            </p>
           </div>
         </div>
+        
+        <div className="@container/main flex flex-1 flex-col gap-2">
+          <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
 
-        {/* PayPal Email Settings */}
-        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5 text-blue-600" />
-              PayPal Email
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Your PayPal business email where customers can send payments
-            </p>
-          </CardHeader>
+            {/* PayPal Email Settings */}
+            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="h-5 w-5 text-purple-600" />
+                  PayPal Email
+                </CardTitle>
+                <CardDescription>
+                  Your PayPal business email where customers can send payments
+                </CardDescription>
+              </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="paypal_email">PayPal Business Email</Label>
@@ -176,7 +196,7 @@ export default function PaymentSettings() {
                 placeholder="business@example.com"
                 value={settings.paypal_email}
                 onChange={(e) => setSettings({ ...settings, paypal_email: e.target.value })}
-                className="bg-white/50"
+                className="border-purple-200 focus:border-purple-500"
               />
               <p className="text-xs text-muted-foreground">
                 This email will be included in invoice emails for customers to send PayPal payments
@@ -199,17 +219,17 @@ export default function PaymentSettings() {
           </CardContent>
         </Card>
 
-        {/* PayPal.me Link Settings */}
-        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <LinkIcon className="h-5 w-5 text-blue-600" />
-              PayPal.me Link
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Your PayPal.me link for quick payments with pre-filled amounts
-            </p>
-          </CardHeader>
+            {/* PayPal.me Link Settings */}
+            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <LinkIcon className="h-5 w-5 text-purple-600" />
+                  PayPal.me Link
+                </CardTitle>
+                <CardDescription>
+                  Your PayPal.me link for quick payments with pre-filled amounts
+                </CardDescription>
+              </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="paypal_me_link">PayPal.me Username</Label>
@@ -225,7 +245,7 @@ export default function PaymentSettings() {
                     ...settings, 
                     paypal_me_link: e.target.value.replace(/^https?:\/\/(www\.)?paypal\.me\//, "")
                   })}
-                  className="bg-white/50"
+                  className="border-purple-200 focus:border-purple-500"
                 />
               </div>
               <p className="text-xs text-muted-foreground">
@@ -265,9 +285,9 @@ export default function PaymentSettings() {
               <FileText className="h-5 w-5 text-purple-600" />
               Custom Payment Instructions
             </CardTitle>
-            <p className="text-sm text-muted-foreground">
+            <CardDescription>
               Additional payment instructions to include in your invoice emails
-            </p>
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -277,7 +297,7 @@ export default function PaymentSettings() {
                 placeholder="e.g., Please include your invoice number in the payment reference..."
                 value={settings.payment_instructions}
                 onChange={(e) => setSettings({ ...settings, payment_instructions: e.target.value })}
-                className="bg-white/50 min-h-[100px]"
+                className="border-purple-200 focus:border-purple-500 min-h-[100px]"
                 maxLength={500}
               />
               <div className="flex justify-between items-center text-xs text-muted-foreground">
@@ -288,31 +308,6 @@ export default function PaymentSettings() {
           </CardContent>
         </Card>
 
-        {/* Save Button */}
-        <div className="flex justify-end gap-3">
-          <Link href="/dashboard/admin">
-            <Button variant="outline">
-              Cancel
-            </Button>
-          </Link>
-          <Button 
-            onClick={saveSettings}
-            disabled={saving}
-            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-          >
-            {saving ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Save Settings
-              </>
-            )}
-          </Button>
-        </div>
 
         {/* Help Section */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
@@ -377,7 +372,9 @@ export default function PaymentSettings() {
             </div>
           </CardContent>
         </Card>
+          </div>
+        </div>
       </div>
-    </div>
+    </section>
   );
 }

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { SectionCards } from "./section-cards";
 import { ReceiptsTable } from "./receipts-table";
 import { CategoryBreakdown } from "./category-breakdown";
+import { SubscriptionsOverview } from "./subscriptions-overview";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -171,6 +172,7 @@ export function DashboardWithAI() {
         <div className="@container/main flex flex-1 flex-col gap-2">
           <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
             <SectionCards startDate={startDate} endDate={endDate} />
+            <SubscriptionsOverview startDate={startDate} endDate={endDate} />
             <ReceiptsTable startDate={startDate} endDate={endDate} />
             <CategoryBreakdown startDate={startDate} endDate={endDate} />
           </div>

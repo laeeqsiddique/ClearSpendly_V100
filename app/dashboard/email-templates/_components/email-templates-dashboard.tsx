@@ -51,6 +51,8 @@ interface EmailTemplate {
 export function EmailTemplatesDashboard() {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [loading, setLoading] = useState(true);
 
   // Safe template setter with validation
   const safeSetSelectedTemplate = (template: EmailTemplate | null) => {
@@ -64,8 +66,6 @@ export function EmailTemplatesDashboard() {
       console.error('Error setting selected template:', error);
     }
   };
-  const [activeTab, setActiveTab] = useState("overview");
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchTemplates();
@@ -262,33 +262,32 @@ export function EmailTemplatesDashboard() {
 
   return (
     <div className="space-y-6">
-
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+        <TabsList className="grid w-full grid-cols-4 bg-purple-100/50 dark:bg-purple-800 p-1 rounded-lg">
           <TabsTrigger 
             value="overview" 
-            className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900"
+            className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-purple-900 hover:text-purple-700"
           >
             <Mail className="w-4 h-4" />
             Overview
           </TabsTrigger>
           <TabsTrigger 
             value="design" 
-            className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900"
+            className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-purple-900 hover:text-purple-700"
           >
             <Palette className="w-4 h-4" />
             Design
           </TabsTrigger>
           <TabsTrigger 
             value="settings" 
-            className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900"
+            className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-purple-900 hover:text-purple-700"
           >
             <Settings className="w-4 h-4" />
             Settings
           </TabsTrigger>
           <TabsTrigger 
             value="analytics" 
-            className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900"
+            className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-purple-900 hover:text-purple-700"
           >
             <Sparkles className="w-4 h-4" />
             Analytics
@@ -383,15 +382,15 @@ export function EmailTemplatesDashboard() {
               <Wand2 className="w-4 h-4 mr-2" />
               {templates.length > 0 ? 'Customize Templates' : 'Create First Template'}
             </Button>
-            <Button variant="outline" className="border-gray-300 text-gray-600 hover:bg-gray-50">
+            <Button variant="outline" className="border-2 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700">
               <Eye className="w-4 h-4 mr-2" />
               Preview All
             </Button>
-            <Button variant="outline" className="border-gray-300 text-gray-600 hover:bg-gray-50">
+            <Button variant="outline" className="border-2 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700">
               <Upload className="w-4 h-4 mr-2" />
               Import Theme
             </Button>
-            <Button variant="outline" className="border-gray-300 text-gray-600 hover:bg-gray-50">
+            <Button variant="outline" className="border-2 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700">
               <Download className="w-4 h-4 mr-2" />
               Export Theme
             </Button>
@@ -402,7 +401,7 @@ export function EmailTemplatesDashboard() {
             {templates.map((template) => (
                 <div 
                   key={template.id}
-                  className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                  className="bg-white border-2 border-purple-200 rounded-lg p-6 shadow-sm hover:shadow-md hover:border-purple-300 transition-all cursor-pointer"
                   onClick={async () => {
                     // Refresh template data from database before selecting
                     const refreshedTemplate = await refreshTemplate(template.id);
@@ -421,7 +420,7 @@ export function EmailTemplatesDashboard() {
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">{template.name}</h3>
-                      <span className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                      <span className="inline-block px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full">
                         {getTemplateTypeLabel(template.template_type)}
                       </span>
                     </div>
@@ -451,7 +450,7 @@ export function EmailTemplatesDashboard() {
                     </div>
                     
                     <div className="flex items-center justify-between pt-2">
-                      <span className={`text-xs px-2 py-1 rounded ${template.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                      <span className={`text-xs px-2 py-1 rounded ${template.is_active ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-600'}`}>
                         {template.is_active ? 'Active' : 'Inactive'}
                       </span>
                       
@@ -490,7 +489,7 @@ export function EmailTemplatesDashboard() {
           </div>
 
           {/* Create New Template */}
-          <Card className="border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors bg-gray-50/50 hover:bg-gray-50">
+          <Card className="border-2 border-dashed border-purple-200 hover:border-purple-300 transition-colors bg-purple-50/30 hover:bg-purple-50">
             <CardContent className="flex flex-col items-center justify-center py-12 text-center">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                 <Plus className="w-8 h-8 text-gray-600" />
@@ -510,7 +509,7 @@ export function EmailTemplatesDashboard() {
                 <Button 
                   onClick={() => createNewTemplate('payment_reminder')}
                   variant="outline"
-                  className="border-gray-300 text-gray-600 hover:bg-gray-50"
+                  className="border-2 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Reminder Template
@@ -518,7 +517,7 @@ export function EmailTemplatesDashboard() {
                 <Button 
                   onClick={() => createNewTemplate('payment_received')}
                   variant="outline"
-                  className="border-gray-300 text-gray-600 hover:bg-gray-50"
+                  className="border-2 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Confirmation Template
