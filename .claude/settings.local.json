@@ -59,7 +59,8 @@
       "Bash(timeout 60 npm run build)",
       "Bash(echo $RESEND_FROM_EMAIL)",
       "Bash(del test-paypal-integration.js)",
-      "Bash(psql:*)"
+      "Bash(psql:*)",
+      "Bash(if exist .next rmdir /s /q .next)"
     ],
     "deny": []
   }

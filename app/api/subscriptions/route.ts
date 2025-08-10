@@ -27,8 +27,8 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-      process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+      process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
+      process.env.SUPABASE_SERVICE_ROLE_KEY || 'mock-key'
     );
 
     // Get user's tenant
@@ -155,8 +155,8 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-      process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+      process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
+      process.env.SUPABASE_SERVICE_ROLE_KEY || 'mock-key'
     );
 
     // Get user's tenant

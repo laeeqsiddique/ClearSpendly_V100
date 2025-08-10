@@ -14,10 +14,13 @@
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-);
+// Create Supabase client inside methods to avoid build-time initialization
+function getSupabaseClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || 'mock-key'
+  );
+}
 
 // Types for better type safety
 interface SubscriptionData {
@@ -284,6 +287,7 @@ export class SubscriptionExpenseProcessor {
    */
   private async getSubscriptionsNeedingProcessing(): Promise<SubscriptionData[]> {
     const today = new Date().toISOString().split('T')[0];
+    const supabase = getSupabaseClient();
     
     const { data, error } = await supabase
       .from('expense_subscription')
@@ -429,6 +433,7 @@ export class SubscriptionExpenseProcessor {
       original_file_url: 'system://subscription-generated' // Required field, use system identifier
     }));
 
+    const supabase = getSupabaseClient();
     const { data, error } = await supabase
       .from('receipt')
       .insert(expenseRecords)
@@ -458,6 +463,7 @@ export class SubscriptionExpenseProcessor {
     const lastProcessedDate = new Date(processedExpenses[processedExpenses.length - 1].date);
     const nextChargeDate = this.calculateNextChargeDateFromStart(lastProcessedDate, subscription.frequency);
 
+    const supabase = getSupabaseClient();
     const { error } = await supabase
       .from('expense_subscription')
       .update({
@@ -490,6 +496,7 @@ export class SubscriptionExpenseProcessor {
     errorMessage?: string;
     processingContext?: any;
   }): Promise<string> {
+    const supabase = getSupabaseClient();
     const { data, error } = await supabase
       .from('subscription_processing_event')
       .insert({
@@ -529,6 +536,7 @@ export class SubscriptionExpenseProcessor {
     errorCode?: string;
     errorMessage?: string;
   }): Promise<void> {
+    const supabase = getSupabaseClient();
     const { error } = await supabase
       .from('subscription_processing_event')
       .update({
@@ -551,6 +559,7 @@ export class SubscriptionExpenseProcessor {
    * Check for existing processing event (idempotency protection)
    */
   private async checkExistingProcessingEvent(idempotencyKey: string): Promise<boolean> {
+    const supabase = getSupabaseClient();
     const { data, error } = await supabase
       .from('subscription_processing_event')
       .select('id')
@@ -570,6 +579,7 @@ export class SubscriptionExpenseProcessor {
    */
   private async findOrCreateVendor(serviceName: string, tenantId: string, createdBy: string): Promise<string> {
     // First, try to find existing vendor
+    const supabase = getSupabaseClient();
     const { data: existingVendor } = await supabase
       .from('vendor')
       .select('id')

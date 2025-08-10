@@ -1,10 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 import { Subscription } from "@/lib/types/subscription";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-);
+// Create Supabase client inside functions to avoid build-time initialization
+function getSupabaseClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || 'mock-key'
+  );
+}
 
 interface ExpenseEntry {
   receipt_date: string;
@@ -53,6 +56,7 @@ export async function generateSubscriptionExpenses(subscription: Subscription, c
 
     // Insert all expenses at once
     if (expenses.length > 0) {
+      const supabase = getSupabaseClient();
       const { data: insertedExpenses, error } = await supabase
         .from('receipt')
         .insert(expenses)
@@ -84,6 +88,7 @@ export async function updateSubscriptionExpenses(
 ): Promise<void> {
   try {
     // Delete existing auto-generated expenses for this subscription
+    const supabase = getSupabaseClient();
     await supabase
       .from('receipt')
       .delete()
@@ -99,6 +104,7 @@ export async function updateSubscriptionExpenses(
 
 export async function deleteSubscriptionExpenses(subscriptionId: string): Promise<void> {
   try {
+    const supabase = getSupabaseClient();
     const { error } = await supabase
       .from('receipt')
       .delete()
@@ -151,6 +157,7 @@ async function applyTagsToExpenses(expenseIds: string[], tagIds: string[], tenan
     );
 
     if (receiptTags.length > 0) {
+      const supabase = getSupabaseClient();
       const { error } = await supabase
         .from('receipt_tag')
         .insert(receiptTags);
@@ -171,6 +178,7 @@ async function applyTagsToExpenses(expenseIds: string[], tagIds: string[], tenan
 async function findOrCreateVendor(serviceName: string, tenantId: string, createdBy: string): Promise<string> {
   try {
     // First, try to find existing vendor
+    const supabase = getSupabaseClient();
     const { data: existingVendor } = await supabase
       .from('vendor')
       .select('id')
@@ -209,6 +217,7 @@ async function findOrCreateVendor(serviceName: string, tenantId: string, created
 
 // Helper to check if expenses already exist for a subscription
 export async function getExistingSubscriptionExpenses(subscriptionId: string) {
+  const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('receipt')
     .select('*')
