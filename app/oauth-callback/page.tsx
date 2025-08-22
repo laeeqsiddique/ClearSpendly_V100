@@ -1,11 +1,14 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
-export default function OAuthCallback() {
+// Force dynamic rendering - this page cannot be statically generated
+export const dynamic = 'force-dynamic'
+
+function OAuthCallbackContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   
@@ -105,5 +108,21 @@ export default function OAuthCallback() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function OAuthCallback() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-50 to-blue-50">
+        <div className="text-center p-8 bg-white rounded-lg shadow-lg max-w-md">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-6"></div>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Loading...</h2>
+          <p className="text-gray-600">Preparing authentication...</p>
+        </div>
+      </div>
+    }>
+      <OAuthCallbackContent />
+    </Suspense>
   )
 }

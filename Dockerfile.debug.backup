@@ -1,0 +1,116 @@
+# Minimal Dockerfile for debugging npm install issues on Railway
+FROM node:20-alpine
+
+# Install debugging tools
+RUN apk add --no-cache \
+    bash \
+    curl \
+    strace \
+    lsof \
+    procps
+
+WORKDIR /app
+
+# Copy package files only
+COPY package*.json ./
+
+# Create comprehensive debug script
+RUN cat > /app/debug-npm.sh << 'EOF'
+#!/bin/bash
+echo "=== NPM Debug Script Starting ==="
+echo "Date: $(date)"
+echo "Node: $(node --version)"
+echo "npm: $(npm --version)"
+echo "Working Directory: $(pwd)"
+echo "User: $(whoami)"
+echo "Memory: $(free -h)"
+echo "Disk Space: $(df -h /)"
+echo ""
+
+# Check npm configuration
+echo "=== npm Configuration ==="
+npm config list
+echo ""
+
+# Check for lock file
+echo "=== Lock File Status ==="
+if [ -f "package-lock.json" ]; then
+    echo "package-lock.json exists ($(wc -l < package-lock.json) lines)"
+else
+    echo "No package-lock.json found"
+fi
+echo ""
+
+# Try different npm install methods
+echo "=== Attempt 1: npm ci (if lock file exists) ==="
+if [ -f "package-lock.json" ]; then
+    npm ci --verbose 2>&1 | tee /tmp/npm-ci.log
+    echo "Exit code: ${PIPESTATUS[0]}"
+else
+    echo "Skipping npm ci - no lock file"
+fi
+echo ""
+
+echo "=== Attempt 2: npm install with verbose logging ==="
+npm install --verbose --loglevel=silly 2>&1 | tee /tmp/npm-install.log
+INSTALL_EXIT_CODE=${PIPESTATUS[0]}
+echo "Exit code: $INSTALL_EXIT_CODE"
+echo ""
+
+# If install failed, try to get more info
+if [ $INSTALL_EXIT_CODE -ne 0 ]; then
+    echo "=== Install Failed - Gathering More Information ==="
+    
+    # Check for common issues
+    echo "Checking for permission issues..."
+    ls -la
+    
+    echo "Checking npm cache..."
+    npm cache verify
+    
+    echo "Checking for running processes..."
+    ps aux
+    
+    echo "Checking for file locks..."
+    lsof | grep npm || echo "No npm file locks found"
+    
+    # Try install with different flags
+    echo ""
+    echo "=== Attempt 3: npm install with --no-audit --no-fund ==="
+    npm install --no-audit --no-fund --verbose 2>&1 | tee /tmp/npm-install-noaudit.log
+    echo "Exit code: ${PIPESTATUS[0]}"
+    
+    echo ""
+    echo "=== Attempt 4: npm install with --legacy-peer-deps ==="
+    npm install --legacy-peer-deps --verbose 2>&1 | tee /tmp/npm-install-legacy.log
+    echo "Exit code: ${PIPESTATUS[0]}"
+    
+    echo ""
+    echo "=== Attempt 5: npm install with --force ==="
+    npm install --force --verbose 2>&1 | tee /tmp/npm-install-force.log
+    echo "Exit code: ${PIPESTATUS[0]}"
+fi
+
+echo ""
+echo "=== Final Status ==="
+if [ -d "node_modules" ]; then
+    echo "node_modules directory created"
+    echo "Module count: $(find node_modules -maxdepth 1 -type d | wc -l)"
+else
+    echo "No node_modules directory found"
+fi
+
+echo ""
+echo "=== All Log Files ==="
+ls -la /tmp/*.log 2>/dev/null || echo "No log files found"
+
+# Keep container running for debugging
+echo ""
+echo "=== Debug Complete ==="
+echo "Container will stay running for manual inspection"
+EOF
+
+RUN chmod +x /app/debug-npm.sh
+
+# Run the debug script
+CMD ["/app/debug-npm.sh"]
