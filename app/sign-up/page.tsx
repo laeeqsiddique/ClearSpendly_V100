@@ -123,12 +123,18 @@ function SignUpContent() {
       // The OAuth callback will create a default organization name and redirect to onboarding
       
       const redirectUrl = getOAuthCallbackUrl(returnTo || '/onboarding');
-      console.log('OAuth redirect URL:', redirectUrl); // Debug log
+      
+      // Force production URL in production environment
+      const actualRedirectUrl = process.env.NODE_ENV === 'production' 
+        ? redirectUrl.replace('http://localhost:3000', 'https://www.flowvya.com')
+        : redirectUrl;
+        
+      console.log('OAuth redirect URL:', actualRedirectUrl); // Debug log
       
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: redirectUrl,
+          redirectTo: actualRedirectUrl,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',

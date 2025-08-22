@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
           .single()
 
         if (!existingMembership) {
-          // User needs a tenant - extract organization name from OAuth profile or create default
+          // User needs a tenant - store organization info in user metadata and let onboarding handle tenant creation
           let organizationName = data.user.user_metadata?.organization_name
 
           // Try to get organization name from Google profile data
@@ -91,52 +91,25 @@ export async function GET(request: NextRequest) {
             organizationName = `${emailPrefix}'s Organization`
           }
           
-          // Generate a unique slug for the organization
-          let baseSlug = generateTenantSlug(organizationName)
-          let slug = baseSlug
-          let counter = 1
-          
-          // Ensure slug is unique
-          while (!(await isSlugAvailable(slug))) {
-            slug = `${baseSlug}-${counter}`
-            counter++
-          }
-          
-          // Create tenant for new user
-          console.log(`Creating tenant for OAuth user: ${organizationName} (${slug})`)
-          const tenant = await createTenant(organizationName, slug)
-          
-          if (!tenant) {
-            console.error('Failed to create tenant for OAuth user:', {
+          // Store the organization name in user metadata for onboarding
+          try {
+            await supabase.auth.updateUser({
+              data: {
+                organization_name: organizationName,
+                oauth_signup: true,
+                needs_tenant_setup: true
+              }
+            })
+            console.log('Updated OAuth user metadata:', {
               userId: data.user.id,
               email: data.user.email,
-              organizationName,
-              slug
+              organizationName
             })
-            return NextResponse.redirect(`${origin}/sign-in?error=tenant_creation_failed`)
+          } catch (updateError) {
+            console.error('Failed to update user metadata:', updateError)
           }
           
-          console.log('Successfully created tenant for OAuth user:', {
-            tenantId: tenant.id,
-            userId: data.user.id,
-            organizationName,
-            slug
-          })
-          
-          // Store the organization name in user metadata if it wasn't there
-          if (!data.user.user_metadata?.organization_name) {
-            try {
-              await supabase.auth.updateUser({
-                data: {
-                  organization_name: organizationName
-                }
-              })
-            } catch (updateError) {
-              console.error('Failed to update user metadata:', updateError)
-            }
-          }
-          
-          // Redirect new OAuth users to onboarding
+          // Redirect new OAuth users to onboarding (tenant will be created there)
           const appUrl = getAppUrl()
           return NextResponse.redirect(`${appUrl}/onboarding`)
         }

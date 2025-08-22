@@ -8,9 +8,9 @@ export function getAppUrl(): string {
     return process.env.NEXT_PUBLIC_APP_URL;
   }
   
-  // For Railway environment, construct from Railway variables
-  if (process.env.RAILWAY_ENVIRONMENT && process.env.RAILWAY_PUBLIC_DOMAIN) {
-    return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
+  // For Railway environment, hardcode the production URL since env vars aren't reliable
+  if (process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production') {
+    return 'https://www.flowvya.com';
   }
   
   // In development or client-side, use window.location.origin
