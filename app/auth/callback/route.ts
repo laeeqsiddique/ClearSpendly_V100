@@ -12,7 +12,12 @@ export async function GET(request: NextRequest) {
 
   // Handle OAuth errors from the provider
   if (error) {
-    console.error('OAuth provider error:', { error, error_description })
+    console.error('OAuth provider error:', { 
+      error, 
+      error_description,
+      searchParams: Object.fromEntries(searchParams.entries()),
+      url: request.url
+    })
     
     // Map common OAuth errors to user-friendly messages
     let errorParam = 'oauth_error'
@@ -30,7 +35,8 @@ export async function GET(request: NextRequest) {
       errorParam = 'config_error'
     }
     
-    return NextResponse.redirect(`${origin}/sign-in?error=${errorParam}`)
+    const appUrl = getAppUrl()
+    return NextResponse.redirect(`${appUrl}/sign-in?error=${errorParam}`)
   }
 
   if (code) {
