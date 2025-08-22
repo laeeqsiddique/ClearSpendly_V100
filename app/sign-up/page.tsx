@@ -122,13 +122,9 @@ function SignUpContent() {
       // For Google OAuth, we'll let the user set organization name in onboarding
       // The OAuth callback will create a default organization name and redirect to onboarding
       
-      const redirectUrl = getOAuthCallbackUrl(returnTo || '/onboarding');
-      
-      // Force production URL in production environment  
-      const productionUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://flowvya.com';
-      const actualRedirectUrl = process.env.NODE_ENV === 'production' 
-        ? redirectUrl.replace('http://localhost:3000', productionUrl)
-        : redirectUrl;
+      // Use simple oauth-callback route instead of complex auth/callback  
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://flowvya.com';
+      const actualRedirectUrl = `${baseUrl}/oauth-callback`;
 
       // Detailed debug logging
       console.log('=== OAuth Debug Info ===');
