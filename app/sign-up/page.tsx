@@ -124,9 +124,10 @@ function SignUpContent() {
       
       const redirectUrl = getOAuthCallbackUrl(returnTo || '/onboarding');
       
-      // Force production URL in production environment
+      // Force production URL in production environment  
+      const productionUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://flowvya.com';
       const actualRedirectUrl = process.env.NODE_ENV === 'production' 
-        ? redirectUrl.replace('http://localhost:3000', 'https://www.flowvya.com')
+        ? redirectUrl.replace('http://localhost:3000', productionUrl)
         : redirectUrl;
 
       // Detailed debug logging
@@ -139,10 +140,10 @@ function SignUpContent() {
       console.log('NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) + '...');
       console.log('========================');
 
-      // Also show user a toast with the URL being used for debugging
-      if (process.env.NODE_ENV !== 'production') {
-        toast.info(`OAuth redirect: ${actualRedirectUrl.substring(0, 50)}...`);
-      }
+      // Show user a toast with the URL being used for debugging (always show in production for now)
+      toast.info(`Debug: Using redirect URL: ${actualRedirectUrl.substring(0, 60)}...`, {
+        duration: 5000
+      });
       
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
