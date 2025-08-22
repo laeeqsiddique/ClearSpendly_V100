@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createTenant, generateTenantSlug, isSlugAvailable } from '@/lib/tenant'
+import { getAppUrl } from '@/lib/config/app-url'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -20,6 +21,12 @@ export async function GET(request: NextRequest) {
     } else if (error === 'unauthorized_client') {
       errorParam = 'config_error'
     } else if (error === 'invalid_client') {
+      errorParam = 'config_error'
+    } else if (error === 'redirect_uri_mismatch') {
+      errorParam = 'config_error'
+    } else if (error === 'invalid_request') {
+      errorParam = 'oauth_error'
+    } else if (error === 'unsupported_response_type') {
       errorParam = 'config_error'
     }
     
@@ -55,11 +62,22 @@ export async function GET(request: NextRequest) {
           .single()
 
         if (!existingMembership) {
-          // User needs a tenant - check for organization name or create default
-          const organizationName = data.user.user_metadata?.organization_name || 
-                                  `${data.user.email?.split('@')[0] || 'User'}'s Organization`
-        
-        if (organizationName) {
+          // User needs a tenant - extract organization name from OAuth profile or create default
+          let organizationName = data.user.user_metadata?.organization_name
+
+          // Try to get organization name from Google profile data
+          if (!organizationName && data.user.user_metadata?.full_name) {
+            // Use full name as organization if available
+            organizationName = `${data.user.user_metadata.full_name}'s Organization`
+          } else if (!organizationName && data.user.user_metadata?.name) {
+            // Fallback to name field
+            organizationName = `${data.user.user_metadata.name}'s Organization`
+          } else if (!organizationName) {
+            // Final fallback using email
+            const emailPrefix = data.user.email?.split('@')[0] || 'User'
+            organizationName = `${emailPrefix}'s Organization`
+          }
+          
           // Generate a unique slug for the organization
           let baseSlug = generateTenantSlug(organizationName)
           let slug = baseSlug
@@ -72,50 +90,47 @@ export async function GET(request: NextRequest) {
           }
           
           // Create tenant for new user
+          console.log(`Creating tenant for OAuth user: ${organizationName} (${slug})`)
           const tenant = await createTenant(organizationName, slug)
           
           if (!tenant) {
-            console.error('Failed to create tenant for new user')
+            console.error('Failed to create tenant for OAuth user:', {
+              userId: data.user.id,
+              email: data.user.email,
+              organizationName,
+              slug
+            })
             return NextResponse.redirect(`${origin}/sign-in?error=tenant_creation_failed`)
           }
           
-          console.log('Created tenant for new user:', tenant.id)
+          console.log('Successfully created tenant for OAuth user:', {
+            tenantId: tenant.id,
+            userId: data.user.id,
+            organizationName,
+            slug
+          })
           
-          // Redirect new users to onboarding
-          const forwardedHost = request.headers.get('x-forwarded-host')
-          const isLocalEnv = process.env.NODE_ENV === 'development'
-          const isRailway = process.env.RAILWAY_ENVIRONMENT
-          
-          if (isLocalEnv) {
-            return NextResponse.redirect(`http://localhost:3000/onboarding`)
-          } else if (isRailway && forwardedHost) {
-            return NextResponse.redirect(`https://${forwardedHost}/onboarding`)
-          } else if (isRailway) {
-            // Use Railway's public URL or fallback to www.flowvya.com
-            return NextResponse.redirect(`https://www.flowvya.com/onboarding`)
-          } else {
-            return NextResponse.redirect(`${origin}/onboarding`)
+          // Store the organization name in user metadata if it wasn't there
+          if (!data.user.user_metadata?.organization_name) {
+            try {
+              await supabase.auth.updateUser({
+                data: {
+                  organization_name: organizationName
+                }
+              })
+            } catch (updateError) {
+              console.error('Failed to update user metadata:', updateError)
+            }
           }
-        }
+          
+          // Redirect new OAuth users to onboarding
+          const appUrl = getAppUrl()
+          return NextResponse.redirect(`${appUrl}/onboarding`)
         }
 
-        const forwardedHost = request.headers.get('x-forwarded-host')
-        const isLocalEnv = process.env.NODE_ENV === 'development'
-        const isRailway = process.env.RAILWAY_ENVIRONMENT
-        
-        if (isLocalEnv) {
-          // In development, redirect to localhost
-          return NextResponse.redirect(`http://localhost:3000${returnTo}`)
-        } else if (isRailway && forwardedHost) {
-          // In Railway production, use the forwarded host
-          return NextResponse.redirect(`https://${forwardedHost}${returnTo}`)
-        } else if (isRailway) {
-          // Use Railway's public URL or fallback to www.flowvya.com
-          return NextResponse.redirect(`https://www.flowvya.com${returnTo}`)
-        } else {
-          // Fallback to origin
-          return NextResponse.redirect(`${origin}${returnTo}`)
-        }
+        // Redirect existing users to their destination
+        const appUrl = getAppUrl()
+        return NextResponse.redirect(`${appUrl}${returnTo}`)
       }
     } catch (error) {
       console.error('Unexpected error in auth callback:', error)

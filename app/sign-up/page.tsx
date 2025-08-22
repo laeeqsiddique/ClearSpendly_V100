@@ -18,6 +18,7 @@ import { Suspense, useState, useEffect } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { AuthErrorBoundary } from "@/components/error-boundary";
+import { getOAuthCallbackUrl, getAppUrl } from "@/lib/config/app-url";
 
 function SignUpContent() {
   const [loading, setLoading] = useState(false);
@@ -86,7 +87,7 @@ function SignUpContent() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${getAppUrl()}/auth/callback`,
           data: {
             organization_name: organizationName.trim(),
           }
@@ -118,10 +119,20 @@ function SignUpContent() {
         return;
       }
 
+      // For Google OAuth, we'll let the user set organization name in onboarding
+      // The OAuth callback will create a default organization name and redirect to onboarding
+      
+      const redirectUrl = getOAuthCallbackUrl(returnTo || '/onboarding');
+      console.log('OAuth redirect URL:', redirectUrl); // Debug log
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?returnTo=${returnTo || '/dashboard'}`,
+          redirectTo: redirectUrl,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
 
@@ -131,14 +142,21 @@ function SignUpContent() {
         // Provide specific error messages based on error type
         let userMessage = 'Google sign-up failed. ';
         
-        if (error.message.includes('unauthorized_client')) {
-          userMessage += 'Google OAuth is not properly configured. Please use email sign-up instead.';
+        // Check for specific OAuth error types and provide helpful messages
+        if (error.message.includes('Unsupported provider') || error.message.includes('missing OAuth secret')) {
+          userMessage = 'Google Sign-up is not configured on this server. Please use email sign-up or contact support.';
+        } else if (error.message.includes('unauthorized_client') || error.message.includes('invalid_client')) {
+          userMessage = 'Google OAuth configuration error. Please use email sign-up or contact support.';
         } else if (error.message.includes('access_denied')) {
-          userMessage += 'Access was denied. Please try again or use email sign-up.';
+          userMessage = 'Access was denied during Google sign-up. Please try again or use email sign-up.';
         } else if (error.message.includes('popup_blocked')) {
-          userMessage += 'Popup was blocked. Please allow popups for this site and try again.';
+          userMessage = 'Browser blocked the Google sign-up popup. Please allow popups and try again.';
         } else if (error.message.includes('network')) {
-          userMessage += 'Please check your internet connection and try again.';
+          userMessage = 'Network error occurred. Please check your connection and try again.';
+        } else if (error.message.includes('redirect_uri_mismatch')) {
+          userMessage = 'OAuth redirect URL mismatch. Please use email sign-up or contact support.';
+        } else if (error.message.includes('invalid_request')) {
+          userMessage = 'Invalid OAuth request. Please try again or use email sign-up.';
         } else {
           userMessage += 'Please try email sign-up instead.';
         }
