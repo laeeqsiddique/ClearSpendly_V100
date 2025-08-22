@@ -128,8 +128,21 @@ function SignUpContent() {
       const actualRedirectUrl = process.env.NODE_ENV === 'production' 
         ? redirectUrl.replace('http://localhost:3000', 'https://www.flowvya.com')
         : redirectUrl;
-        
-      console.log('OAuth redirect URL:', actualRedirectUrl); // Debug log
+
+      // Detailed debug logging
+      console.log('=== OAuth Debug Info ===');
+      console.log('NODE_ENV:', process.env.NODE_ENV);
+      console.log('window.location.origin:', typeof window !== 'undefined' ? window.location.origin : 'server-side');
+      console.log('getAppUrl():', getAppUrl());
+      console.log('Generated redirectUrl:', redirectUrl);
+      console.log('Final actualRedirectUrl:', actualRedirectUrl);
+      console.log('NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) + '...');
+      console.log('========================');
+
+      // Also show user a toast with the URL being used for debugging
+      if (process.env.NODE_ENV !== 'production') {
+        toast.info(`OAuth redirect: ${actualRedirectUrl.substring(0, 50)}...`);
+      }
       
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
