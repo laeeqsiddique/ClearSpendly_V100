@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { TenantSetupService } from "@/lib/tenant-setup/tenant-setup-service";
 
 export async function POST() {
+  const startTime = Date.now();
+  
   try {
     const supabase = await createClient();
     const adminSupabase = createAdminClient();
+    const setupService = new TenantSetupService();
     
     // Get current authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -18,7 +22,7 @@ export async function POST() {
       );
     }
 
-    console.log("Setting up tenant for user:", user.email, user.id);
+    console.log("Starting comprehensive tenant setup for user:", user.email, user.id);
 
     // First check if user already has a membership (avoid duplicate setup)
     // Use admin client to bypass RLS
@@ -144,20 +148,63 @@ export async function POST() {
 
     console.log("Membership created successfully:", newMembership.id);
 
+    // Step 4: Run comprehensive seed data setup
+    console.log("Starting comprehensive seed data setup...");
+    
+    const setupContext = {
+      tenantId: newTenant.id,
+      userId: user.id,
+      userEmail: user.email!,
+      companyName: companyName,
+      subscriptionPlan: newTenant.subscription_plan || 'free'
+    };
+
+    const setupResult = await setupService.setupTenant(setupContext);
+    
+    if (!setupResult.success) {
+      console.error("Comprehensive setup failed:", setupResult.errors);
+      
+      // Note: Basic tenant/membership is already created and won't be rolled back
+      // This allows the user to still access the system even if seed data setup fails
+      return NextResponse.json({
+        success: true,
+        message: "Basic tenant setup completed, but some seed data setup failed",
+        warning: "Some default data may be missing. You can add it manually or contact support.",
+        data: {
+          user: userRecord,
+          tenant: newTenant,
+          membership: newMembership,
+          role: "owner",
+          setupResult: setupResult
+        },
+      });
+    }
+
+    const setupTime = Date.now() - startTime;
+    console.log(`Comprehensive tenant setup completed successfully in ${setupTime}ms`);
+
     return NextResponse.json({
       success: true,
-      message: "Tenant setup completed successfully",
+      message: "Comprehensive tenant setup completed successfully",
       data: {
         user: userRecord,
         tenant: newTenant,
         membership: newMembership,
         role: "owner",
+        setupResult: setupResult,
+        setupTimeMs: setupTime
       },
     });
   } catch (error) {
-    console.error("Setup error:", error);
+    const setupTime = Date.now() - startTime;
+    console.error("Critical setup error after", setupTime, "ms:", error);
+    
     return NextResponse.json(
-      { error: "Internal server error: " + (error instanceof Error ? error.message : 'Unknown error') },
+      { 
+        error: "Internal server error during tenant setup",
+        details: error instanceof Error ? error.message : 'Unknown error',
+        setupTimeMs: setupTime
+      },
       { status: 500 }
     );
   }

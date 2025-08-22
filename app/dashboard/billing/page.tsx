@@ -24,8 +24,12 @@ import {
 import { toast } from 'sonner';
 import { PricingCard } from './_components/pricing-card';
 import { UsageCard } from './_components/usage-card';
+import { EnhancedUsageCard } from './_components/enhanced-usage-card';
+import { BillingPredictionsCard } from './_components/billing-predictions';
+import { SubscriptionManagement } from './_components/subscription-management';
 import { SubscriptionDetails } from './_components/subscription-details';
 import { PaymentHistory } from './_components/payment-history';
+import { BillingPredictions, PaymentMethod } from '@/lib/types/subscription';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,10 +84,23 @@ interface UsageData {
   }>;
 }
 
+interface UsageTrend {
+  direction: 'up' | 'down' | 'stable';
+  percentage: number;
+  period: string;
+}
+
+interface UsagePrediction {
+  nextMonth: number;
+  willExceedLimit: boolean;
+}
+
 export default function BillingPage() {
   const [currentSubscription, setCurrentSubscription] = useState<CurrentSubscription | null>(null);
   const [availablePlans, setAvailablePlans] = useState<SubscriptionPlan[]>([]);
   const [usageData, setUsageData] = useState<UsageData | null>(null);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [billingPredictions, setBillingPredictions] = useState<BillingPredictions | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -95,11 +112,13 @@ export default function BillingPage() {
     try {
       setLoading(true);
 
-      // Fetch current subscription, available plans, and usage data in parallel
-      const [subscriptionRes, plansRes, usageRes] = await Promise.all([
+      // Fetch current subscription, available plans, usage data, payment methods, and predictions in parallel
+      const [subscriptionRes, plansRes, usageRes, paymentMethodsRes, predictionsRes] = await Promise.all([
         fetch('/api/subscriptions/current'),
         fetch('/api/subscriptions/plans'),
-        fetch('/api/subscriptions/usage')
+        fetch('/api/subscriptions/usage'),
+        fetch('/api/billing/payment-methods'),
+        fetch('/api/billing/predictions')
       ]);
 
       if (subscriptionRes.ok) {
@@ -115,6 +134,16 @@ export default function BillingPage() {
       if (usageRes.ok) {
         const usageData = await usageRes.json();
         setUsageData(usageData.data);
+      }
+
+      if (paymentMethodsRes.ok) {
+        const paymentMethodsData = await paymentMethodsRes.json();
+        setPaymentMethods(paymentMethodsData.data || []);
+      }
+
+      if (predictionsRes.ok) {
+        const predictionsData = await predictionsRes.json();
+        setBillingPredictions(predictionsData.data);
       }
 
     } catch (error) {
@@ -213,6 +242,50 @@ export default function BillingPage() {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handlePaymentMethodUpdate = async (paymentMethodId: string) => {
+    // Update payment methods list
+    fetchData();
+  };
+
+  const handleUpgradeFromPredictions = (planId: string) => {
+    // Navigate to plan selection or open upgrade dialog
+    console.log('Upgrading to plan:', planId);
+  };
+
+  const getUsageTrend = (feature: string): UsageTrend | undefined => {
+    // This would come from analytics data
+    const trends: Record<string, UsageTrend> = {
+      receipts_per_month: { direction: 'up', percentage: 15, period: 'vs last month' },
+      invoices_per_month: { direction: 'stable', percentage: 2, period: 'vs last month' },
+      storage_mb: { direction: 'up', percentage: 8, period: 'vs last month' },
+      users_max: { direction: 'stable', percentage: 0, period: 'vs last month' }
+    };
+    return trends[feature];
+  };
+
+  const getUsagePredictions = (feature: string): UsagePrediction | undefined => {
+    if (!usageData?.usage[feature]) return undefined;
+    
+    const current = usageData.usage[feature].currentUsage;
+    const limit = usageData.usage[feature].limit;
+    
+    if (usageData.usage[feature].isUnlimited) return undefined;
+    
+    // Simple prediction based on current trend
+    const trend = getUsageTrend(feature);
+    if (!trend) return undefined;
+    
+    const growthFactor = trend.direction === 'up' ? 1 + (trend.percentage / 100) : 
+                        trend.direction === 'down' ? 1 - (trend.percentage / 100) : 1;
+    
+    const predictedNext = Math.round(current * growthFactor);
+    
+    return {
+      nextMonth: predictedNext,
+      willExceedLimit: predictedNext > limit
+    };
   };
 
   const getStatusColor = (status: string) => {
@@ -341,34 +414,41 @@ export default function BillingPage() {
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="usage">Usage</TabsTrigger>
-          <TabsTrigger value="plans">Plans</TabsTrigger>
+          <TabsTrigger value="usage">Usage Details</TabsTrigger>
+          <TabsTrigger value="plans">Plan Comparison</TabsTrigger>
+          <TabsTrigger value="management">Subscription Management</TabsTrigger>
           <TabsTrigger value="history">Payment History</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          {/* Usage Overview */}
+          {/* Enhanced Usage Overview */}
           {usageData && (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <UsageCard
+              <EnhancedUsageCard
                 title="Receipts Processed"
                 icon={FileText}
                 current={usageData.usage.receipts_per_month?.currentUsage || 0}
                 limit={usageData.usage.receipts_per_month?.limit || 0}
                 isUnlimited={usageData.usage.receipts_per_month?.isUnlimited || false}
                 color="blue"
+                trend={getUsageTrend('receipts_per_month')}
+                predictions={getUsagePredictions('receipts_per_month')}
+                onUpgradeClick={() => handleUpgradeFromPredictions('')}
               />
               
-              <UsageCard
+              <EnhancedUsageCard
                 title="Invoices Created"
                 icon={CreditCard}
                 current={usageData.usage.invoices_per_month?.currentUsage || 0}
                 limit={usageData.usage.invoices_per_month?.limit || 0}
                 isUnlimited={usageData.usage.invoices_per_month?.isUnlimited || false}
                 color="green"
+                trend={getUsageTrend('invoices_per_month')}
+                predictions={getUsagePredictions('invoices_per_month')}
+                onUpgradeClick={() => handleUpgradeFromPredictions('')}
               />
               
-              <UsageCard
+              <EnhancedUsageCard
                 title="Storage Used"
                 icon={HardDrive}
                 current={usageData.usage.storage_mb?.currentUsage || 0}
@@ -376,22 +456,44 @@ export default function BillingPage() {
                 isUnlimited={usageData.usage.storage_mb?.isUnlimited || false}
                 unit="MB"
                 color="purple"
+                trend={getUsageTrend('storage_mb')}
+                predictions={getUsagePredictions('storage_mb')}
+                onUpgradeClick={() => handleUpgradeFromPredictions('')}
               />
               
-              <UsageCard
+              <EnhancedUsageCard
                 title="Team Members"
                 icon={Users}
                 current={usageData.usage.users_max?.currentUsage || 0}
                 limit={usageData.usage.users_max?.limit || 0}
                 isUnlimited={usageData.usage.users_max?.isUnlimited || false}
                 color="orange"
+                trend={getUsageTrend('users_max')}
+                predictions={getUsagePredictions('users_max')}
+                onUpgradeClick={() => handleUpgradeFromPredictions('')}
               />
             </div>
           )}
 
-          {/* Subscription Details */}
+          {/* Billing Predictions */}
+          {billingPredictions && (
+            <BillingPredictionsCard
+              predictions={billingPredictions}
+              onUpgradeClick={handleUpgradeFromPredictions}
+              loading={loading}
+            />
+          )}
+
+          {/* Subscription Management */}
           {currentSubscription && (
-            <SubscriptionDetails subscription={currentSubscription} />
+            <SubscriptionManagement
+              currentSubscription={currentSubscription}
+              availablePlans={availablePlans}
+              paymentMethods={paymentMethods}
+              onPlanChange={handleUpgrade}
+              onPaymentMethodUpdate={handlePaymentMethodUpdate}
+              onCancel={() => handleCancelSubscription(true)}
+            />
           )}
         </TabsContent>
 
@@ -454,6 +556,23 @@ export default function BillingPage() {
               );
             })}
           </div>
+        </TabsContent>
+
+        <TabsContent value="management" className="space-y-4">
+          {currentSubscription ? (
+            <SubscriptionManagement
+              currentSubscription={currentSubscription}
+              availablePlans={availablePlans}
+              paymentMethods={paymentMethods}
+              onPlanChange={handleUpgrade}
+              onPaymentMethodUpdate={handlePaymentMethodUpdate}
+              onCancel={() => handleCancelSubscription(true)}
+            />
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">No active subscription to manage</p>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="history" className="space-y-4">

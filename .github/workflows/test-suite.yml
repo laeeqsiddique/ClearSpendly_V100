@@ -1,0 +1,424 @@
+name: ClearSpendly Test Suite
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_environment:
+        description: 'Test environment to run against'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - test
+      test_suite:
+        description: 'Test suite to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - unit
+          - api
+          - e2e
+          - smoke
+          - load
+
+env:
+  NODE_VERSION: '20'
+  TEST_ENVIRONMENT: ${{ github.event.inputs.test_environment || 'test' }}
+  PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/pw-browsers
+
+jobs:
+  # Setup and validation job
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run_unit: ${{ steps.test_matrix.outputs.should_run_unit }}
+      should_run_api: ${{ steps.test_matrix.outputs.should_run_api }}
+      should_run_e2e: ${{ steps.test_matrix.outputs.should_run_e2e }}
+      should_run_smoke: ${{ steps.test_matrix.outputs.should_run_smoke }}
+      should_run_load: ${{ steps.test_matrix.outputs.should_run_load }}
+      test_environment: ${{ steps.test_matrix.outputs.test_environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate environment configuration
+        run: |
+          node -e "
+            const { EnvironmentConfigManager } = require('./lib/testing/environment-config');
+            const config = EnvironmentConfigManager.getTestConfiguration();
+            const validation = EnvironmentConfigManager.validateConfig(config.environment);
+            
+            console.log('Environment:', config.environment);
+            console.log('Validation:', validation);
+            
+            if (!validation.valid) {
+              console.error('Configuration errors:', validation.errors);
+              process.exit(1);
+            }
+            
+            if (validation.warnings.length > 0) {
+              console.warn('Configuration warnings:', validation.warnings);
+            }
+          "
+
+      - name: Determine test matrix
+        id: test_matrix
+        run: |
+          TEST_SUITE="${{ github.event.inputs.test_suite || 'all' }}"
+          ENVIRONMENT="${{ env.TEST_ENVIRONMENT }}"
+          
+          # Determine which test suites to run based on environment and input
+          if [ "$TEST_SUITE" = "all" ] || [ "$TEST_SUITE" = "unit" ]; then
+            echo "should_run_unit=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_run_unit=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if [ "$TEST_SUITE" = "all" ] || [ "$TEST_SUITE" = "api" ]; then
+            echo "should_run_api=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_run_api=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # E2E tests only on staging and test environments
+          if [ "$ENVIRONMENT" != "production" ] && ([ "$TEST_SUITE" = "all" ] || [ "$TEST_SUITE" = "e2e" ]); then
+            echo "should_run_e2e=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_run_e2e=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Smoke tests for production, all tests for others
+          if [ "$ENVIRONMENT" = "production" ] && ([ "$TEST_SUITE" = "all" ] || [ "$TEST_SUITE" = "smoke" ]); then
+            echo "should_run_smoke=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_run_smoke=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Load tests only on staging
+          if [ "$ENVIRONMENT" = "staging" ] && ([ "$TEST_SUITE" = "all" ] || [ "$TEST_SUITE" = "load" ]); then
+            echo "should_run_load=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_run_load=false" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "test_environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
+
+  # Unit tests
+  unit_tests:
+    runs-on: ubuntu-latest
+    needs: setup
+    if: needs.setup.outputs.should_run_unit == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: |
+          npm run test:unit -- --coverage --reporter=junit --outputFile=unit-test-results.xml
+        env:
+          TEST_ENVIRONMENT: ${{ needs.setup.outputs.test_environment }}
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-results
+          path: |
+            unit-test-results.xml
+            coverage/
+
+      - name: Comment PR with coverage
+        if: github.event_name == 'pull_request'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          lcov-file: ./coverage/lcov.info
+
+  # API integration tests
+  api_tests:
+    runs-on: ubuntu-latest
+    needs: setup
+    if: needs.setup.outputs.should_run_api == 'true'
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_clearspendly
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup test database
+        run: |
+          npm run db:setup-test
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_clearspendly
+
+      - name: Run API tests
+        run: |
+          npm run test:api -- --reporter=junit --outputFile=api-test-results.xml
+        env:
+          TEST_ENVIRONMENT: ${{ needs.setup.outputs.test_environment }}
+          TEST_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+          TEST_SUPABASE_KEY: ${{ secrets.TEST_SUPABASE_KEY }}
+          TEST_STRIPE_SECRET_KEY: ${{ secrets.TEST_STRIPE_SECRET_KEY }}
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-test-results
+          path: api-test-results.xml
+
+  # E2E tests with Playwright
+  e2e_tests:
+    runs-on: ubuntu-latest
+    needs: setup
+    if: needs.setup.outputs.should_run_e2e == 'true'
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}
+          key: ${{ runner.os }}-playwright-browsers-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-browsers-
+
+      - name: Install Playwright browsers
+        run: npx playwright install ${{ matrix.browser }} --with-deps
+
+      - name: Run E2E tests
+        run: |
+          npx playwright test --project=${{ matrix.browser }} --reporter=junit
+        env:
+          TEST_ENVIRONMENT: ${{ needs.setup.outputs.test_environment }}
+          STAGING_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          STAGING_SUPABASE_KEY: ${{ secrets.STAGING_SUPABASE_KEY }}
+          STAGING_STRIPE_SECRET_KEY: ${{ secrets.STAGING_STRIPE_SECRET_KEY }}
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-results-${{ matrix.browser }}
+          path: |
+            test-results/
+            playwright-report/
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: playwright-report/
+
+  # Smoke tests for production
+  smoke_tests:
+    runs-on: ubuntu-latest
+    needs: setup
+    if: needs.setup.outputs.should_run_smoke == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run smoke tests
+        run: |
+          npx playwright test --grep="@smoke" --reporter=junit
+        env:
+          TEST_ENVIRONMENT: production
+          PRODUCTION_SUPABASE_URL: ${{ secrets.PRODUCTION_SUPABASE_URL }}
+          PRODUCTION_SUPABASE_KEY: ${{ secrets.PRODUCTION_SUPABASE_KEY }}
+
+      - name: Upload smoke test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-test-results
+          path: test-results/
+
+  # Load tests
+  load_tests:
+    runs-on: ubuntu-latest
+    needs: setup
+    if: needs.setup.outputs.should_run_load == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run load tests
+        run: |
+          npm run test:load -- --reporter=junit --outputFile=load-test-results.xml
+        env:
+          TEST_ENVIRONMENT: staging
+          STAGING_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          STAGING_SUPABASE_KEY: ${{ secrets.STAGING_SUPABASE_KEY }}
+
+      - name: Upload load test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-test-results
+          path: load-test-results.xml
+
+  # Test reporting and notifications
+  test_report:
+    runs-on: ubuntu-latest
+    needs: [setup, unit_tests, api_tests, e2e_tests, smoke_tests, load_tests]
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all test artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Generate test report
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = require('path');
+            
+            const report = {
+              timestamp: new Date().toISOString(),
+              environment: '${{ needs.setup.outputs.test_environment }}',
+              trigger: '${{ github.event_name }}',
+              commit: '${{ github.sha }}',
+              branch: '${{ github.ref_name }}',
+              results: {
+                unit: '${{ needs.unit_tests.result }}',
+                api: '${{ needs.api_tests.result }}',
+                e2e: '${{ needs.e2e_tests.result }}',
+                smoke: '${{ needs.smoke_tests.result }}',
+                load: '${{ needs.load_tests.result }}'
+              }
+            };
+            
+            fs.writeFileSync('test-report.json', JSON.stringify(report, null, 2));
+            console.log('Test Report:', JSON.stringify(report, null, 2));
+          "
+
+      - name: Post to Slack on failure
+        if: failure() && (github.event_name == 'push' || github.event_name == 'schedule')
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          text: "ClearSpendly test suite failed on ${{ github.ref_name }}"
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Upload final report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-report
+          path: test-report.json
+
+  # Deployment gate - only runs if all tests pass
+  deployment_gate:
+    runs-on: ubuntu-latest
+    needs: [unit_tests, api_tests, e2e_tests, smoke_tests]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: All tests passed
+        run: echo "All tests passed. Ready for deployment."
+
+      - name: Trigger deployment
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'deploy.yml',
+              ref: 'main'
+            });

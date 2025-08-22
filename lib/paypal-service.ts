@@ -45,6 +45,23 @@ interface PayPalWebhookEvent {
   create_time: string;
 }
 
+interface PayPalSubscriptionOptions {
+  planId: string;
+  tenantId: string;
+  customerEmail: string;
+  customerName?: string;
+  metadata?: Record<string, string>;
+}
+
+interface PayPalSubscriptionResult {
+  success: boolean;
+  subscription?: {
+    id: string;
+    approvalUrl: string;
+  };
+  error?: string;
+}
+
 export class PayPalService {
   private baseUrl: string;
   private clientId: string | null;
@@ -379,6 +396,371 @@ export class PayPalService {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  // =================
+  // SUBSCRIPTION MANAGEMENT
+  // =================
+
+  async createSubscription(options: PayPalSubscriptionOptions): Promise<PayPalSubscriptionResult> {
+    try {
+      const accessToken = await this.getAccessToken();
+      if (!accessToken) {
+        return {
+          success: false,
+          error: 'Failed to get PayPal access token'
+        };
+      }
+
+      const subscriptionPayload = {
+        plan_id: options.planId,
+        subscriber: {
+          name: {
+            given_name: options.customerName?.split(' ')[0] || 'Customer',
+            surname: options.customerName?.split(' ')[1] || 'User'
+          },
+          email_address: options.customerEmail
+        },
+        application_context: {
+          brand_name: 'ClearSpendly',
+          locale: 'en-US',
+          shipping_preference: 'NO_SHIPPING',
+          user_action: 'SUBSCRIBE_NOW',
+          payment_method: {
+            payer_selected: 'PAYPAL',
+            payee_preferred: 'IMMEDIATE_PAYMENT_REQUIRED'
+          },
+          return_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing?success=true&provider=paypal`,
+          cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing?cancelled=true&provider=paypal`
+        },
+        custom_id: options.tenantId
+      };
+
+      const response = await fetch(`${this.baseUrl}/v1/billing/subscriptions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+          'PayPal-Request-Id': `sub-${options.tenantId}-${Date.now()}`,
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(subscriptionPayload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('PayPal subscription creation failed:', errorData);
+        return {
+          success: false,
+          error: `PayPal subscription creation failed: ${response.status}`
+        };
+      }
+
+      const subscription = await response.json();
+      
+      // Find the approval URL
+      const approvalLink = subscription.links?.find((link: any) => link.rel === 'approve');
+      if (!approvalLink) {
+        return {
+          success: false,
+          error: 'No approval URL found in PayPal subscription response'
+        };
+      }
+
+      return {
+        success: true,
+        subscription: {
+          id: subscription.id,
+          approvalUrl: approvalLink.href
+        }
+      };
+
+    } catch (error) {
+      console.error('Error creating PayPal subscription:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
+  async cancelSubscription(subscriptionId: string, reason: string = 'User requested cancellation'): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      const accessToken = await this.getAccessToken();
+      if (!accessToken) {
+        return {
+          success: false,
+          error: 'Failed to get PayPal access token'
+        };
+      }
+
+      const cancelPayload = {
+        reason: reason
+      };
+
+      const response = await fetch(`${this.baseUrl}/v1/billing/subscriptions/${subscriptionId}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(cancelPayload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('PayPal subscription cancellation failed:', errorData);
+        return {
+          success: false,
+          error: `PayPal subscription cancellation failed: ${response.status}`
+        };
+      }
+
+      return { success: true };
+
+    } catch (error) {
+      console.error('Error cancelling PayPal subscription:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
+  async suspendSubscription(subscriptionId: string, reason: string = 'Temporarily suspended'): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      const accessToken = await this.getAccessToken();
+      if (!accessToken) {
+        return {
+          success: false,
+          error: 'Failed to get PayPal access token'
+        };
+      }
+
+      const suspendPayload = {
+        reason: reason
+      };
+
+      const response = await fetch(`${this.baseUrl}/v1/billing/subscriptions/${subscriptionId}/suspend`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(suspendPayload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('PayPal subscription suspension failed:', errorData);
+        return {
+          success: false,
+          error: `PayPal subscription suspension failed: ${response.status}`
+        };
+      }
+
+      return { success: true };
+
+    } catch (error) {
+      console.error('Error suspending PayPal subscription:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
+  async activateSubscription(subscriptionId: string, reason: string = 'Reactivated by user'): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      const accessToken = await this.getAccessToken();
+      if (!accessToken) {
+        return {
+          success: false,
+          error: 'Failed to get PayPal access token'
+        };
+      }
+
+      const activatePayload = {
+        reason: reason
+      };
+
+      const response = await fetch(`${this.baseUrl}/v1/billing/subscriptions/${subscriptionId}/activate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(activatePayload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('PayPal subscription activation failed:', errorData);
+        return {
+          success: false,
+          error: `PayPal subscription activation failed: ${response.status}`
+        };
+      }
+
+      return { success: true };
+
+    } catch (error) {
+      console.error('Error activating PayPal subscription:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
+  async getSubscriptionDetails(subscriptionId: string): Promise<{
+    success: boolean;
+    subscription?: any;
+    error?: string;
+  }> {
+    try {
+      const accessToken = await this.getAccessToken();
+      if (!accessToken) {
+        return {
+          success: false,
+          error: 'Failed to get PayPal access token'
+        };
+      }
+
+      const response = await fetch(`${this.baseUrl}/v1/billing/subscriptions/${subscriptionId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept': 'application/json'
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('PayPal subscription retrieval failed:', errorData);
+        return {
+          success: false,
+          error: `PayPal subscription retrieval failed: ${response.status}`
+        };
+      }
+
+      const subscription = await response.json();
+
+      return {
+        success: true,
+        subscription
+      };
+
+    } catch (error) {
+      console.error('Error retrieving PayPal subscription:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
+  // =================
+  // BILLING PLANS MANAGEMENT
+  // =================
+
+  async createBillingPlan(options: {
+    name: string;
+    description: string;
+    amount: number;
+    currency: string;
+    interval: 'DAY' | 'WEEK' | 'MONTH' | 'YEAR';
+    intervalCount: number;
+    tenantId: string;
+  }): Promise<{
+    success: boolean;
+    plan?: any;
+    error?: string;
+  }> {
+    try {
+      const accessToken = await this.getAccessToken();
+      if (!accessToken) {
+        return {
+          success: false,
+          error: 'Failed to get PayPal access token'
+        };
+      }
+
+      const planPayload = {
+        product_id: `clearspendly-${options.tenantId}`,
+        name: options.name,
+        description: options.description,
+        status: 'ACTIVE',
+        billing_cycles: [
+          {
+            frequency: {
+              interval_unit: options.interval,
+              interval_count: options.intervalCount
+            },
+            tenure_type: 'REGULAR',
+            sequence: 1,
+            total_cycles: 0, // Infinite
+            pricing_scheme: {
+              fixed_price: {
+                value: options.amount.toFixed(2),
+                currency_code: options.currency.toUpperCase()
+              }
+            }
+          }
+        ],
+        payment_preferences: {
+          auto_bill_outstanding: true,
+          setup_fee: {
+            value: '0.00',
+            currency_code: options.currency.toUpperCase()
+          },
+          setup_fee_failure_action: 'CONTINUE',
+          payment_failure_threshold: 3
+        }
+      };
+
+      const response = await fetch(`${this.baseUrl}/v1/billing/plans`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+          'PayPal-Request-Id': `plan-${options.tenantId}-${Date.now()}`
+        },
+        body: JSON.stringify(planPayload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('PayPal billing plan creation failed:', errorData);
+        return {
+          success: false,
+          error: `PayPal billing plan creation failed: ${response.status}`
+        };
+      }
+
+      const plan = await response.json();
+
+      return {
+        success: true,
+        plan
+      };
+
+    } catch (error) {
+      console.error('Error creating PayPal billing plan:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
       };
     }
   }
