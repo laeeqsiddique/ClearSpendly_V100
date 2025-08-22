@@ -37,10 +37,15 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient()
     
     try {
+      console.log('Exchanging OAuth code for session...')
       const { data, error } = await supabase.auth.exchangeCodeForSession(code)
       
       if (error) {
-        console.error('Auth callback error:', error)
+        console.error('Auth callback error:', {
+          message: error.message,
+          status: error.status,
+          details: error
+        })
         
         // Handle specific Supabase auth errors
         let errorParam = 'auth_failed'
@@ -48,9 +53,17 @@ export async function GET(request: NextRequest) {
           errorParam = 'invalid_code'
         } else if (error.message.includes('expired')) {
           errorParam = 'code_expired'
+        } else if (error.message.includes('redirect_uri_mismatch')) {
+          errorParam = 'redirect_uri_mismatch'
+        } else if (error.message.includes('Database error')) {
+          errorParam = 'database_error'
         }
         
-        return NextResponse.redirect(`${origin}/sign-in?error=${errorParam}`)
+        // Log the full error for debugging
+        console.error('Full OAuth error details:', JSON.stringify(error, null, 2))
+        
+        const appUrl = getAppUrl()
+        return NextResponse.redirect(`${appUrl}/sign-in?error=${errorParam}&details=${encodeURIComponent(error.message)}`)
       }
 
       if (data.user) {
@@ -134,10 +147,12 @@ export async function GET(request: NextRequest) {
       }
     } catch (error) {
       console.error('Unexpected error in auth callback:', error)
-      return NextResponse.redirect(`${origin}/sign-in?error=unexpected_error`)
+      const appUrl = getAppUrl()
+      return NextResponse.redirect(`${appUrl}/sign-in?error=unexpected_error`)
     }
   }
 
   // Return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+  const appUrl = getAppUrl()
+  return NextResponse.redirect(`${appUrl}/auth/auth-code-error`)
 }

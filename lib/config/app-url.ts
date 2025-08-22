@@ -3,18 +3,23 @@
  * This ensures we use the right URL in production vs development
  */
 export function getAppUrl(): string {
-  // In production, use the configured app URL
-  if (process.env.NEXT_PUBLIC_APP_URL && process.env.NODE_ENV === 'production') {
+  // Always use NEXT_PUBLIC_APP_URL if it's set (for production)
+  if (process.env.NEXT_PUBLIC_APP_URL) {
     return process.env.NEXT_PUBLIC_APP_URL;
   }
   
-  // In development or if not configured, use window.location.origin
+  // For Railway environment, construct from Railway variables
+  if (process.env.RAILWAY_ENVIRONMENT && process.env.RAILWAY_PUBLIC_DOMAIN) {
+    return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
+  }
+  
+  // In development or client-side, use window.location.origin
   if (typeof window !== 'undefined') {
     return window.location.origin;
   }
   
-  // Fallback for server-side rendering
-  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  // Final fallback for server-side rendering in development
+  return 'http://localhost:3000';
 }
 
 /**
