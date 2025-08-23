@@ -122,9 +122,9 @@ function SignUpContent() {
       // For Google OAuth, we'll let the user set organization name in onboarding
       // The OAuth callback will create a default organization name and redirect to onboarding
       
-      // Use simple oauth-callback route instead of complex auth/callback  
+      // Use API route for OAuth callback to avoid page routing issues
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://flowvya.com';
-      const actualRedirectUrl = `${baseUrl}/oauth-callback`;
+      const actualRedirectUrl = `${baseUrl}/api/oauth-callback`;
 
       // Detailed debug logging
       console.log('=== OAuth Debug Info ===');
