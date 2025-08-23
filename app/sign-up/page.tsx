@@ -131,7 +131,7 @@ function SignUpContent() {
       console.log('NODE_ENV:', process.env.NODE_ENV);
       console.log('window.location.origin:', typeof window !== 'undefined' ? window.location.origin : 'server-side');
       console.log('getAppUrl():', getAppUrl());
-      console.log('Generated redirectUrl:', redirectUrl);
+      console.log('Base URL:', baseUrl);
       console.log('Final actualRedirectUrl:', actualRedirectUrl);
       console.log('NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) + '...');
       console.log('========================');
