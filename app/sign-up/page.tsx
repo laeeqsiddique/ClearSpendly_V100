@@ -182,15 +182,21 @@ function SignUpContent() {
       }
       // If no error, the redirect will happen automatically
     } catch (error) {
-      console.error("Google sign-up error:", error);
+      console.error("Google sign-up error - Full details:", error);
+      console.error("Error type:", typeof error);
+      console.error("Error name:", (error as any)?.name);
+      console.error("Error message:", (error as any)?.message);
+      console.error("Error stack:", (error as any)?.stack);
       
       if (error instanceof Error) {
+        console.error("Error is instance of Error");
         if (error.message.includes('Failed to fetch')) {
           toast.error("Network error. Please check your connection and try again.");
         } else {
-          toast.error("Google sign-up is currently unavailable. Please use email sign-up instead.");
+          toast.error(`OAuth error: ${error.message}`, { duration: 10000 });
         }
       } else {
+        console.error("Error is not instance of Error");
         toast.error("Something went wrong. Please try email sign-up instead.");
       }
       
