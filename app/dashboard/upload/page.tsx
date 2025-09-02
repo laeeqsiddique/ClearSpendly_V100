@@ -39,8 +39,7 @@ import Image from "next/image";
 import { useCallback, useState, useEffect } from "react";
 import { toast } from "sonner";
 
-// Railway-specific: Type-only import to prevent server-side bundling issues
-import type { ExtractedReceiptData } from "@/lib/ocr-processor";
+// Types for extracted receipt data
 
 interface ExtractedLineItem {
   id: string;
@@ -352,13 +351,17 @@ export default function UploadPage() {
           
           updateProgress('Sending to AI processor...', 60);
           
-          // Call server-side processing API
-          const response = await fetch('/api/process-receipt', {
+          // Call unified OCR API (v2)
+          const response = await fetch('/api/process-receipt-v2', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ imageData, imageUrl }),
+            body: JSON.stringify({ 
+              imageData, 
+              imageUrl,
+              saveToDatabase: false // We'll save after user reviews
+            }),
           });
           
           if (!response.ok) {
