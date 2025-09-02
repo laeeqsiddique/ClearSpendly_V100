@@ -544,72 +544,94 @@ export function EmailBrandingSettings({ isActive = false, currentTemplate }: Ema
   };
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Business Branding</h2>
-          <p className="text-gray-600">Configure your business information and email branding settings</p>
+    <div className="space-y-4 sm:space-y-6">
+      {/* Mobile-First Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl flex items-center justify-center flex-shrink-0">
+            <Settings className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Business Settings</h2>
+            <p className="text-sm text-gray-600">Brand your emails and configure settings</p>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
+        
+        {/* Mobile-Optimized Actions */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
           {hasChanges && (
-            <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-              Unsaved Changes
-            </Badge>
+            <div className="flex items-center justify-center sm:justify-start">
+              <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-200">
+                <div className="w-1.5 h-1.5 bg-amber-500 rounded-full mr-1 animate-pulse" />
+                Unsaved Changes
+              </Badge>
+            </div>
           )}
-          <Button variant="outline" onClick={previewEmail}>
-            <Eye className="w-4 h-4 mr-2" />
-            Preview
-          </Button>
-          <Button onClick={saveBranding} disabled={!hasChanges}>
-            <Save className="w-4 h-4 mr-2" />
-            Save Changes
-          </Button>
+          <div className="grid grid-cols-2 sm:flex gap-2">
+            <Button variant="outline" onClick={previewEmail} className="flex-1 sm:flex-initial">
+              <Eye className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Preview</span>
+            </Button>
+            <Button 
+              onClick={saveBranding} 
+              disabled={!hasChanges}
+              className="flex-1 sm:flex-initial bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+            >
+              <Save className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Save Changes</span>
+              <span className="sm:hidden">Save</span>
+            </Button>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Business Information */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building className="w-5 h-5" />
-                Business Information
-              </CardTitle>
-              <CardDescription>
-                This information will appear in all your email templates
-              </CardDescription>
+      {/* Mobile-First Accordion Layout */}
+      <div className="space-y-4 sm:space-y-6 lg:grid lg:grid-cols-2 lg:gap-8 lg:space-y-0">
+        {/* Business Information - Mobile Optimized */}
+        <div className="space-y-4 sm:space-y-6">
+          <Card className="border-0 shadow-sm bg-white">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Building className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Business Information</CardTitle>
+                  <CardDescription className="text-sm">
+                    Appears in your email templates
+                  </CardDescription>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Logo Upload */}
-              <div className="space-y-4">
-                <Label className="text-base font-semibold">Company Logo</Label>
-                <div className="flex items-center gap-6">
+            <CardContent className="px-4 sm:px-6 space-y-5">
+              {/* Logo Upload - Mobile Optimized */}
+              <div className="space-y-3">
+                <Label className="text-sm font-semibold text-gray-700">Company Logo</Label>
+                <div className="flex flex-col sm:flex-row items-center gap-4">
                   <div className="relative">
                     {branding.logoUrl ? (
                       <div className="relative">
                         <SecureImage
                           path={branding.logoUrl}
                           alt="Company Logo"
-                          className="w-24 h-24 object-contain border-2 border-gray-200 rounded-lg bg-white p-2"
+                          className="w-20 h-20 sm:w-24 sm:h-24 object-contain border-2 border-gray-200 rounded-xl bg-white p-2 shadow-sm"
                         />
                         <button
                           onClick={() => updateBranding({ logoUrl: undefined })}
-                          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 shadow-sm transition-colors"
                         >
                           <X className="w-3 h-3" />
                         </button>
                       </div>
                     ) : (
-                      <div className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-400 hover:border-gray-400 transition-colors">
-                        <Image className="w-8 h-8 mb-1" />
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center text-gray-400 hover:border-purple-300 hover:text-purple-500 transition-colors cursor-pointer">
+                        <Image className="w-6 h-6 sm:w-8 sm:h-8 mb-1" />
                         <span className="text-xs">Logo</span>
                       </div>
                     )}
                   </div>
                   
-                  <div className="flex-1">
+                  <div className="flex-1 w-full text-center sm:text-left">
                     <input
                       type="file"
                       id="logo-upload"
@@ -617,12 +639,12 @@ export function EmailBrandingSettings({ isActive = false, currentTemplate }: Ema
                       onChange={handleLogoUpload}
                       className="hidden"
                     />
-                    <Label htmlFor="logo-upload">
+                    <Label htmlFor="logo-upload" className="w-full">
                       <Button 
                         type="button"
                         variant="outline" 
                         disabled={uploading}
-                        className="cursor-pointer"
+                        className="cursor-pointer w-full sm:w-auto"
                         asChild
                       >
                         <span>
@@ -632,82 +654,98 @@ export function EmailBrandingSettings({ isActive = false, currentTemplate }: Ema
                       </Button>
                     </Label>
                     <p className="text-xs text-gray-500 mt-2">
-                      PNG, JPG up to 2MB<br />
-                      Recommended: 200x200px
+                      PNG, JPG up to 2MB • Recommended: 200x200px
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Business Details */}
-              <div className="grid grid-cols-1 gap-4">
+              {/* Business Details - Mobile Grid */}
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="business-name">Business Name *</Label>
+                  <Label htmlFor="business-name" className="text-sm font-medium text-gray-700">
+                    Business Name *
+                  </Label>
                   <Input
                     id="business-name"
                     value={branding.businessName}
                     onChange={(e) => updateBranding({ businessName: e.target.value })}
                     placeholder="Your Business Name"
+                    className="h-11 rounded-lg border-gray-300 focus:border-purple-500 focus:ring-purple-500"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="tagline">Tagline</Label>
+                  <Label htmlFor="tagline" className="text-sm font-medium text-gray-700">
+                    Tagline
+                  </Label>
                   <Input
                     id="tagline"
                     value={branding.tagline || ''}
                     onChange={(e) => updateBranding({ tagline: e.target.value })}
                     placeholder="Delivering Excellence"
+                    className="h-11 rounded-lg border-gray-300 focus:border-purple-500 focus:ring-purple-500"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="website">Website</Label>
-                  <div className="relative">
-                    <Globe className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="website"
-                      value={branding.website || ''}
-                      onChange={(e) => updateBranding({ website: e.target.value })}
-                      placeholder="https://www.yourbusiness.com"
-                      className="pl-10"
-                    />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="website" className="text-sm font-medium text-gray-700">
+                      Website
+                    </Label>
+                    <div className="relative">
+                      <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="website"
+                        value={branding.website || ''}
+                        onChange={(e) => updateBranding({ website: e.target.value })}
+                        placeholder="yourbusiness.com"
+                        className="h-11 pl-10 rounded-lg border-gray-300 focus:border-purple-500 focus:ring-purple-500"
+                      />
+                    </div>
                   </div>
-                </div>
 
-
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="phone"
-                      value={branding.phone || ''}
-                      onChange={(e) => updateBranding({ phone: e.target.value })}
-                      placeholder="(555) 123-4567"
-                      className="pl-10"
-                    />
+                  <div className="space-y-2">
+                    <Label htmlFor="phone" className="text-sm font-medium text-gray-700">
+                      Phone Number
+                    </Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="phone"
+                        value={branding.phone || ''}
+                        onChange={(e) => updateBranding({ phone: e.target.value })}
+                        placeholder="(555) 123-4567"
+                        className="h-11 pl-10 rounded-lg border-gray-300 focus:border-purple-500 focus:ring-purple-500"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Address */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="w-5 h-5" />
-                Business Address
-              </CardTitle>
-              <CardDescription>
-                Optional: Include your address in email footers
-              </CardDescription>
+          {/* Address - Mobile Collapsible */}
+          <Card className="border-0 shadow-sm bg-white">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                  <MapPin className="w-4 h-4 text-green-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Business Address</CardTitle>
+                  <CardDescription className="text-sm">
+                    Optional: Include in email footers
+                  </CardDescription>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-4">
+            <CardContent className="px-4 sm:px-6 space-y-4">
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="address-line1">Address Line 1</Label>
+                  <Label htmlFor="address-line1" className="text-sm font-medium text-gray-700">
+                    Street Address
+                  </Label>
                   <Input
                     id="address-line1"
                     value={branding.address?.line1 || ''}
@@ -715,11 +753,14 @@ export function EmailBrandingSettings({ isActive = false, currentTemplate }: Ema
                       address: { ...branding.address, line1: e.target.value, city: branding.address?.city || '', state: branding.address?.state || '', postalCode: branding.address?.postalCode || '', country: branding.address?.country || 'United States' }
                     })}
                     placeholder="123 Business St"
+                    className="h-11 rounded-lg border-gray-300 focus:border-purple-500 focus:ring-purple-500"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="address-line2">Address Line 2</Label>
+                  <Label htmlFor="address-line2" className="text-sm font-medium text-gray-700">
+                    Suite/Unit (Optional)
+                  </Label>
                   <Input
                     id="address-line2"
                     value={branding.address?.line2 || ''}
@@ -727,12 +768,13 @@ export function EmailBrandingSettings({ isActive = false, currentTemplate }: Ema
                       address: { ...branding.address!, line2: e.target.value }
                     })}
                     placeholder="Suite 100"
+                    className="h-11 rounded-lg border-gray-300 focus:border-purple-500 focus:ring-purple-500"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="city">City</Label>
+                    <Label htmlFor="city" className="text-sm font-medium text-gray-700">City</Label>
                     <Input
                       id="city"
                       value={branding.address?.city || ''}
@@ -740,24 +782,26 @@ export function EmailBrandingSettings({ isActive = false, currentTemplate }: Ema
                         address: { ...branding.address, city: e.target.value, line1: branding.address?.line1 || '', state: branding.address?.state || '', postalCode: branding.address?.postalCode || '', country: branding.address?.country || 'United States' }
                       })}
                       placeholder="City"
+                      className="h-11 rounded-lg border-gray-300 focus:border-purple-500 focus:ring-purple-500"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="state">State</Label>
+                    <Label htmlFor="state" className="text-sm font-medium text-gray-700">State</Label>
                     <Input
                       id="state"
                       value={branding.address?.state || ''}
                       onChange={(e) => updateBranding({
                         address: { ...branding.address, state: e.target.value, line1: branding.address?.line1 || '', city: branding.address?.city || '', postalCode: branding.address?.postalCode || '', country: branding.address?.country || 'United States' }
                       })}
-                      placeholder="State"
+                      placeholder="CA"
+                      className="h-11 rounded-lg border-gray-300 focus:border-purple-500 focus:ring-purple-500"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="postal-code">Postal Code</Label>
+                    <Label htmlFor="postal-code" className="text-sm font-medium text-gray-700">ZIP Code</Label>
                     <Input
                       id="postal-code"
                       value={branding.address?.postalCode || ''}
@@ -765,10 +809,11 @@ export function EmailBrandingSettings({ isActive = false, currentTemplate }: Ema
                         address: { ...branding.address, postalCode: e.target.value, line1: branding.address?.line1 || '', city: branding.address?.city || '', state: branding.address?.state || '', country: branding.address?.country || 'United States' }
                       })}
                       placeholder="12345"
+                      className="h-11 rounded-lg border-gray-300 focus:border-purple-500 focus:ring-purple-500"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="country">Country</Label>
+                    <Label htmlFor="country" className="text-sm font-medium text-gray-700">Country</Label>
                     <Input
                       id="country"
                       value={branding.address?.country || 'United States'}
@@ -776,6 +821,7 @@ export function EmailBrandingSettings({ isActive = false, currentTemplate }: Ema
                         address: { ...branding.address, country: e.target.value, line1: branding.address?.line1 || '', city: branding.address?.city || '', state: branding.address?.state || '', postalCode: branding.address?.postalCode || '' }
                       })}
                       placeholder="United States"
+                      className="h-11 rounded-lg border-gray-300 focus:border-purple-500 focus:ring-purple-500"
                     />
                   </div>
                 </div>
@@ -784,37 +830,46 @@ export function EmailBrandingSettings({ isActive = false, currentTemplate }: Ema
           </Card>
         </div>
 
-        {/* Email Settings */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="w-5 h-5" />
-                Email Settings
-              </CardTitle>
-              <CardDescription>
-                Configure how your emails are sent and displayed
-              </CardDescription>
+        {/* Email Settings - Mobile Optimized */}
+        <div className="space-y-4 sm:space-y-6">
+          <Card className="border-0 shadow-sm bg-white">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <Mail className="w-4 h-4 text-purple-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Email Settings</CardTitle>
+                  <CardDescription className="text-sm">
+                    Configure email sending and display
+                  </CardDescription>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 gap-4">
+            <CardContent className="px-4 sm:px-6 space-y-5">
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="from-name">From Name</Label>
+                  <Label htmlFor="from-name" className="text-sm font-medium text-gray-700">
+                    From Name
+                  </Label>
                   <Input
                     id="from-name"
                     value={branding.emailSettings.fromName}
                     onChange={(e) => updateEmailSettings({ fromName: e.target.value })}
                     placeholder="Your Business Name"
+                    className="h-11 rounded-lg border-gray-300 focus:border-purple-500 focus:ring-purple-500"
                   />
                   <p className="text-xs text-gray-500">
-                    This name will appear in the "From" field of your emails
+                    Appears in the "From" field of emails
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="business-email">Business Email *</Label>
+                  <Label htmlFor="business-email" className="text-sm font-medium text-gray-700">
+                    Business Email *
+                  </Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                       id="business-email"
                       type="email"
@@ -827,85 +882,100 @@ export function EmailBrandingSettings({ isActive = false, currentTemplate }: Ema
                         updateBranding({ email: e.target.value });
                       }}
                       placeholder="business@example.com"
-                      className="pl-10"
+                      className="h-11 pl-10 rounded-lg border-gray-300 focus:border-purple-500 focus:ring-purple-500"
                     />
                   </div>
                   <p className="text-xs text-gray-500">
-                    Your main business email - used for all email communication
+                    Main contact email for all communication
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="footer-text">Footer Message</Label>
+                  <Label htmlFor="footer-text" className="text-sm font-medium text-gray-700">
+                    Footer Message
+                  </Label>
                   <Textarea
                     id="footer-text"
                     value={branding.emailSettings.footerText}
                     onChange={(e) => updateEmailSettings({ footerText: e.target.value })}
                     placeholder="Thank you for your business!"
                     rows={3}
+                    className="rounded-lg border-gray-300 focus:border-purple-500 focus:ring-purple-500 resize-none"
                   />
                   <p className="text-xs text-gray-500">
-                    This message will appear in all email footers
+                    Appears in all email footers
                   </p>
                 </div>
               </div>
 
-              {/* Email Options */}
-              <div className="space-y-4 pt-4 border-t">
-                <h4 className="font-medium">Email Options</h4>
+              {/* Email Options - Mobile Cards */}
+              <div className="space-y-4 pt-4 border-t border-gray-200">
+                <h4 className="font-medium text-gray-900 text-sm">Email Options</h4>
                 
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label className="text-sm font-medium">Include Business Information</Label>
-                    <p className="text-xs text-gray-500">
-                      Add your business details to email footers
-                    </p>
+                <div className="space-y-3">
+                  <div className="flex items-start sm:items-center justify-between p-3 bg-gray-50 rounded-xl">
+                    <div className="flex-1 pr-4">
+                      <Label className="text-sm font-medium text-gray-900">Business Info in Footer</Label>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Include address and contact details
+                      </p>
+                    </div>
+                    <Switch
+                      checked={branding.emailSettings.includeBusinessInfo}
+                      onCheckedChange={(checked) => updateEmailSettings({ includeBusinessInfo: checked })}
+                      className="data-[state=checked]:bg-purple-600"
+                    />
                   </div>
-                  <Switch
-                    checked={branding.emailSettings.includeBusinessInfo}
-                    onCheckedChange={(checked) => updateEmailSettings({ includeBusinessInfo: checked })}
-                  />
-                </div>
 
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label className="text-sm font-medium">Include Unsubscribe Link</Label>
-                    <p className="text-xs text-gray-500">
-                      Add unsubscribe link for marketing emails
-                    </p>
+                  <div className="flex items-start sm:items-center justify-between p-3 bg-gray-50 rounded-xl">
+                    <div className="flex-1 pr-4">
+                      <Label className="text-sm font-medium text-gray-900">Unsubscribe Link</Label>
+                      <p className="text-xs text-gray-600 mt-1">
+                        For marketing emails compliance
+                      </p>
+                    </div>
+                    <Switch
+                      checked={branding.emailSettings.includeUnsubscribe}
+                      onCheckedChange={(checked) => updateEmailSettings({ includeUnsubscribe: checked })}
+                      className="data-[state=checked]:bg-purple-600"
+                    />
                   </div>
-                  <Switch
-                    checked={branding.emailSettings.includeUnsubscribe}
-                    onCheckedChange={(checked) => updateEmailSettings({ includeUnsubscribe: checked })}
-                  />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Email Template Preview */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Real Email Preview
-              </CardTitle>
-              <CardDescription>
-                Preview how your branding appears in your actual email templates
-              </CardDescription>
+          {/* Email Template Preview - Mobile Optimized */}
+          <Card className="border-0 shadow-sm bg-white">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <FileText className="w-4 h-4 text-orange-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Live Preview</CardTitle>
+                  <CardDescription className="text-sm">
+                    See your branding in action
+                  </CardDescription>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="bg-gray-50 rounded-lg p-6 border">
-                {generateMiniEmailPreview()}
+            <CardContent className="px-4 sm:px-6">
+              <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-4 border">
+                <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                  {generateMiniEmailPreview()}
+                </div>
                 
                 {templateToUse && (
-                  <div className="mt-4 text-center">
-                    <p className="text-xs text-gray-500">
-                      Using template: <span className="font-medium">{templateToUse.name}</span>
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {currentTemplate ? 'Currently editing template' : 'Sample template'} • Colors from Design tab • Business info from Settings tab
-                    </p>
+                  <div className="mt-4 p-3 bg-white/50 rounded-xl">
+                    <div className="text-center space-y-1">
+                      <p className="text-xs font-medium text-gray-700">
+                        Template: <span className="text-purple-600">{templateToUse.name}</span>
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {currentTemplate ? '✏️ Editing' : '📄 Sample'} • 🎨 Design colors • ⚙️ Your settings
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>

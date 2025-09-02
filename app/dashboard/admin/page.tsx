@@ -35,10 +35,12 @@ import {
   ExternalLink,
   Activity,
   Zap as ZapIcon,
-  FlaskConical,
   Eye,
   Wallet,
-  Plus
+  Plus,
+  ChevronDown,
+  ChevronRight,
+  ArrowLeft
 } from "lucide-react";
 import AIChatAgent from '@/components/ai-chat-agent';
 import { toast } from "sonner";
@@ -86,7 +88,6 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [enhancedOCR, setEnhancedOCR] = useState(false);
   const [stats, setStats] = useState<SystemStats>({
     totalReceipts: 0,
     totalAmount: 0,
@@ -129,9 +130,6 @@ export default function AdminPage() {
   useEffect(() => {
     loadSystemStats();
     loadSettings();
-    // Load enhanced OCR setting
-    const storedEnhancedOCR = localStorage.getItem('enable-enhanced-ocr');
-    setEnhancedOCR(storedEnhancedOCR === 'true');
   }, []);
 
   const loadSystemStats = async () => {
@@ -223,105 +221,120 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="flex-1 space-y-6 p-6 bg-gradient-to-br from-purple-50 via-white to-blue-50 min-h-screen">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-            Account & Settings
-          </h2>
-          <p className="text-muted-foreground flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            Manage your account, billing, and system preferences
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-white rounded-lg px-4 py-2 shadow-sm border">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-            <span className="text-sm font-medium text-gray-700">All Systems Online</span>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+      {/* Admin Header with Breadcrumb Navigation - Hidden on mobile */}
+      <div className="bg-white/80 backdrop-blur-sm border-b border-purple-200/30 hidden sm:block">
+        <div className="px-4 lg:px-6 py-4">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 text-sm mb-4">
+            <Link href="/dashboard" className="flex items-center gap-1 text-gray-600 hover:text-purple-600 transition-colors">
+              <ArrowLeft className="h-4 w-4" />
+              <span>Back to Dashboard</span>
+            </Link>
+            <ChevronRight className="h-4 w-4 text-gray-400" />
+            <Link href="/dashboard" className="text-gray-600 hover:text-purple-600 transition-colors">
+              Dashboard
+            </Link>
+            <ChevronRight className="h-4 w-4 text-gray-400" />
+            <span className="text-gray-600">Settings</span>
+            <ChevronRight className="h-4 w-4 text-gray-400" />
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4 text-purple-600" />
+              <span className="text-purple-600 font-medium">Admin Panel</span>
+            </div>
+          </div>
+
+          {/* Admin Badge */}
+          <div className="flex items-center gap-3 mb-4">
+            <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+              <Shield className="h-3 w-3 mr-1" />
+              Admin Access
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5 bg-white shadow-sm">
-          <TabsTrigger value="overview" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            System
-          </TabsTrigger>
-          <TabsTrigger value="account" className="flex items-center gap-2">
-            <User className="h-4 w-4" />
-            Account
-          </TabsTrigger>
-          <TabsTrigger value="billing" className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4" />
-            Billing
-          </TabsTrigger>
-          <TabsTrigger value="experimental" className="flex items-center gap-2">
-            <FlaskConical className="h-4 w-4" />
-            Experimental
-          </TabsTrigger>
-        </TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="min-h-[calc(100vh-140px)]">
+        
+        {/* Mobile-First Tab Navigation - Responsive Grid */}
+        <div className="sticky top-0 bg-white/90 backdrop-blur-sm border-b border-gray-200 px-4 py-3 z-10">
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { value: "overview", icon: BarChart3, label: "Overview", desc: "System statistics" },
+              { value: "settings", icon: Settings, label: "System", desc: "Basic settings" },
+              { value: "account", icon: User, label: "Account", desc: "Profile & notifications" }
+            ].map((tab) => (
+              <button
+                key={tab.value}
+                onClick={() => setActiveTab(tab.value)}
+                className={`flex flex-col items-center gap-1 p-3 rounded-xl text-xs font-medium transition-all duration-200 ${
+                  activeTab === tab.value
+                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/25'
+                    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+                }`}
+              >
+                <tab.icon className="h-5 w-5" />
+                <span className="leading-tight">{tab.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-              <CardContent className="p-6">
+        <TabsContent value="overview" className="space-y-4 p-4 lg:p-6">
+          {/* Mobile-optimized stats grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg rounded-2xl overflow-hidden">
+              <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Receipts</p>
-                    <p className="text-2xl font-bold text-purple-600">{stats.totalReceipts}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Total Receipts</p>
+                    <p className="text-xl sm:text-2xl font-bold text-purple-600 truncate">{stats.totalReceipts}</p>
                   </div>
-                  <div className="p-3 bg-purple-100 rounded-lg">
-                    <Receipt className="h-6 w-6 text-purple-600" />
+                  <div className="flex-shrink-0 p-2 sm:p-3 bg-purple-100 rounded-xl ml-2">
+                    <Receipt className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-              <CardContent className="p-6">
+            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg rounded-2xl overflow-hidden">
+              <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Amount</p>
-                    <p className="text-2xl font-bold text-green-600">{formatCurrency(stats.totalAmount)}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Total Amount</p>
+                    <p className="text-xl sm:text-2xl font-bold text-green-600 truncate">{formatCurrency(stats.totalAmount)}</p>
                   </div>
-                  <div className="p-3 bg-green-100 rounded-lg">
-                    <TrendingUp className="h-6 w-6 text-green-600" />
+                  <div className="flex-shrink-0 p-2 sm:p-3 bg-green-100 rounded-xl ml-2">
+                    <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-              <CardContent className="p-6">
+            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg rounded-2xl overflow-hidden">
+              <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Tags</p>
-                    <p className="text-2xl font-bold text-blue-600">{stats.totalTags}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Total Tags</p>
+                    <p className="text-xl sm:text-2xl font-bold text-blue-600 truncate">{stats.totalTags}</p>
                   </div>
-                  <div className="p-3 bg-blue-100 rounded-lg">
-                    <Tags className="h-6 w-6 text-blue-600" />
+                  <div className="flex-shrink-0 p-2 sm:p-3 bg-blue-100 rounded-xl ml-2">
+                    <Tags className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-              <CardContent className="p-6">
+            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg rounded-2xl overflow-hidden">
+              <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Storage Used</p>
-                    <p className="text-2xl font-bold text-orange-600">{stats.storageUsed}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Storage Used</p>
+                    <p className="text-xl sm:text-2xl font-bold text-orange-600 truncate">{stats.storageUsed}</p>
                   </div>
-                  <div className="p-3 bg-orange-100 rounded-lg">
-                    <HardDrive className="h-6 w-6 text-orange-600" />
+                  <div className="flex-shrink-0 p-2 sm:p-3 bg-orange-100 rounded-xl ml-2">
+                    <HardDrive className="h-5 w-5 sm:h-6 sm:w-6 text-orange-600" />
                   </div>
                 </div>
               </CardContent>
@@ -331,104 +344,111 @@ export default function AdminPage() {
         </TabsContent>
 
         {/* Settings Tab */}
-        <TabsContent value="settings" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <TabsContent value="settings" className="space-y-4 p-4 lg:p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
             {/* Basic Settings */}
-            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Globe className="h-5 w-5" />
+            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg rounded-2xl overflow-hidden">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Globe className="h-5 w-5 text-purple-600" />
                   Basic Settings
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="defaultCurrency">Currency</Label>
+                  <Label htmlFor="defaultCurrency" className="text-sm font-medium text-gray-700">Currency</Label>
                   <Input
                     id="defaultCurrency"
                     value={settings.defaultCurrency}
                     onChange={(e) => setSettings({...settings, defaultCurrency: e.target.value})}
                     placeholder="USD"
+                    className="h-12 text-base rounded-xl border-2 border-gray-200/50 focus:border-purple-300 transition-colors"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="timezone">Timezone</Label>
+                  <Label htmlFor="timezone" className="text-sm font-medium text-gray-700">Timezone</Label>
                   <Input
                     id="timezone"
                     value={settings.timezone}
                     onChange={(e) => setSettings({...settings, timezone: e.target.value})}
                     placeholder="UTC"
+                    className="h-12 text-base rounded-xl border-2 border-gray-200/50 focus:border-purple-300 transition-colors"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="dateFormat">Date Format</Label>
+                  <Label htmlFor="dateFormat" className="text-sm font-medium text-gray-700">Date Format</Label>
                   <Input
                     id="dateFormat"
                     value={settings.dateFormat}
                     onChange={(e) => setSettings({...settings, dateFormat: e.target.value})}
                     placeholder="MM/dd/yyyy"
+                    className="h-12 text-base rounded-xl border-2 border-gray-200/50 focus:border-purple-300 transition-colors"
                   />
                 </div>
               </CardContent>
             </Card>
 
             {/* Features */}
-            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Zap className="h-5 w-5" />
+            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg rounded-2xl overflow-hidden">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Zap className="h-5 w-5 text-purple-600" />
                   Features
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">AI Assistant</p>
-                    <p className="text-sm text-muted-foreground">Enable chat-based help</p>
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl border border-purple-100/50">
+                  <div className="flex-1 pr-4">
+                    <p className="font-medium text-gray-900">AI Assistant</p>
+                    <p className="text-sm text-gray-600 mt-1">Enable chat-based help</p>
                   </div>
                   <Switch
                     checked={settings.enableAI}
                     onCheckedChange={(checked) => setSettings({...settings, enableAI: checked})}
+                    className="data-[state=checked]:bg-purple-600 scale-110"
                   />
                 </div>
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">Notifications</p>
-                    <p className="text-sm text-muted-foreground">System alerts</p>
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl border border-purple-100/50">
+                  <div className="flex-1 pr-4">
+                    <p className="font-medium text-gray-900">Notifications</p>
+                    <p className="text-sm text-gray-600 mt-1">System alerts</p>
                   </div>
                   <Switch
                     checked={settings.enableNotifications}
                     onCheckedChange={(checked) => setSettings({...settings, enableNotifications: checked})}
+                    className="data-[state=checked]:bg-purple-600 scale-110"
                   />
                 </div>
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">Auto Backup</p>
-                    <p className="text-sm text-muted-foreground">Weekly data backup</p>
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl border border-purple-100/50">
+                  <div className="flex-1 pr-4">
+                    <p className="font-medium text-gray-900">Auto Backup</p>
+                    <p className="text-sm text-gray-600 mt-1">Weekly data backup</p>
                   </div>
                   <Switch
                     checked={settings.autoBackup}
                     onCheckedChange={(checked) => setSettings({...settings, autoBackup: checked})}
+                    className="data-[state=checked]:bg-purple-600 scale-110"
                   />
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          <div className="flex justify-end">
+          {/* Save Button - Mobile optimized */}
+          <div className="flex justify-center lg:justify-end mt-6">
             <Button 
               onClick={saveSettings} 
               disabled={saving}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              className="w-full sm:w-auto h-12 px-8 text-base font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-xl shadow-lg transition-all duration-200"
             >
               {saving ? (
                 <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
                   Saving...
                 </>
               ) : (
                 <>
-                  <Save className="h-4 w-4 mr-2" />
+                  <Save className="h-5 w-5 mr-2" />
                   Save Settings
                 </>
               )}
@@ -437,94 +457,101 @@ export default function AdminPage() {
         </TabsContent>
 
         {/* Account Tab */}
-        <TabsContent value="account" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <TabsContent value="account" className="space-y-4 p-4 lg:p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
             {/* Profile Information */}
-            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
+            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg rounded-2xl overflow-hidden">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <User className="h-5 w-5 text-purple-600" />
                   Profile Information
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="userName">Full Name</Label>
+                  <Label htmlFor="userName" className="text-sm font-medium text-gray-700">Full Name</Label>
                   <Input
                     id="userName"
                     value={userSettings.name}
                     onChange={(e) => setUserSettings({...userSettings, name: e.target.value})}
                     placeholder="Enter your full name"
+                    className="h-12 text-base rounded-xl border-2 border-gray-200/50 focus:border-purple-300 transition-colors"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="userEmail">Email Address</Label>
+                  <Label htmlFor="userEmail" className="text-sm font-medium text-gray-700">Email Address</Label>
                   <Input
                     id="userEmail"
                     type="email"
                     value={userSettings.email}
                     onChange={(e) => setUserSettings({...userSettings, email: e.target.value})}
                     placeholder="Enter your email"
+                    className="h-12 text-base rounded-xl border-2 border-gray-200/50 focus:border-purple-300 transition-colors"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="userCompany">Company/Business</Label>
+                  <Label htmlFor="userCompany" className="text-sm font-medium text-gray-700">Company/Business</Label>
                   <Input
                     id="userCompany"
                     value={userSettings.company}
                     onChange={(e) => setUserSettings({...userSettings, company: e.target.value})}
                     placeholder="Enter your company name"
+                    className="h-12 text-base rounded-xl border-2 border-gray-200/50 focus:border-purple-300 transition-colors"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="userPhone">Phone Number</Label>
+                  <Label htmlFor="userPhone" className="text-sm font-medium text-gray-700">Phone Number</Label>
                   <Input
                     id="userPhone"
                     value={userSettings.phone}
                     onChange={(e) => setUserSettings({...userSettings, phone: e.target.value})}
                     placeholder="Enter your phone number"
+                    className="h-12 text-base rounded-xl border-2 border-gray-200/50 focus:border-purple-300 transition-colors"
                   />
                 </div>
               </CardContent>
             </Card>
 
             {/* Notification Preferences */}
-            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bell className="h-5 w-5" />
+            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg rounded-2xl overflow-hidden">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Bell className="h-5 w-5 text-purple-600" />
                   Notification Preferences
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">Email Notifications</p>
-                    <p className="text-sm text-muted-foreground">Receive important updates via email</p>
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl border border-purple-100/50">
+                  <div className="flex-1 pr-4">
+                    <p className="font-medium text-gray-900">Email Notifications</p>
+                    <p className="text-sm text-gray-600 mt-1">Receive important updates via email</p>
                   </div>
                   <Switch
                     checked={userSettings.emailNotifications}
                     onCheckedChange={(checked) => setUserSettings({...userSettings, emailNotifications: checked})}
+                    className="data-[state=checked]:bg-purple-600 scale-110"
                   />
                 </div>
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">Push Notifications</p>
-                    <p className="text-sm text-muted-foreground">Browser notifications for new receipts</p>
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl border border-purple-100/50">
+                  <div className="flex-1 pr-4">
+                    <p className="font-medium text-gray-900">Push Notifications</p>
+                    <p className="text-sm text-gray-600 mt-1">Browser notifications for new receipts</p>
                   </div>
                   <Switch
                     checked={userSettings.pushNotifications}
                     onCheckedChange={(checked) => setUserSettings({...userSettings, pushNotifications: checked})}
+                    className="data-[state=checked]:bg-purple-600 scale-110"
                   />
                 </div>
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">Marketing Emails</p>
-                    <p className="text-sm text-muted-foreground">Tips, updates, and product news</p>
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl border border-purple-100/50">
+                  <div className="flex-1 pr-4">
+                    <p className="font-medium text-gray-900">Marketing Emails</p>
+                    <p className="text-sm text-gray-600 mt-1">Tips, updates, and product news</p>
                   </div>
                   <Switch
                     checked={userSettings.marketingEmails}
                     onCheckedChange={(checked) => setUserSettings({...userSettings, marketingEmails: checked})}
+                    className="data-[state=checked]:bg-purple-600 scale-110"
                   />
                 </div>
               </CardContent>
@@ -532,34 +559,34 @@ export default function AdminPage() {
           </div>
 
           {/* Security Section */}
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
+          <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-lg rounded-2xl overflow-hidden">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Shield className="h-5 w-5 text-purple-600" />
                 Security Settings
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
+                <div className="p-4 bg-gradient-to-r from-blue-50 to-blue-100/50 border border-blue-200/50 rounded-xl">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
                       <p className="font-medium text-blue-800">Change Password</p>
-                      <p className="text-sm text-blue-600">Update your account password</p>
+                      <p className="text-sm text-blue-600 mt-1">Update your account password</p>
                     </div>
-                    <Button variant="outline" className="text-blue-600 border-blue-600">
+                    <Button variant="outline" className="h-10 px-4 text-blue-600 border-blue-300 hover:bg-blue-50 rounded-lg flex-shrink-0">
                       <Lock className="h-4 w-4 mr-2" />
                       Change
                     </Button>
                   </div>
                 </div>
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
+                <div className="p-4 bg-gradient-to-r from-green-50 to-green-100/50 border border-green-200/50 rounded-xl">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
                       <p className="font-medium text-green-800">Two-Factor Auth</p>
-                      <p className="text-sm text-green-600">Enable 2FA for extra security</p>
+                      <p className="text-sm text-green-600 mt-1">Enable 2FA for extra security</p>
                     </div>
-                    <Button variant="outline" className="text-green-600 border-green-600">
+                    <Button variant="outline" className="h-10 px-4 text-green-600 border-green-300 hover:bg-green-50 rounded-lg flex-shrink-0">
                       <Shield className="h-4 w-4 mr-2" />
                       Enable
                     </Button>
@@ -569,20 +596,21 @@ export default function AdminPage() {
             </CardContent>
           </Card>
 
-          <div className="flex justify-end">
+          {/* Save Button - Mobile optimized */}
+          <div className="flex justify-center lg:justify-end mt-6">
             <Button 
               onClick={saveUserSettings}
               disabled={saving}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              className="w-full sm:w-auto h-12 px-8 text-base font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-xl shadow-lg transition-all duration-200"
             >
               {saving ? (
                 <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
                   Saving...
                 </>
               ) : (
                 <>
-                  <Save className="h-4 w-4 mr-2" />
+                  <Save className="h-5 w-5 mr-2" />
                   Save Account Settings
                 </>
               )}
@@ -590,433 +618,15 @@ export default function AdminPage() {
           </div>
         </TabsContent>
 
-        {/* Billing Tab */}
-        <TabsContent value="billing" className="space-y-6">
-          {/* Usage Overview */}
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5 text-purple-600" />
-                <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                  Monthly Usage
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Receipts Processed</span>
-                  <span className="text-2xl font-bold">
-                    {billingInfo.receiptsUsed} / {billingInfo.receiptsLimit}
-                  </span>
-                </div>
-                <Progress value={(billingInfo.receiptsUsed / billingInfo.receiptsLimit) * 100} className="h-3" />
-                <div className="flex justify-between items-center text-sm text-muted-foreground">
-                  <span>{((billingInfo.receiptsUsed / billingInfo.receiptsLimit) * 100).toFixed(0)}% of monthly limit</span>
-                  <span>{billingInfo.receiptsLimit - billingInfo.receiptsUsed} remaining</span>
-                </div>
-                {billingInfo.receiptsUsed / billingInfo.receiptsLimit >= 0.8 && (
-                  <div className="flex items-center gap-2 p-3 bg-yellow-50 rounded-lg">
-                    <AlertCircle className="h-4 w-4 text-yellow-600" />
-                    <p className="text-sm text-yellow-800">
-                      You're approaching your monthly limit. Consider upgrading to Pro for unlimited processing.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Current Plan */}
-            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ZapIcon className="h-5 w-5 text-blue-600" />
-                  Current Plan
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {billingInfo.plan === "Free" ? (
-                  <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="text-xl font-semibold mb-2">Free Plan</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Perfect for getting started
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-bold">$0</p>
-                        <p className="text-sm text-muted-foreground">/month</p>
-                      </div>
-                    </div>
-                    <ul className="space-y-2 text-sm">
-                      <li className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        <span>10 receipts per month</span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        <span>OCR processing</span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        <span>Basic tagging & categorization</span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        <span>Dashboard analytics</span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        <span>Excel/CSV export</span>
-                      </li>
-                    </ul>
-                  </div>
-                ) : (
-                  <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="text-xl font-semibold mb-2">Pro Plan</h3>
-                        <p className="text-sm text-muted-foreground">Status: {billingInfo.status}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-bold">$15</p>
-                        <p className="text-sm text-muted-foreground">/month</p>
-                      </div>
-                    </div>
-                    <div className="text-sm text-green-600 mb-3">
-                      Next billing: {new Date(billingInfo.nextBilling).toLocaleDateString()}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Plan Comparison / Upgrade */}
-            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-green-600" />
-                  Pro Plan Benefits
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3">
-                  <li className="flex items-start gap-3">
-                    <div className="rounded-full bg-purple-100 p-1 mt-0.5">
-                      <CheckCircle2 className="h-4 w-4 text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Unlimited Receipts</p>
-                      <p className="text-sm text-muted-foreground">Process as many receipts as you need</p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <div className="rounded-full bg-purple-100 p-1 mt-0.5">
-                      <CheckCircle2 className="h-4 w-4 text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Advanced AI Chat</p>
-                      <p className="text-sm text-muted-foreground">Powered by Mistral AI for better insights</p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <div className="rounded-full bg-purple-100 p-1 mt-0.5">
-                      <CheckCircle2 className="h-4 w-4 text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Receipt Storage</p>
-                      <p className="text-sm text-muted-foreground">Keep original receipt images forever</p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <div className="rounded-full bg-purple-100 p-1 mt-0.5">
-                      <CheckCircle2 className="h-4 w-4 text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Priority Support</p>
-                      <p className="text-sm text-muted-foreground">Get help when you need it</p>
-                    </div>
-                  </li>
-                </ul>
-                
-                {billingInfo.plan === "Free" && (
-                  <div className="pt-4">
-                    <Button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
-                      <TrendingUp className="h-4 w-4 mr-2" />
-                      Upgrade to Pro - $15/month
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {billingInfo.plan !== "Free" && (
-            <>
-              {/* Payment Method - Only show for paid plans */}
-              <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5" />
-                    Payment Method
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="p-4 border rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-6 bg-blue-600 rounded flex items-center justify-center">
-                          <span className="text-white text-xs font-bold">VISA</span>
-                        </div>
-                        <div>
-                          <p className="font-medium">•••• •••• •••• 4242</p>
-                          <p className="text-sm text-muted-foreground">Expires 12/25</p>
-                        </div>
-                      </div>
-                      <Button variant="outline" size="sm">
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                        Manage
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Billing History - Only show for paid plans */}
-              <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Receipt className="h-5 w-5" />
-                    Billing History
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <p className="font-medium">Pro Plan</p>
-                        <p className="text-sm text-muted-foreground">{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">$15.00</p>
-                        <Button variant="ghost" size="sm">
-                          <Download className="h-4 w-4 mr-1" />
-                          Invoice
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-center py-4">
-                    <Button variant="outline">
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      View Full History
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div className="flex justify-between">
-                <Button variant="outline" className="text-red-600 border-red-600">
-                  Cancel Subscription
-                </Button>
-                <Button variant="outline">
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Customer Portal
-                </Button>
-              </div>
-            </>
-          )}
-
-          {/* FAQ */}
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-purple-600" />
-                Frequently Asked Questions
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-medium mb-1">What happens if I exceed my free limit?</h4>
-                  <p className="text-sm text-muted-foreground">
-                    You'll need to upgrade to Pro to continue processing receipts for the month.
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-medium mb-1">Can I cancel anytime?</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Yes, you can cancel your Pro subscription at any time. You'll continue to have access until the end of your billing period.
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-medium mb-1">Do unused receipts roll over?</h4>
-                  <p className="text-sm text-muted-foreground">
-                    No, the free tier limit of 10 receipts resets at the beginning of each month.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* PayPal Payment Settings */}
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Wallet className="h-5 w-5 text-purple-600" />
-                <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                  PayPal Integration
-                </span>
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Configure PayPal to accept payments from customers worldwide
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200/50">
-                <div className="text-2xl">💙</div>
-                <div className="flex-1">
-                  <h4 className="font-medium text-gray-900">Enable PayPal Payments</h4>
-                  <p className="text-sm text-gray-600">Allow customers to pay with PayPal wallets and cards</p>
-                </div>
-                <Button asChild className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
-                  <Link href="/dashboard/payment-settings">
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Configure Payments
-                  </Link>
-                </Button>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                <div className="flex items-center gap-2 text-gray-600">
-                  <CheckCircle2 className="w-4 h-4 text-green-600" />
-                  200+ countries
-                </div>
-                <div className="flex items-center gap-2 text-gray-600">
-                  <CheckCircle2 className="w-4 h-4 text-green-600" />
-                  Buyer protection
-                </div>
-                <div className="flex items-center gap-2 text-gray-600">
-                  <CheckCircle2 className="w-4 h-4 text-green-600" />
-                  Multiple payment types
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Experimental Tab */}
-        <TabsContent value="experimental" className="space-y-6">
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FlaskConical className="h-5 w-5 text-purple-600" />
-                Experimental Features
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Try out new features before they're officially released. These features may change or be removed.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 rounded-lg border bg-gray-50/50">
-                  <div className="flex-1 space-y-1">
-                    <Label htmlFor="enhanced-ocr" className="text-base font-medium flex items-center gap-2">
-                      <Zap className="h-4 w-4 text-yellow-600" />
-                      Enhanced Receipt Processing
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Enable advanced image preprocessing for better OCR accuracy on poor quality receipts. 
-                      This includes document detection, perspective correction, and lighting normalization.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id="enhanced-ocr"
-                      checked={enhancedOCR}
-                      onCheckedChange={(checked) => {
-                        console.log('Switch toggled:', checked);
-                        setEnhancedOCR(checked);
-                        localStorage.setItem('enable-enhanced-ocr', checked.toString());
-                        toast.success(
-                          checked 
-                            ? "Enhanced OCR enabled! Try uploading a receipt to see the improvements." 
-                            : "Enhanced OCR disabled. Using standard processing."
-                        );
-                      }}
-                      className="data-[state=checked]:bg-green-600"
-                    />
-                    <span className="text-xs text-muted-foreground">
-                      {enhancedOCR ? 'ON' : 'OFF'}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
-                  <h4 className="text-sm font-medium text-blue-900 mb-2">
-                    📈 Expected Improvements
-                  </h4>
-                  <p className="text-sm text-blue-800 mb-3">
-                    Enhanced processing significantly improves accuracy for receipts with:
-                  </p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-blue-900">Poor Lighting</p>
-                        <p className="text-xs text-blue-700">Shadows, uneven lighting</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-blue-900">Skewed Photos</p>
-                        <p className="text-xs text-blue-700">Angled or rotated images</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-blue-900">Damaged Receipts</p>
-                        <p className="text-xs text-blue-700">Wrinkled or folded paper</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-blue-900">Low Contrast</p>
-                        <p className="text-xs text-blue-700">Faded or light text</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-lg bg-amber-50 border border-amber-200 p-4">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
-                    <div className="flex-1">
-                      <h4 className="text-sm font-medium text-amber-900">Performance Note</h4>
-                      <p className="text-sm text-amber-800 mt-1">
-                        Enhanced processing may take 2-3 seconds longer but can reduce Vision API usage by 60-80%, 
-                        saving costs and improving accuracy.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
 
       </Tabs>
       
-      {/* AI Chat Agent */}
-      <AIChatAgent />
+      {/* AI Chat Agent - Mobile positioned */}
+      <div className="pb-4">
+        <AIChatAgent />
+      </div>
     </div>
   );
 }

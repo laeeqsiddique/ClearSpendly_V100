@@ -718,109 +718,175 @@ export function EmailPreview({ template }: EmailPreviewProps) {
 
   return (
     <div className="space-y-4">
-      {/* Preview Controls */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
+      {/* Mobile-First Preview Controls */}
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <Eye className="w-5 h-5" />
-              <CardTitle>Live Preview</CardTitle>
-              <Badge variant="secondary" className="ml-2">
-                {template.template_type.replace('_', ' ')}
-              </Badge>
+              <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
+                <Eye className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Live Preview</CardTitle>
+                <p className="text-xs text-gray-600 mt-0.5 capitalize">
+                  {template.template_type.replace('_', ' ')} Template
+                </p>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Select value={previewMode} onValueChange={(value: 'desktop' | 'mobile') => setPreviewMode(value)}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="desktop">
-                    <div className="flex items-center gap-2">
-                      <Monitor className="w-4 h-4" />
-                      Desktop
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="mobile">
-                    <div className="flex items-center gap-2">
-                      <Smartphone className="w-4 h-4" />
-                      Mobile
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <Button size="sm" variant="outline" onClick={sendTestEmail}>
-                <Send className="w-4 h-4 mr-1" />
-                Test Send
-              </Button>
-              <Button size="sm" variant="outline">
-                <Download className="w-4 h-4 mr-1" />
-                Export
-              </Button>
+            
+            {/* Mobile-optimized controls */}
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              {/* Preview Mode Toggle */}
+              <div className="flex p-1 bg-gray-100 rounded-lg w-full sm:w-auto">
+                <button
+                  onClick={() => setPreviewMode('desktop')}
+                  className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-md transition-all ${
+                    previewMode === 'desktop' 
+                      ? 'bg-white text-purple-700 shadow-sm font-medium' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <Monitor className="w-4 h-4" />
+                  <span className="hidden sm:inline">Desktop</span>
+                </button>
+                <button
+                  onClick={() => setPreviewMode('mobile')}
+                  className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-md transition-all ${
+                    previewMode === 'mobile' 
+                      ? 'bg-white text-purple-700 shadow-sm font-medium' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <Smartphone className="w-4 h-4" />
+                  <span className="hidden sm:inline">Mobile</span>
+                </button>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="grid grid-cols-2 sm:flex gap-2">
+                <Button size="sm" variant="outline" onClick={sendTestEmail} className="flex-1 sm:flex-initial">
+                  <Send className="w-4 h-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Test</span>
+                </Button>
+                <Button size="sm" variant="outline" className="flex-1 sm:flex-initial">
+                  <Download className="w-4 h-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Export</span>
+                </Button>
+              </div>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          {/* Subject Line Preview */}
-          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center gap-2 mb-1">
-              <Mail className="w-4 h-4 text-gray-500" />
-              <span className="text-sm text-gray-600">Subject:</span>
+        <CardContent className="px-3 sm:px-6">
+          {/* Subject Line Preview - Mobile Optimized */}
+          <div className="mb-4 p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-6 h-6 bg-blue-100 rounded-md flex items-center justify-center">
+                <Mail className="w-3 h-3 text-blue-600" />
+              </div>
+              <span className="text-sm font-medium text-gray-700">Email Subject</span>
             </div>
-            <p className="font-medium">
+            <p className="font-semibold text-gray-900 text-sm sm:text-base line-clamp-2">
               {processTemplate(template.subject_template || 'Email Subject', sampleData)}
             </p>
           </div>
 
-          {/* Email Preview */}
-          <div className="border rounded-lg overflow-hidden">
-            <div 
-              className={`bg-white transition-all duration-300 ${
-                previewMode === 'mobile' ? 'max-w-sm mx-auto' : 'w-full'
-              }`}
-              style={{ 
-                transform: previewMode === 'mobile' ? 'scale(0.8)' : 'scale(1)',
-                transformOrigin: 'top center'
-              }}
-            >
-              <iframe
-                srcDoc={generateEmailHTML()}
-                className="w-full border-0"
-                style={{ 
-                  height: previewMode === 'mobile' ? '800px' : '900px',
-                  width: previewMode === 'mobile' ? '400px' : '100%'
-                }}
-                title="Email Preview"
-              />
+          {/* Mobile-First Email Preview */}
+          <div className="relative">
+            {/* Preview Frame */}
+            <div className={`bg-gray-100 rounded-2xl p-2 sm:p-4 transition-all duration-500 ${
+              previewMode === 'mobile' ? 'max-w-sm mx-auto' : 'w-full'
+            }`}>
+              <div className="bg-white rounded-xl overflow-hidden shadow-lg">
+                {/* Device Header */}
+                <div className={`bg-gray-800 text-white text-center py-2 text-xs font-mono ${
+                  previewMode === 'mobile' ? 'block' : 'hidden'
+                }`}>
+                  📱 Mobile Preview
+                </div>
+                
+                {/* Email Content */}
+                <div 
+                  className="bg-white overflow-hidden"
+                  style={{ 
+                    maxHeight: previewMode === 'mobile' ? '600px' : '800px',
+                    overflowY: 'auto'
+                  }}
+                >
+                  <iframe
+                    srcDoc={generateEmailHTML()}
+                    className="w-full border-0"
+                    style={{ 
+                      height: previewMode === 'mobile' ? '600px' : '800px',
+                      width: '100%',
+                      minHeight: '400px'
+                    }}
+                    title="Email Preview"
+                    loading="lazy"
+                  />
+                </div>
+                
+                {/* Mobile scroll indicator */}
+                {previewMode === 'mobile' && (
+                  <div className="bg-gray-50 text-center py-2 text-xs text-gray-500">
+                    ⬆️ Scroll to see full email ⬆️
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Preview Mode Badge */}
+            <div className="absolute top-4 right-4 z-10">
+              <Badge 
+                variant="secondary" 
+                className="bg-white/90 backdrop-blur-sm shadow-sm border"
+              >
+                {previewMode === 'mobile' ? '📱 Mobile' : '🖥️ Desktop'} View
+              </Badge>
             </div>
           </div>
 
-          {/* Template Info */}
-          <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
-            <div className="flex items-center gap-4">
-              <span>Colors: </span>
-              <div className="flex gap-1">
-                <div 
-                  className="w-4 h-4 rounded border"
-                  style={{ backgroundColor: template.primary_color }}
-                  title="Primary"
-                />
-                <div 
-                  className="w-4 h-4 rounded border"
-                  style={{ backgroundColor: template.secondary_color }}
-                  title="Secondary"
-                />
-                <div 
-                  className="w-4 h-4 rounded border"
-                  style={{ backgroundColor: template.accent_color }}
-                  title="Accent"
-                />
+          {/* Template Info - Mobile Optimized */}
+          <div className="mt-6 space-y-3">
+            {/* Color Palette */}
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+              <span className="text-sm font-medium text-gray-700">Color Palette</span>
+              <div className="flex items-center gap-2">
+                <div className="flex -space-x-1">
+                  <div 
+                    className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
+                    style={{ backgroundColor: template.primary_color }}
+                    title="Primary Color"
+                  />
+                  <div 
+                    className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
+                    style={{ backgroundColor: template.secondary_color }}
+                    title="Secondary Color"
+                  />
+                  <div 
+                    className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
+                    style={{ backgroundColor: template.accent_color }}
+                    title="Accent Color"
+                  />
+                </div>
+                <span className="text-xs text-gray-500 ml-2">Theme</span>
               </div>
-              <span className="ml-4">Font: <span className="font-medium" style={{ fontFamily: getFontFamily(template.font_family) }}>{template.font_family || 'System'}</span></span>
             </div>
-            <div className="flex items-center gap-2">
-              <RefreshCw className="w-3 h-3" />
-              <span>Auto-updating</span>
+            
+            {/* Font & Layout Info */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 bg-gray-50 rounded-xl text-center">
+                <div className="text-xs text-gray-500 mb-1">Font Family</div>
+                <div className="text-sm font-medium" style={{ fontFamily: getFontFamily(template.font_family) }}>
+                  {template.font_family || 'System'}
+                </div>
+              </div>
+              <div className="p-3 bg-gray-50 rounded-xl text-center">
+                <div className="text-xs text-gray-500 mb-1">Auto-Sync</div>
+                <div className="flex items-center justify-center gap-1 text-sm text-green-600">
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  <span>Live</span>
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>

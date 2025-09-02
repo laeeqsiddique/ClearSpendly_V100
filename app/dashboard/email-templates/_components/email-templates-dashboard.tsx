@@ -17,7 +17,9 @@ import {
   Wand2,
   Download,
   Upload,
-  Sparkles
+  Sparkles,
+  ArrowRight,
+  Zap
 } from "lucide-react";
 import { EmailTemplateEditor } from "./email-template-editor";
 import { EmailBrandingSettings } from "./email-branding-settings";
@@ -46,6 +48,75 @@ interface EmailTemplate {
   content_padding?: string;
   section_spacing?: string;
   updated_at: string;
+}
+
+// Design Tab Component with Mobile Tab Switching
+function DesignTabContent({ 
+  selectedTemplate, 
+  onTemplateChange, 
+  onTemplateRefresh 
+}: { 
+  selectedTemplate: EmailTemplate;
+  onTemplateChange: (template: EmailTemplate) => void;
+  onTemplateRefresh: () => Promise<void>;
+}) {
+  const [mobileView, setMobileView] = useState<'editor' | 'preview'>('editor');
+
+  return (
+    <div className="space-y-4">
+      {/* Mobile-first tab navigation for Design mode */}
+      <div className="lg:hidden">
+        <div className="flex gap-2 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl">
+          <button 
+            onClick={() => setMobileView('editor')}
+            className={`flex-1 px-4 py-2.5 text-sm font-medium rounded-lg transition-all ${
+              mobileView === 'editor' 
+                ? 'bg-white dark:bg-gray-700 text-purple-700 dark:text-purple-400 shadow-sm' 
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <Palette className="w-4 h-4" />
+              <span>Editor</span>
+            </div>
+          </button>
+          <button 
+            onClick={() => setMobileView('preview')}
+            className={`flex-1 px-4 py-2.5 text-sm font-medium rounded-lg transition-all ${
+              mobileView === 'preview' 
+                ? 'bg-white dark:bg-gray-700 text-purple-700 dark:text-purple-400 shadow-sm' 
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <Eye className="w-4 h-4" />
+              <span>Preview</span>
+            </div>
+          </button>
+        </div>
+      </div>
+      
+      {/* Desktop side-by-side, Mobile switching */}
+      <div className="flex flex-col lg:grid lg:grid-cols-2 gap-4 lg:gap-6">
+        {/* Editor - Show on desktop always, on mobile when selected */}
+        <div className={`${mobileView === 'editor' ? 'block' : 'hidden'} lg:block`}>
+          <EmailTemplateEditor 
+            template={selectedTemplate}
+            onTemplateChange={onTemplateChange}
+            onTemplateRefresh={onTemplateRefresh}
+          />
+        </div>
+        
+        {/* Preview - Show on desktop always, on mobile when selected */}
+        <div className={`${mobileView === 'preview' ? 'block' : 'hidden'} lg:block`}>
+          <EmailPreview 
+            key={`${selectedTemplate?.id}-${selectedTemplate?.name}-${selectedTemplate?.primary_color}-${selectedTemplate?.subject_template}`}
+            template={selectedTemplate}
+          />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function EmailTemplatesDashboard() {
@@ -263,49 +334,52 @@ export function EmailTemplatesDashboard() {
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 bg-purple-100/50 dark:bg-purple-800 p-1 rounded-lg">
+        <TabsList className="grid grid-cols-4 w-full bg-purple-100/50 dark:bg-purple-800 p-1 rounded-lg">
           <TabsTrigger 
             value="overview" 
-            className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-purple-900 hover:text-purple-700"
+            className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-1 sm:px-3 py-2 text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-purple-900 hover:text-purple-700"
           >
-            <Mail className="w-4 h-4" />
-            Overview
+            <Mail className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Overview</span>
+            <span className="sm:hidden">View</span>
           </TabsTrigger>
           <TabsTrigger 
             value="design" 
-            className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-purple-900 hover:text-purple-700"
+            className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-1 sm:px-3 py-2 text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-purple-900 hover:text-purple-700"
           >
-            <Palette className="w-4 h-4" />
-            Design
+            <Palette className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span>Design</span>
           </TabsTrigger>
           <TabsTrigger 
             value="settings" 
-            className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-purple-900 hover:text-purple-700"
+            className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-1 sm:px-3 py-2 text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-purple-900 hover:text-purple-700"
           >
-            <Settings className="w-4 h-4" />
-            Settings
+            <Settings className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Settings</span>
+            <span className="sm:hidden">Setup</span>
           </TabsTrigger>
           <TabsTrigger 
             value="analytics" 
-            className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-purple-900 hover:text-purple-700"
+            className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-1 sm:px-3 py-2 text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-purple-900 hover:text-purple-700"
           >
-            <Sparkles className="w-4 h-4" />
-            Analytics
+            <Sparkles className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Analytics</span>
+            <span className="sm:hidden">Stats</span>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          {/* Quick Stats - Matching Invoice Dashboard Style */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {/* Quick Stats - Mobile-First Responsive Grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
             <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-gray-100 rounded-lg">
-                    <FileText className="w-6 h-6 text-blue-600" />
+              <CardContent className="p-4 md:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                  <div className="p-2 sm:p-3 bg-gray-100 rounded-lg w-fit">
+                    <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Invoice Templates</p>
-                    <p className="text-2xl font-bold text-gray-900">
+                    <p className="text-xs sm:text-sm font-medium text-gray-600">Invoice</p>
+                    <p className="text-xl sm:text-2xl font-bold text-gray-900">
                       {templates.filter(t => t.template_type === 'invoice').length}
                     </p>
                   </div>
@@ -314,14 +388,14 @@ export function EmailTemplatesDashboard() {
             </Card>
 
             <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-gray-100 rounded-lg">
-                    <Clock className="w-6 h-6 text-amber-600" />
+              <CardContent className="p-4 md:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                  <div className="p-2 sm:p-3 bg-gray-100 rounded-lg w-fit">
+                    <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Reminder Templates</p>
-                    <p className="text-2xl font-bold text-gray-900">
+                    <p className="text-xs sm:text-sm font-medium text-gray-600">Reminder</p>
+                    <p className="text-xl sm:text-2xl font-bold text-gray-900">
                       {templates.filter(t => t.template_type === 'payment_reminder').length}
                     </p>
                   </div>
@@ -330,14 +404,14 @@ export function EmailTemplatesDashboard() {
             </Card>
 
             <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-gray-100 rounded-lg">
-                    <CheckCircle className="w-6 h-6 text-green-600" />
+              <CardContent className="p-4 md:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                  <div className="p-2 sm:p-3 bg-gray-100 rounded-lg w-fit">
+                    <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Confirmation Templates</p>
-                    <p className="text-2xl font-bold text-gray-900">
+                    <p className="text-xs sm:text-sm font-medium text-gray-600">Confirmed</p>
+                    <p className="text-xl sm:text-2xl font-bold text-gray-900">
                       {templates.filter(t => t.template_type === 'payment_received').length}
                     </p>
                   </div>
@@ -346,14 +420,14 @@ export function EmailTemplatesDashboard() {
             </Card>
 
             <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-gray-100 rounded-lg">
-                    <Mail className="w-6 h-6 text-purple-600" />
+              <CardContent className="p-4 md:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                  <div className="p-2 sm:p-3 bg-gray-100 rounded-lg w-fit">
+                    <Mail className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Active Templates</p>
-                    <p className="text-2xl font-bold text-gray-900">
+                    <p className="text-xs sm:text-sm font-medium text-gray-600">Active</p>
+                    <p className="text-xl sm:text-2xl font-bold text-gray-900">
                       {templates.filter(t => t.is_active).length}
                     </p>
                   </div>
@@ -362,12 +436,12 @@ export function EmailTemplatesDashboard() {
             </Card>
           </div>
 
-          {/* Quick Actions */}
-          <div className="flex flex-wrap gap-4">
-            <Button 
+          {/* Quick Actions - World-Class Mobile UX */}
+          <div className="space-y-4">
+            {/* Primary CTA */}
+            <button
               onClick={async () => {
                 if (templates.length > 0) {
-                  // Refresh the first template before editing
                   const refreshedTemplate = await refreshTemplate(templates[0].id);
                   if (refreshedTemplate) {
                     safeSetSelectedTemplate(refreshedTemplate);
@@ -376,32 +450,54 @@ export function EmailTemplatesDashboard() {
                 } else {
                   createNewTemplate('invoice');
                 }
-              }} 
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+              }}
+              className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all group"
             >
-              <Wand2 className="w-4 h-4 mr-2" />
-              {templates.length > 0 ? 'Customize Templates' : 'Create First Template'}
-            </Button>
-            <Button variant="outline" className="border-2 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700">
-              <Eye className="w-4 h-4 mr-2" />
-              Preview All
-            </Button>
-            <Button variant="outline" className="border-2 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700">
-              <Upload className="w-4 h-4 mr-2" />
-              Import Theme
-            </Button>
-            <Button variant="outline" className="border-2 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700">
-              <Download className="w-4 h-4 mr-2" />
-              Export Theme
-            </Button>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                  <Wand2 className="w-5 h-5" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-base">
+                    {templates.length > 0 ? 'Customize Templates' : 'Create Your First Template'}
+                  </p>
+                  <p className="text-xs text-white/80">
+                    {templates.length > 0 ? 'Edit colors, content & layout' : 'Start with a professional design'}
+                  </p>
+                </div>
+              </div>
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </button>
+            
+            {/* Secondary Actions */}
+            <div className="grid grid-cols-3 gap-3">
+              <button className="flex flex-col items-center p-3 bg-white rounded-xl border border-gray-200 hover:border-purple-300 hover:shadow-md transition-all group">
+                <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mb-2 group-hover:bg-purple-200 transition-colors">
+                  <Eye className="w-4 h-4 text-purple-600" />
+                </div>
+                <span className="text-xs font-medium text-gray-700">Preview</span>
+              </button>
+              <button className="flex flex-col items-center p-3 bg-white rounded-xl border border-gray-200 hover:border-purple-300 hover:shadow-md transition-all group">
+                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mb-2 group-hover:bg-blue-200 transition-colors">
+                  <Upload className="w-4 h-4 text-blue-600" />
+                </div>
+                <span className="text-xs font-medium text-gray-700">Import</span>
+              </button>
+              <button className="flex flex-col items-center p-3 bg-white rounded-xl border border-gray-200 hover:border-purple-300 hover:shadow-md transition-all group">
+                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mb-2 group-hover:bg-green-200 transition-colors">
+                  <Download className="w-4 h-4 text-green-600" />
+                </div>
+                <span className="text-xs font-medium text-gray-700">Export</span>
+              </button>
+            </div>
           </div>
 
-          {/* Template Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Template Grid - Mobile Optimized */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {templates.map((template) => (
                 <div 
                   key={template.id}
-                  className="bg-white border-2 border-purple-200 rounded-lg p-6 shadow-sm hover:shadow-md hover:border-purple-300 transition-all cursor-pointer"
+                  className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 shadow-sm hover:shadow-lg hover:border-purple-300 transition-all cursor-pointer group relative overflow-hidden"
                   onClick={async () => {
                     // Refresh template data from database before selecting
                     const refreshedTemplate = await refreshTemplate(template.id);
@@ -409,64 +505,79 @@ export function EmailTemplatesDashboard() {
                       safeSetSelectedTemplate(refreshedTemplate);
                     }
                   }}
-                  style={{ minHeight: '200px' }}
                 >
-                  <div className="flex items-center gap-3 mb-4">
-                    <div 
-                      className="w-12 h-12 rounded-full flex items-center justify-center text-white text-xl"
-                      style={{ backgroundColor: getTemplateColor(template) }}
-                    >
-                      {getTemplateIcon(template.template_type)}
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{template.name}</h3>
-                      <span className="inline-block px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full">
-                        {getTemplateTypeLabel(template.template_type)}
-                      </span>
-                    </div>
-                  </div>
+                  {/* Gradient overlay on hover */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   
-                  <div className="space-y-2">
-                    <p className="text-sm text-gray-600">
-                      {template.description || 'No description available'}
-                    </p>
-                    
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500">Colors:</span>
-                      <div className="flex gap-1">
+                  <div className="relative z-10">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
                         <div 
-                          className="w-4 h-4 rounded border"
-                          style={{ backgroundColor: template.primary_color }}
-                        />
-                        <div 
-                          className="w-4 h-4 rounded border"
-                          style={{ backgroundColor: template.secondary_color }}
-                        />
-                        <div 
-                          className="w-4 h-4 rounded border"
-                          style={{ backgroundColor: template.accent_color }}
-                        />
+                          className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-white shadow-lg"
+                          style={{ 
+                            background: `linear-gradient(135deg, ${template.primary_color}, ${template.secondary_color})`
+                          }}
+                        >
+                          {getTemplateIcon(template.template_type)}
+                        </div>
+                        <div>
+                          <h3 className="text-base sm:text-lg font-semibold text-gray-900 line-clamp-1">{template.name}</h3>
+                          <span className="inline-block px-2 py-0.5 text-xs bg-gradient-to-r from-purple-100 to-blue-100 text-purple-800 rounded-full">
+                            {getTemplateTypeLabel(template.template_type)}
+                          </span>
+                        </div>
                       </div>
+                      {template.is_active && (
+                        <Badge className="bg-green-100 text-green-700 border-0 text-xs">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1 animate-pulse" />
+                          Active
+                        </Badge>
+                      )}
                     </div>
                     
-                    <div className="flex items-center justify-between pt-2">
-                      <span className={`text-xs px-2 py-1 rounded ${template.is_active ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-600'}`}>
-                        {template.is_active ? 'Active' : 'Inactive'}
-                      </span>
+                    <div className="space-y-3">
+                      <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">
+                        {template.description || 'Customize this template to match your brand'}
+                      </p>
                       
-                      <div className="flex gap-1">
-                        {!template.is_active && (
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              activateTemplate(template.id);
-                            }}
-                            className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
-                            title="Activate this template"
-                          >
-                            Activate
-                          </button>
-                        )}
+                      {/* Color palette preview */}
+                      <div className="flex items-center gap-3">
+                        <div className="flex -space-x-2">
+                          <div 
+                            className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
+                            style={{ backgroundColor: template.primary_color }}
+                            title="Primary"
+                          />
+                          <div 
+                            className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
+                            style={{ backgroundColor: template.secondary_color }}
+                            title="Secondary"
+                          />
+                          <div 
+                            className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
+                            style={{ backgroundColor: template.accent_color }}
+                            title="Accent"
+                          />
+                        </div>
+                        <span className="text-xs text-gray-500">Theme colors</span>
+                      </div>
+                      
+                      {/* Actions */}
+                      <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                        <div className="flex gap-2">
+                          {!template.is_active && (
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                activateTemplate(template.id);
+                              }}
+                              className="px-3 py-1.5 text-xs bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors font-medium"
+                              title="Activate this template"
+                            >
+                              Activate
+                            </button>
+                          )}
+                        </div>
                         <button 
                           onClick={async (e) => {
                             e.stopPropagation();
@@ -477,9 +588,9 @@ export function EmailTemplatesDashboard() {
                               setActiveTab("design");
                             }
                           }}
-                          className="px-3 py-1 text-xs bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded"
+                          className="px-4 py-1.5 text-xs bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg shadow-sm hover:shadow-md transition-all font-medium"
                         >
-                          Edit
+                          Customize
                         </button>
                       </div>
                     </div>
@@ -488,71 +599,79 @@ export function EmailTemplatesDashboard() {
             ))}
           </div>
 
-          {/* Create New Template */}
-          <Card className="border-2 border-dashed border-purple-200 hover:border-purple-300 transition-colors bg-purple-50/30 hover:bg-purple-50">
-            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                <Plus className="w-8 h-8 text-gray-600" />
+          {/* Create New Template - World-Class Mobile UX */}
+          <Card className="border-2 border-dashed border-purple-300 bg-gradient-to-br from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 transition-all group cursor-pointer">
+            <CardContent className="flex flex-col items-center justify-center py-6 sm:py-8 md:py-12 text-center">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
+                <Plus className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Create New Template</h3>
-              <p className="text-gray-600 mb-4 max-w-md">
-                Start from scratch or duplicate an existing template to create your perfect email design.
+              <h3 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-2">Create New Template</h3>
+              <p className="text-sm text-gray-600 mb-6 max-w-sm px-4">
+                Design beautiful emails that convert
               </p>
-              <div className="flex gap-2">
-                <Button 
+              
+              {/* Mobile-first button grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full px-4 sm:px-8">
+                <button
                   onClick={() => createNewTemplate('invoice')}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                  className="flex flex-col items-center p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 hover:border-purple-300 group/btn"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Invoice Template
-                </Button>
-                <Button 
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mb-2 group-hover/btn:bg-blue-200 transition-colors">
+                    <FileText className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-900">Invoice</span>
+                  <span className="text-xs text-gray-500">Send bills</span>
+                </button>
+                
+                <button
                   onClick={() => createNewTemplate('payment_reminder')}
-                  variant="outline"
-                  className="border-2 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700"
+                  className="flex flex-col items-center p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 hover:border-purple-300 group/btn"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Reminder Template
-                </Button>
-                <Button 
+                  <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center mb-2 group-hover/btn:bg-amber-200 transition-colors">
+                    <Clock className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-900">Reminder</span>
+                  <span className="text-xs text-gray-500">Follow up</span>
+                </button>
+                
+                <button
                   onClick={() => createNewTemplate('payment_received')}
-                  variant="outline"
-                  className="border-2 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700"
+                  className="flex flex-col items-center p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 hover:border-purple-300 group/btn"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Confirmation Template
-                </Button>
+                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mb-2 group-hover/btn:bg-green-200 transition-colors">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-900">Receipt</span>
+                  <span className="text-xs text-gray-500">Confirm</span>
+                </button>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="design" className="space-y-6">
+        <TabsContent value="design" className="space-y-4">
           {selectedTemplate ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div className="space-y-6">
-                <EmailTemplateEditor 
-                  template={selectedTemplate}
-                  onTemplateChange={safeSetSelectedTemplate}
-                  onTemplateRefresh={fetchTemplates}
-                />
-              </div>
-              <div className="space-y-6">
-                <EmailPreview 
-                  key={`${selectedTemplate?.id}-${selectedTemplate?.name}-${selectedTemplate?.primary_color}-${selectedTemplate?.subject_template}`}
-                  template={selectedTemplate}
-                />
-              </div>
-            </div>
+            <DesignTabContent
+              selectedTemplate={selectedTemplate}
+              onTemplateChange={safeSetSelectedTemplate}
+              onTemplateRefresh={fetchTemplates}
+            />
           ) : (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                <Palette className="w-8 h-8 text-gray-400" />
+            <div className="flex flex-col items-center justify-center py-8 sm:py-12 text-center px-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-100 to-blue-100 rounded-2xl flex items-center justify-center mb-4">
+                <Palette className="w-8 h-8 text-purple-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Template Selected</h3>
-              <p className="text-gray-600">
-                Select a template from the overview tab to start editing.
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Design Your Email Templates</h3>
+              <p className="text-gray-600 mb-6 max-w-md">
+                Choose a template from the overview to customize colors, content, and layout
               </p>
+              <Button 
+                onClick={() => setActiveTab("overview")}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              >
+                <ArrowRight className="w-4 h-4 mr-2 rotate-180" />
+                Go to Templates
+              </Button>
             </div>
           )}
         </TabsContent>

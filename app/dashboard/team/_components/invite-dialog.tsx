@@ -133,7 +133,7 @@ export function InviteDialog({ open, onOpenChange, onSuccess }: InviteDialogProp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="w-[95vw] max-w-sm sm:max-w-lg mx-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <div className="p-2 rounded-lg bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/20 dark:to-blue-900/20">
@@ -146,7 +146,7 @@ export function InviteDialog({ open, onOpenChange, onSuccess }: InviteDialogProp
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           {/* Email Input */}
           <div className="space-y-2">
             <Label htmlFor="email">Email Address</Label>
@@ -164,23 +164,29 @@ export function InviteDialog({ open, onOpenChange, onSuccess }: InviteDialogProp
             )}
           </div>
 
-          {/* Role Selection */}
-          <div className="space-y-3">
+          {/* Role Selection - Mobile Optimized */}
+          <div className="space-y-2 sm:space-y-3">
             <Label>Role & Permissions</Label>
             <Select value={role} onValueChange={setRole} disabled={isLoading}>
               <SelectTrigger className="transition-all duration-200 focus:ring-2 focus:ring-purple-500 border-purple-200">
-                <SelectValue />
+                <div className="flex items-center space-x-2">
+                  <SelectedRoleIcon className="h-4 w-4 text-gray-500" />
+                  <div className="flex flex-col items-start">
+                    <span className="font-medium text-sm">{selectedRole?.label || 'Select Role'}</span>
+                    <span className="text-xs text-gray-500 hidden sm:block">{selectedRole?.description}</span>
+                  </div>
+                </div>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="w-[var(--radix-select-trigger-width)]">
                 {roleOptions.map((roleOption) => {
                   const RoleIcon = roleOption.icon;
                   return (
-                    <SelectItem key={roleOption.value} value={roleOption.value}>
+                    <SelectItem key={roleOption.value} value={roleOption.value} className="py-3">
                       <div className="flex items-center space-x-3">
-                        <RoleIcon className="h-4 w-4 text-gray-500" />
-                        <div className="flex flex-col">
+                        <RoleIcon className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                        <div className="flex flex-col min-w-0">
                           <span className="font-medium">{roleOption.label}</span>
-                          <span className="text-xs text-gray-500">{roleOption.description}</span>
+                          <span className="text-xs text-gray-500 line-clamp-1">{roleOption.description}</span>
                         </div>
                       </div>
                     </SelectItem>
@@ -189,63 +195,56 @@ export function InviteDialog({ open, onOpenChange, onSuccess }: InviteDialogProp
               </SelectContent>
             </Select>
 
-            {/* Selected Role Preview */}
+            {/* Mobile Role Description */}
             {selectedRole && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="p-4 rounded-lg border border-purple-200 bg-purple-50 dark:bg-purple-900/10 dark:border-purple-800"
-              >
-                <div className="flex items-start space-x-3">
-                  <Badge className={`${selectedRole.color} border-0`}>
-                    <SelectedRoleIcon className="h-3 w-3 mr-1" />
-                    {selectedRole.label}
-                  </Badge>
-                </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+              <div className="sm:hidden">
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 px-1">
                   {selectedRole.description}
                 </p>
-              </motion.div>
+              </div>
             )}
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-end space-x-3 pt-4">
+          {/* Action Buttons - Mobile Optimized */}
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end space-y-reverse space-y-2 sm:space-y-0 sm:space-x-3 pt-2 sm:pt-4">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={isLoading}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={isLoading || !email}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
             >
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Sending Invite...
+                  <span className="sm:hidden">Sending...</span>
+                  <span className="hidden sm:inline">Sending Invite...</span>
                 </>
               ) : (
                 <>
                   <Send className="h-4 w-4 mr-2" />
-                  Send Invitation
+                  <span className="sm:hidden">Send Invite</span>
+                  <span className="hidden sm:inline">Send Invitation</span>
                 </>
               )}
             </Button>
           </div>
         </form>
 
-        {/* Info Footer */}
-        <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex items-start space-x-3 text-xs text-gray-500 dark:text-gray-400">
+        {/* Info Footer - Simplified for Mobile */}
+        <div className="pt-3 sm:pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex items-start space-x-2 sm:space-x-3 text-xs text-gray-500 dark:text-gray-400">
             <Mail className="h-4 w-4 mt-0.5 flex-shrink-0" />
             <div>
-              <p>The invitation will be sent via email and will expire in 7 days.</p>
-              <p className="mt-1">They can accept the invitation and create their account to join your team.</p>
+              <p className="text-xs sm:text-xs">Invitation expires in 7 days via email.</p>
+              <p className="hidden sm:block mt-1">They can accept the invitation and create their account to join your team.</p>
             </div>
           </div>
         </div>
