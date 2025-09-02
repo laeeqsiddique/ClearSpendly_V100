@@ -36,12 +36,14 @@ interface EnhancedOnboardingProps {
 export default function EnhancedOnboarding({ isTestMode = process.env.NODE_ENV === 'development' }: EnhancedOnboardingProps) {
   const [currentStepId, setCurrentStepId] = useState("welcome");
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
-  const [selectedPlan, setSelectedPlan] = useState<string>("free");
+  const [selectedPlan, setSelectedPlan] = useState<string>("pro");
   const [businessData, setBusinessData] = useState<Partial<BusinessSetupFormData>>({});
   const [loading, setLoading] = useState(false);
   const [userTenant, setUserTenant] = useState<any>(null);
   const [paymentMethodRequired, setPaymentMethodRequired] = useState(false);
-  const [trialMode, setTrialMode] = useState(false);
+  const [trialMode, setTrialMode] = useState(true); // Default to trial mode for paid plans
+  const [availablePlans, setAvailablePlans] = useState<Plan[]>([]);
+  const [plansLoading, setPlansLoading] = useState(true);
 
   const router = useRouter();
   const supabase = createClient();
@@ -50,22 +52,22 @@ export default function EnhancedOnboarding({ isTestMode = process.env.NODE_ENV =
     {
       id: "welcome",
       title: "Welcome",
-      description: "Get started with ClearSpendly",
-      required: true,
+      description: "Get started with Flowvya",
+      required: false, // Welcome step shouldn't block progression
       completed: completedSteps.includes("welcome")
     },
     {
       id: "business-setup",
       title: "Business Information",
       description: "Tell us about your business",
-      required: true,
+      required: false, // Allow users to skip business setup
       completed: completedSteps.includes("business-setup")
     },
     {
       id: "plan-selection",
       title: "Choose Your Plan",
       description: "Select the plan that fits your needs",
-      required: true,
+      required: false, // Allow users to skip plan selection (default to free)
       completed: completedSteps.includes("plan-selection")
     },
     {
@@ -83,6 +85,29 @@ export default function EnhancedOnboarding({ isTestMode = process.env.NODE_ENV =
       completed: completedSteps.includes("welcome-email")
     }
   ];
+
+  // Fetch plans from Polar API on mount
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        setPlansLoading(true);
+        const response = await fetch('/api/plans/live');
+        const data = await response.json();
+        
+        if (data.success && data.plans) {
+          setAvailablePlans(data.plans);
+          console.log(`Loaded ${data.plans.length} plans from ${data.source}`);
+        }
+      } catch (error) {
+        console.error('Failed to fetch plans:', error);
+        // Plans will fall back to defaults in PlanSelection component
+      } finally {
+        setPlansLoading(false);
+      }
+    };
+    
+    fetchPlans();
+  }, []);
 
   useEffect(() => {
     const checkUserAndTenant = async () => {
@@ -115,6 +140,20 @@ export default function EnhancedOnboarding({ isTestMode = process.env.NODE_ENV =
             setUserTenant(tenant);
           }
         }
+        
+        // Check for payment success/cancel in URL params
+        const urlParams = new URLSearchParams(window.location.search);
+        const paymentStatus = urlParams.get('payment');
+        
+        if (paymentStatus === 'success') {
+          handleStepCompletion('payment-setup');
+          toast.success('Payment successful! Your subscription is now active.');
+          // Move to welcome email step
+          setCurrentStepId('welcome-email');
+        } else if (paymentStatus === 'cancelled') {
+          toast.error('Payment was cancelled. You can try again or continue with the trial.');
+        }
+        
       } catch (error) {
         console.error('Error checking user tenant:', error);
       }
@@ -156,19 +195,69 @@ export default function EnhancedOnboarding({ isTestMode = process.env.NODE_ENV =
     }
   };
 
-  const handlePlanSelect = (planId: string) => {
+  const handlePlanSelect = async (planId: string) => {
     setSelectedPlan(planId);
     setPaymentMethodRequired(planId !== "free" && !trialMode);
     handleStepCompletion("plan-selection");
+    
+    // For paid plans, navigate to payment setup
+    if (planId !== "free" && !trialMode) {
+      handleNext();
+    } else {
+      // For free plan, skip payment setup
+      handleStepCompletion("payment-setup");
+    }
   };
 
-  const handleStartTrial = (planId: string) => {
-    setSelectedPlan(planId);
-    setTrialMode(true);
-    setPaymentMethodRequired(false);
-    handleStepCompletion("plan-selection");
-    handleStepCompletion("payment-setup"); // Skip payment setup for trials
-    toast.success("Trial started! You can add payment details later.");
+  const handleStartTrial = async (planId: string) => {
+    setLoading(true);
+    try {
+      setSelectedPlan(planId);
+      setTrialMode(true);
+      setPaymentMethodRequired(false);
+      handleStepCompletion("plan-selection");
+      
+      // Get current user and tenant info
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('No authenticated user found');
+      }
+
+      // Create trial subscription via API
+      const response = await fetch('/api/subscriptions/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tenant_id: userTenant?.id,
+          plan_id: planId,
+          billing_cycle: 'monthly',
+          success_url: window.location.origin + '/onboarding?step=welcome-email',
+          trial_mode: true
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to start trial');
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.trial) {
+        handleStepCompletion("payment-setup"); // Skip payment setup for trials
+        toast.success(`${data.subscription?.plan_name || planId} trial started! You can add payment details later.`);
+        handleNext(); // Move to next step
+      } else {
+        throw new Error('Trial creation failed');
+      }
+    } catch (error) {
+      console.error('Trial creation error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to start trial');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleBusinessSetup = async (data: BusinessSetupFormData) => {
@@ -207,16 +296,49 @@ export default function EnhancedOnboarding({ isTestMode = process.env.NODE_ENV =
   const handlePaymentSetup = async (paymentData: any) => {
     setLoading(true);
     try {
-      // Handle payment method setup
-      // This would integrate with Stripe/PayPal
-      console.log('Setting up payment:', paymentData);
+      // Get current user and tenant info
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('No authenticated user found');
+      }
+
+      if (!userTenant?.id) {
+        throw new Error('No tenant found');
+      }
+
+      // Create checkout session for paid subscription
+      const response = await fetch('/api/subscriptions/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tenant_id: userTenant.id,
+          plan_id: selectedPlan,
+          billing_cycle: paymentData.billingCycle || 'monthly',
+          success_url: window.location.origin + '/onboarding?step=welcome-email&payment=success',
+          cancel_url: window.location.origin + '/onboarding?step=payment-setup&payment=cancelled',
+          trial_mode: false
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create checkout session');
+      }
+
+      const data = await response.json();
       
-      handleStepCompletion("payment-setup");
-      toast.success("Payment method added successfully!");
-      handleNext();
+      if (data.success && data.checkout_url) {
+        // Redirect to Polar checkout
+        window.location.href = data.checkout_url;
+      } else {
+        throw new Error('Failed to create checkout session');
+      }
+      
     } catch (error) {
       console.error('Payment setup error:', error);
-      toast.error('Failed to set up payment method');
+      toast.error(error instanceof Error ? error.message : 'Failed to set up payment method');
     } finally {
       setLoading(false);
     }
@@ -265,25 +387,27 @@ export default function EnhancedOnboarding({ isTestMode = process.env.NODE_ENV =
         return;
       }
       
-      // Setup tenant and membership
-      const setupResponse = await fetch('/api/setup-tenant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      // Setup tenant and membership if not already done
+      if (!userTenant) {
+        const setupResponse = await fetch('/api/setup-tenant', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
 
-      if (!setupResponse.ok) {
-        const errorData = await setupResponse.json();
-        console.error('Setup tenant failed:', errorData);
-        toast.error(`Failed to setup your account: ${errorData.error || 'Unknown error'}`);
-        return;
-      }
+        if (!setupResponse.ok) {
+          const errorData = await setupResponse.json();
+          console.error('Setup tenant failed:', errorData);
+          toast.error(`Failed to setup your account: ${errorData.error || 'Unknown error'}`);
+          return;
+        }
 
-      const setupData = await setupResponse.json();
-      
-      if (!setupData.success) {
-        console.error('Setup response indicates failure:', setupData);
-        toast.error('Account setup was not successful');
-        return;
+        const setupData = await setupResponse.json();
+        
+        if (!setupData.success) {
+          console.error('Setup response indicates failure:', setupData);
+          toast.error('Account setup was not successful');
+          return;
+        }
       }
       
       // Mark onboarding as completed
@@ -292,7 +416,8 @@ export default function EnhancedOnboarding({ isTestMode = process.env.NODE_ENV =
           onboarding_completed: true,
           selected_plan: selectedPlan,
           trial_mode: trialMode,
-          onboarding_completed_at: new Date().toISOString()
+          onboarding_completed_at: new Date().toISOString(),
+          business_setup: businessData
         }
       });
 
@@ -306,6 +431,22 @@ export default function EnhancedOnboarding({ isTestMode = process.env.NODE_ENV =
       await supabase.auth.refreshSession();
       
       toast.success('Welcome to ClearSpendly! Setting up your dashboard...');
+      
+      // Initialize tenant features if needed
+      if (userTenant?.id) {
+        try {
+          await fetch('/api/features/check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tenant_id: userTenant.id,
+              action: 'initialize'
+            })
+          });
+        } catch (error) {
+          console.error('Error initializing features:', error);
+        }
+      }
       
       // Redirect to dashboard
       setTimeout(() => {
@@ -405,7 +546,7 @@ export default function EnhancedOnboarding({ isTestMode = process.env.NODE_ENV =
                   <div className="text-center space-y-8 py-8">
                     <div>
                       <h3 className="text-2xl font-semibold mb-4">
-                        Welcome to {userTenant?.name || 'ClearSpendly'}!
+                        Welcome to Flowvya!
                       </h3>
                       <p className="text-lg text-gray-600 max-w-2xl mx-auto">
                         Let's set up your account to get the most out of our AI-powered expense management platform.
@@ -462,6 +603,7 @@ export default function EnhancedOnboarding({ isTestMode = process.env.NODE_ENV =
                     </div>
                     
                     <PlanSelection
+                      plans={availablePlans.length > 0 ? availablePlans : undefined}
                       selectedPlanId={selectedPlan}
                       onPlanSelect={handlePlanSelect}
                       onStartTrial={handleStartTrial}
@@ -470,51 +612,144 @@ export default function EnhancedOnboarding({ isTestMode = process.env.NODE_ENV =
                   </div>
                 )}
 
-                {/* Payment Setup Step */}
+                {/* Mobile-first Payment Setup Step */}
                 {currentStepId === "payment-setup" && (
                   <div className="space-y-6">
-                    <div className="text-center">
-                      <h3 className="text-xl font-semibold mb-2">Payment Method</h3>
-                      <p className="text-gray-600">
+                    <div className="text-center px-4">
+                      <h3 className="text-xl sm:text-2xl font-semibold mb-3">Payment Method</h3>
+                      <p className="text-gray-600 text-sm sm:text-base leading-relaxed max-w-2xl mx-auto">
                         Add a payment method for your {selectedPlan} plan subscription.
                       </p>
                       {trialMode && (
-                        <Badge className="mt-2 bg-green-100 text-green-700">
-                          14-day free trial - No charge until {new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toLocaleDateString()}
-                        </Badge>
+                        <div className="mt-4 inline-flex items-center gap-2 p-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl">
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                          <Badge className="bg-green-100 text-green-700 px-3 py-1 text-xs sm:text-sm font-medium">
+                            14-day free trial - No charge until {new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toLocaleDateString()}
+                          </Badge>
+                        </div>
                       )}
                     </div>
 
-                    {/* Payment form would go here */}
-                    <Card className="max-w-md mx-auto">
-                      <CardHeader>
-                        <CardTitle>Payment Details</CardTitle>
-                        <CardDescription>
-                          {trialMode ? "Required for when your trial ends" : "Your subscription will start immediately"}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="p-4 border-2 border-dashed border-gray-200 rounded-lg text-center">
-                          <CreditCard className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                          <p className="text-gray-500">Payment form integration</p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            Stripe/PayPal integration would be implemented here
-                          </p>
-                        </div>
-                        
-                        {isTestMode && (
-                          <div className="text-center">
-                            <Button
-                              onClick={() => handlePaymentSetup({ testMode: true })}
-                              variant="outline"
-                              className="text-orange-600 border-orange-300"
-                            >
-                              Simulate Payment Setup
-                            </Button>
+                    {/* Mobile-optimized Payment Interface */}
+                    <div className="max-w-lg mx-auto px-4">
+                      <Card className="border-2 shadow-lg">
+                        <CardHeader className="text-center pb-4">
+                          <div className="w-16 h-16 bg-gradient-to-br from-purple-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <CreditCard className="w-8 h-8 text-purple-600" />
                           </div>
-                        )}
-                      </CardContent>
-                    </Card>
+                          <CardTitle className="text-lg sm:text-xl">Payment Details</CardTitle>
+                          <CardDescription className="text-sm leading-relaxed">
+                            {trialMode ? "Required for when your trial ends" : "Your subscription will start immediately"}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                          {/* Plan Summary */}
+                          <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl border border-purple-200">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-medium text-gray-900">Selected Plan</span>
+                              <Badge className="bg-purple-100 text-purple-700 capitalize">
+                                {selectedPlan}
+                              </Badge>
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {selectedPlan === "pro" && "Everything you need for serious expense management"}
+                              {selectedPlan === "enterprise" && "Advanced features for larger teams"}
+                              {selectedPlan === "free" && "Perfect for getting started"}
+                            </div>
+                          </div>
+
+                          {/* Security Information */}
+                          <div className="text-center space-y-3">
+                            <h4 className="font-semibold text-gray-900">Secure Payment with Polar</h4>
+                            <p className="text-sm text-gray-600 leading-relaxed">
+                              You'll be redirected to our secure payment partner to complete your subscription.
+                              Your payment information is encrypted and never stored on our servers.
+                            </p>
+                            <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
+                              <Shield className="w-4 h-4" />
+                              <span>256-bit SSL encryption</span>
+                            </div>
+                          </div>
+                          
+                          {/* Process Steps */}
+                          <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                            <p className="text-blue-800 font-medium mb-3 text-sm">What happens next:</p>
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 text-blue-700 text-sm">
+                                <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
+                                Secure payment processing with Polar
+                              </div>
+                              <div className="flex items-center gap-2 text-blue-700 text-sm">
+                                <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
+                                Instant access to {selectedPlan} features
+                              </div>
+                              <div className="flex items-center gap-2 text-blue-700 text-sm">
+                                <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
+                                Email confirmation with receipt
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Touch-friendly buttons */}
+                          <div className="space-y-3 pt-2">
+                            <Button
+                              onClick={() => handlePaymentSetup({ billingCycle: 'monthly' })}
+                              disabled={loading}
+                              size="lg"
+                              className="w-full h-12 sm:h-13 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 text-base font-medium"
+                            >
+                              {loading ? (
+                                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                              ) : (
+                                <CreditCard className="w-5 h-5 mr-2" />
+                              )}
+                              Continue to Payment
+                            </Button>
+                            
+                            {isTestMode && (
+                              <Button
+                                onClick={() => handlePaymentSetup({ testMode: true, billingCycle: 'monthly' })}
+                                variant="outline"
+                                size="lg"
+                                className="w-full h-12 text-orange-600 border-2 border-orange-300 hover:bg-orange-50 transition-colors text-base font-medium"
+                                disabled={loading}
+                              >
+                                <Shield className="w-5 h-5 mr-2" />
+                                Simulate Payment (Test Mode)
+                              </Button>
+                            )}
+                            
+                            {/* Skip option for trial */}
+                            {trialMode && (
+                              <Button
+                                onClick={() => handleNext()}
+                                variant="ghost"
+                                size="lg"
+                                className="w-full h-11 text-gray-600 hover:text-gray-800 hover:bg-gray-100 transition-colors text-sm"
+                              >
+                                Skip for now (Add payment later)
+                              </Button>
+                            )}
+                          </div>
+
+                          {/* Trust indicators */}
+                          <div className="flex items-center justify-center gap-4 pt-4 border-t border-gray-200">
+                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                              <Shield className="w-3 h-3" />
+                              <span>Secure</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                              <CheckCircle className="w-3 h-3" />
+                              <span>Trusted</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                              <CreditCard className="w-3 h-3" />
+                              <span>PCI Compliant</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
                   </div>
                 )}
 

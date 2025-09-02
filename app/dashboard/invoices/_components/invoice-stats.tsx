@@ -260,12 +260,12 @@ export function InvoiceStats({ refreshTrigger, startDate, endDate }: InvoiceStat
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[...Array(4)].map((_, i) => (
-          <Card key={i} className="@container/card bg-white/80 backdrop-blur-sm border-0 shadow-lg animate-pulse">
-            <CardHeader>
-              <div className="h-4 bg-gradient-to-r from-purple-200 to-blue-200 rounded w-24"></div>
-              <div className="h-8 bg-gradient-to-r from-purple-200 to-blue-200 rounded w-32"></div>
+          <Card key={i} className="@container/card bg-white/80 backdrop-blur-sm border-0 shadow-lg animate-pulse min-h-[120px] sm:min-h-[140px]">
+            <CardHeader className="p-4 sm:p-6">
+              <div className="h-3 sm:h-4 bg-gradient-to-r from-purple-200 to-blue-200 rounded w-20 sm:w-24"></div>
+              <div className="h-6 sm:h-8 bg-gradient-to-r from-purple-200 to-blue-200 rounded w-24 sm:w-32"></div>
             </CardHeader>
           </Card>
         ))}
@@ -274,106 +274,109 @@ export function InvoiceStats({ refreshTrigger, startDate, endDate }: InvoiceStat
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-2 @4xl/main:grid-cols-4">
-      <Card className="@container/card bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-        <CardHeader>
-          <CardDescription className="flex items-center gap-2">
-            <IconFileText className="h-4 w-4 text-blue-600" />
-            Total Invoices {startDate && endDate && '(Filtered)'}
+    <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <Card className="@container/card bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer active:scale-[0.98] min-h-[120px] sm:min-h-[140px]">
+        <CardHeader className="p-4 sm:p-6">
+          <CardDescription className="flex items-center gap-2 text-xs sm:text-sm">
+            <IconFileText className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 flex-shrink-0" />
+            <span className="truncate">Total Invoices {startDate && endDate && '(Filtered)'}</span>
           </CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <CardTitle className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-semibold tabular-nums bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent leading-tight">
             {stats.quickStats.total}
           </CardTitle>
           <CardAction>
-            <Badge variant="outline">
-              <IconTrendingUp className="h-3 w-3" />
-              {stats.thisMonth.invoiceCount} this month
+            <Badge variant="outline" className="text-xs sm:text-sm">
+              <IconTrendingUp className="h-3 w-3 mr-1" />
+              <span className="hidden sm:inline">{stats.thisMonth.invoiceCount} this month</span>
+              <span className="sm:hidden">{stats.thisMonth.invoiceCount}/mo</span>
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
+        <CardFooter className="flex-col items-start gap-1 sm:gap-1.5 text-xs sm:text-sm p-4 sm:p-6 pt-0">
           <div className="line-clamp-1 flex gap-2 font-medium">
             <span className="text-orange-600">{stats.quickStats.pending} pending</span>
             <span className="text-muted-foreground">•</span>
             <span className="text-green-600">{stats.quickStats.paid} paid</span>
           </div>
-          <div className="text-muted-foreground">
+          <div className="text-muted-foreground text-xs">
             Revenue: ${stats.thisMonth.totalAmount.toFixed(0)}{startDate && endDate ? '' : '/mo'}
           </div>
         </CardFooter>
       </Card>
 
-      <Card className="@container/card bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-        <CardHeader>
-          <CardDescription className="flex items-center gap-2">
-            <IconReceiptDollar className="h-4 w-4 text-blue-600" />
-            Collected This Month
+      <Card className="@container/card bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer active:scale-[0.98] min-h-[120px] sm:min-h-[140px]">
+        <CardHeader className="p-4 sm:p-6">
+          <CardDescription className="flex items-center gap-2 text-xs sm:text-sm">
+            <IconReceiptDollar className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 flex-shrink-0" />
+            <span className="truncate">Collected This Month</span>
           </CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <CardTitle className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-semibold tabular-nums bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent leading-tight">
             ${stats.thisMonth.paidAmount.toFixed(0)}
           </CardTitle>
           <CardAction>
-            <Badge variant="outline">
-              Collection Rate: {collectionRate}%
+            <Badge variant="outline" className="text-xs sm:text-sm">
+              <span className="hidden sm:inline">Collection Rate: </span>{collectionRate}%
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
+        <CardFooter className="flex-col items-start gap-1 sm:gap-1.5 text-xs sm:text-sm p-4 sm:p-6 pt-0">
           <div className="line-clamp-1 flex gap-2 font-medium">
             ${stats.thisMonth.pendingAmount.toFixed(0)} pending payment
           </div>
-          <div className="text-muted-foreground">
+          <div className="text-muted-foreground text-xs">
             Year total: ${stats.thisYear.paidAmount.toFixed(0)}
           </div>
         </CardFooter>
       </Card>
 
-      <Card className="@container/card bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-        <CardHeader>
-          <CardDescription className="flex items-center gap-2">
-            <IconClock className="h-4 w-4 text-red-600" />
-            Overdue Invoices
+      <Card className="@container/card bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer active:scale-[0.98] min-h-[120px] sm:min-h-[140px]">
+        <CardHeader className="p-4 sm:p-6">
+          <CardDescription className="flex items-center gap-2 text-xs sm:text-sm">
+            <IconClock className="h-3 w-3 sm:h-4 sm:w-4 text-red-600 flex-shrink-0" />
+            <span className="truncate">Overdue Invoices</span>
           </CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
+          <CardTitle className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-semibold tabular-nums bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent leading-tight">
             {stats.overdue.count}
           </CardTitle>
           <CardAction>
-            <Badge variant={stats.overdue.count > 0 ? "destructive" : "secondary"}>
+            <Badge variant={stats.overdue.count > 0 ? "destructive" : "secondary"} className="text-xs sm:text-sm">
               ${stats.overdue.amount.toFixed(0)}
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
+        <CardFooter className="flex-col items-start gap-1 sm:gap-1.5 text-xs sm:text-sm p-4 sm:p-6 pt-0">
           <div className="line-clamp-1 flex gap-2 font-medium">
             {stats.overdue.count > 0 ? 'Needs attention' : 'All current'}
           </div>
-          <div className="text-muted-foreground">
+          <div className="text-muted-foreground text-xs">
             Follow up with clients
           </div>
         </CardFooter>
       </Card>
 
-      <Card className="@container/card bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-        <CardHeader>
-          <CardDescription className="flex items-center gap-2">
-            <IconCalendar className="h-4 w-4 text-purple-600" />
-            Year to Date
+      <Card className="@container/card bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer active:scale-[0.98] min-h-[120px] sm:min-h-[140px]">
+        <CardHeader className="p-4 sm:p-6">
+          <CardDescription className="flex items-center gap-2 text-xs sm:text-sm">
+            <IconCalendar className="h-3 w-3 sm:h-4 sm:w-4 text-purple-600 flex-shrink-0" />
+            <span className="truncate">Year to Date</span>
           </CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+          <CardTitle className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-semibold tabular-nums bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent leading-tight">
             ${stats.thisYear.totalAmount.toFixed(0)}
           </CardTitle>
           <CardAction>
-            <Badge variant="outline">
+            <Badge variant="outline" className="text-xs sm:text-sm">
               Total Revenue
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
+        <CardFooter className="flex-col items-start gap-1 sm:gap-1.5 text-xs sm:text-sm p-4 sm:p-6 pt-0">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            {stats.thisYear.invoiceCount} invoices • {collectionRate}% collected
+            <span className="hidden sm:inline">{stats.thisYear.invoiceCount} invoices • {collectionRate}% collected</span>
+            <span className="sm:hidden">{stats.thisYear.invoiceCount} inv • {collectionRate}%</span>
           </div>
-          <div className="text-muted-foreground">
-            Track for Schedule C filing
+          <div className="text-muted-foreground text-xs">
+            <span className="hidden sm:inline">Track for Schedule C filing</span>
+            <span className="sm:hidden">For tax filing</span>
           </div>
         </CardFooter>
       </Card>

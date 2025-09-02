@@ -127,16 +127,18 @@ export function InvoicesDashboard() {
     handleDateRangeChange('this-month');
   }, []);
 
-
   return (
-    <div className="space-y-6">
-      {/* Date Range Filter - Matching main dashboard */}
-      <div className="flex items-center justify-end gap-4 bg-white/80 backdrop-blur-sm border-0 shadow-lg rounded-lg p-4">
-        <div className="flex items-center gap-3">
-          <CalendarDays className="h-5 w-5 text-purple-600" />
-          <span className="text-sm font-medium text-gray-700">Date Range:</span>
+    <div className="space-y-4 sm:space-y-6">
+      {/* Date Range Filter - Mobile Optimized */}
+      <div className="bg-white/80 backdrop-blur-sm border-0 shadow-lg rounded-lg p-3 sm:p-4">
+        {/* Mobile: Stack vertically */}
+        <div className="flex flex-col gap-3 sm:hidden">
+          <div className="flex items-center gap-2">
+            <CalendarDays className="h-4 w-4 text-purple-600" />
+            <span className="text-sm font-medium text-gray-700">Date Range</span>
+          </div>
           <Select value={dateRange} onValueChange={handleDateRangeChange}>
-            <SelectTrigger className="w-40 border-purple-200 focus:border-purple-500">
+            <SelectTrigger className="w-full border-purple-200 focus:border-purple-500 h-11">
               <SelectValue placeholder="Select range" />
             </SelectTrigger>
             <SelectContent>
@@ -153,24 +155,67 @@ export function InvoicesDashboard() {
           </Select>
           
           {dateRange === 'custom' && (
-            <>
+            <div className="grid grid-cols-1 gap-2">
               <Input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-auto border-blue-200 focus:border-blue-500"
+                className="border-blue-200 focus:border-blue-500 h-11"
                 placeholder="Start date"
               />
-              <span className="text-muted-foreground">to</span>
               <Input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-auto border-blue-200 focus:border-blue-500"
+                className="border-blue-200 focus:border-blue-500 h-11"
                 placeholder="End date"
               />
-            </>
+            </div>
           )}
+        </div>
+        
+        {/* Desktop: Horizontal layout */}
+        <div className="hidden sm:flex items-center justify-end gap-4">
+          <div className="flex items-center gap-3">
+            <CalendarDays className="h-5 w-5 text-purple-600" />
+            <span className="text-sm font-medium text-gray-700">Date Range:</span>
+            <Select value={dateRange} onValueChange={handleDateRangeChange}>
+              <SelectTrigger className="w-40 border-purple-200 focus:border-purple-500">
+                <SelectValue placeholder="Select range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="this-week">This Week</SelectItem>
+                <SelectItem value="this-month">This Month</SelectItem>
+                <SelectItem value="last-month">Last Month</SelectItem>
+                <SelectItem value="this-quarter">This Quarter</SelectItem>
+                <SelectItem value="last-quarter">Last Quarter</SelectItem>
+                <SelectItem value="this-year">This Year</SelectItem>
+                <SelectItem value="last-year">Last Year</SelectItem>
+                <SelectItem value="custom">Custom Range</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {dateRange === 'custom' && (
+              <>
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-auto border-blue-200 focus:border-blue-500"
+                  placeholder="Start date"
+                />
+                <span className="text-muted-foreground">to</span>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-auto border-blue-200 focus:border-blue-500"
+                  placeholder="End date"
+                />
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -178,45 +223,45 @@ export function InvoicesDashboard() {
       <InvoiceStats refreshTrigger={refreshTrigger} startDate={startDate} endDate={endDate} />
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         <Card 
-          className="border-dashed border-2 hover:border-primary/50 transition-colors cursor-pointer"
+          className="border-dashed border-2 hover:border-primary/50 transition-colors cursor-pointer active:scale-[0.98] min-h-[120px] sm:min-h-[140px]"
           onClick={handleNewInvoice}
         >
-          <CardContent className="flex flex-col items-center justify-center p-6 text-center">
-            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-              <Plus className="w-6 h-6 text-primary" />
+          <CardContent className="flex flex-col items-center justify-center p-4 sm:p-6 text-center">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-full flex items-center justify-center mb-2 sm:mb-4">
+              <Plus className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
             </div>
-            <h3 className="font-semibold mb-2">Create New Invoice</h3>
-            <p className="text-sm text-muted-foreground">Start a new invoice from template</p>
+            <h3 className="font-semibold mb-1 sm:mb-2 text-sm sm:text-base">Create New Invoice</h3>
+            <p className="text-xs sm:text-sm text-muted-foreground">Start a new invoice from template</p>
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={handleManageClients}>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                <Users className="w-6 h-6 text-purple-600" />
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow active:scale-[0.98] min-h-[120px] sm:min-h-[140px]" onClick={handleManageClients}>
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center space-x-3 sm:space-x-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                <Users className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Manage Clients</p>
-                <p className="text-lg font-bold">Add & Edit</p>
-                <p className="text-sm text-purple-600">Client information</p>
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Manage Clients</p>
+                <p className="text-base sm:text-lg font-bold">Add & Edit</p>
+                <p className="text-xs sm:text-sm text-purple-600">Client information</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveTab("templates")}>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <Settings className="w-6 h-6 text-blue-600" />
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow active:scale-[0.98] min-h-[120px] sm:min-h-[140px] sm:col-span-2 lg:col-span-1" onClick={() => setActiveTab("templates")}>
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center space-x-3 sm:space-x-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Invoice Templates</p>
-                <p className="text-lg font-bold">Customize</p>
-                <p className="text-sm text-blue-600">Design & settings</p>
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Invoice Templates</p>
+                <p className="text-base sm:text-lg font-bold">Customize</p>
+                <p className="text-xs sm:text-sm text-blue-600">Design & settings</p>
               </div>
             </div>
           </CardContent>
@@ -225,147 +270,149 @@ export function InvoicesDashboard() {
 
       {/* Main Content Tabs */}
       <div ref={tabsRef}>
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="invoices" className="flex items-center gap-2">
-            <FileText className="w-4 h-4" />
-            Invoices
-          </TabsTrigger>
-          <TabsTrigger value="clients" className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            Clients
-          </TabsTrigger>
-          <TabsTrigger value="templates" className="flex items-center gap-2">
-            <Settings className="w-4 h-4" />
-            Templates
-          </TabsTrigger>
-          <TabsTrigger value="reminders" className="flex items-center gap-2">
-            <Clock className="w-4 h-4" />
-            Reminders
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4" />
-            Analytics
-          </TabsTrigger>
-        </TabsList>
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-3 sm:space-y-4">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1 sm:gap-0 h-auto p-1">
+            <TabsTrigger value="invoices" className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
+              <FileText className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Invoices</span>
+              <span className="sm:hidden">Invoice</span>
+            </TabsTrigger>
+            <TabsTrigger value="clients" className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
+              <Users className="w-3 h-3 sm:w-4 sm:h-4" />
+              Clients
+            </TabsTrigger>
+            <TabsTrigger value="templates" className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
+              <Settings className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Templates</span>
+              <span className="sm:hidden">Template</span>
+            </TabsTrigger>
+            <TabsTrigger value="reminders" className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
+              <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Reminders</span>
+              <span className="sm:hidden">Remind</span>
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm col-span-2 sm:col-span-1">
+              <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4" />
+              Analytics
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="invoices" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Recent Invoices</h3>
-            <Button onClick={handleNewInvoice} size="sm">
-              <Plus className="w-4 h-4 mr-2" />
-              New Invoice
-            </Button>
-          </div>
-          <InvoiceList refreshTrigger={refreshTrigger} startDate={startDate} endDate={endDate} />
-        </TabsContent>
+          <TabsContent value="invoices" className="space-y-3 sm:space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="text-base sm:text-lg font-semibold">Recent Invoices</h3>
+              <Button onClick={handleNewInvoice} size="sm" className="w-full sm:w-auto min-h-[44px] touch-manipulation">
+                <Plus className="w-4 h-4 mr-2" />
+                <span className="text-sm sm:text-base">New Invoice</span>
+              </Button>
+            </div>
+            <InvoiceList refreshTrigger={refreshTrigger} startDate={startDate} endDate={endDate} />
+          </TabsContent>
 
-        <TabsContent value="clients" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Client Management</h3>
-          </div>
-          <ClientManagement 
-            refreshTrigger={refreshTrigger} 
-            openFormDirectly={openClientForm}
-          />
-        </TabsContent>
+          <TabsContent value="clients" className="space-y-3 sm:space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base sm:text-lg font-semibold">Client Management</h3>
+            </div>
+            <ClientManagement 
+              refreshTrigger={refreshTrigger} 
+              openFormDirectly={openClientForm}
+            />
+          </TabsContent>
 
-        <TabsContent value="templates" className="space-y-4">
-          <InvoiceTemplatesRedesigned />
-        </TabsContent>
+          <TabsContent value="templates" className="space-y-3 sm:space-y-4">
+            <InvoiceTemplatesRedesigned />
+          </TabsContent>
 
-        <TabsContent value="reminders" className="space-y-4">
-          <RemindersManager refreshTrigger={refreshTrigger} />
-        </TabsContent>
+          <TabsContent value="reminders" className="space-y-3 sm:space-y-4">
+            <RemindersManager refreshTrigger={refreshTrigger} />
+          </TabsContent>
 
-        <TabsContent value="analytics" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Invoice Analytics</h3>
-            <Badge variant="secondary">
-              Year: {new Date().getFullYear()}
-            </Badge>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5" />
-                  This Month
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Invoices Sent</span>
-                    <span className="font-medium">8</span>
+          <TabsContent value="analytics" className="space-y-3 sm:space-y-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="text-base sm:text-lg font-semibold">Invoice Analytics</h3>
+              <Badge variant="secondary" className="w-fit text-xs sm:text-sm">
+                Year: {new Date().getFullYear()}
+              </Badge>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
+              <Card>
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+                    <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
+                    This Month
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-xs sm:text-sm text-muted-foreground">Invoices Sent</span>
+                      <span className="font-medium text-sm sm:text-base">8</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-xs sm:text-sm text-muted-foreground">Total Amount</span>
+                      <span className="font-medium text-sm sm:text-base tabular-nums">$12,450</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-xs sm:text-sm text-muted-foreground">Collected</span>
+                      <span className="font-medium text-green-600 text-sm sm:text-base tabular-nums">$8,300</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Total Amount</span>
-                    <span className="font-medium">$12,450</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Collected</span>
-                    <span className="font-medium text-green-600">$8,300</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5" />
-                  Growth
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">vs Last Month</span>
-                    <span className="font-medium text-green-600">+12%</span>
+              <Card>
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+                    <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
+                    Growth
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-xs sm:text-sm text-muted-foreground">vs Last Month</span>
+                      <span className="font-medium text-green-600 text-sm sm:text-base tabular-nums">+12%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-xs sm:text-sm text-muted-foreground">Avg Invoice</span>
+                      <span className="font-medium text-sm sm:text-base tabular-nums">$1,556</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-xs sm:text-sm text-muted-foreground">Collection Rate</span>
+                      <span className="font-medium text-sm sm:text-base tabular-nums">88%</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Avg Invoice</span>
-                    <span className="font-medium">$1,556</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Collection Rate</span>
-                    <span className="font-medium">88%</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="w-5 h-5" />
-                  Payment Time
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Avg Days to Pay</span>
-                    <span className="font-medium">18 days</span>
+              <Card className="sm:col-span-2 lg:col-span-1">
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+                    <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
+                    Payment Time
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-xs sm:text-sm text-muted-foreground">Avg Days to Pay</span>
+                      <span className="font-medium text-sm sm:text-base tabular-nums">18 days</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-xs sm:text-sm text-muted-foreground">Fastest</span>
+                      <span className="font-medium text-green-600 text-sm sm:text-base tabular-nums">2 days</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-xs sm:text-sm text-muted-foreground">Overdue Rate</span>
+                      <span className="font-medium text-red-600 text-sm sm:text-base tabular-nums">8%</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Fastest</span>
-                    <span className="font-medium text-green-600">2 days</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Overdue Rate</span>
-                    <span className="font-medium text-red-600">8%</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
-
     </div>
   );
 }

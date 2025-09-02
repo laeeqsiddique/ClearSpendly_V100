@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { requireTenantContext } from '@/lib/api-tenant';
 
 // Mock settings storage - in production, this would be stored in database
 let systemSettings = {
@@ -16,6 +18,25 @@ let systemSettings = {
 
 export async function GET() {
   try {
+    // SECURITY FIX: Verify admin authorization
+    const context = await requireTenantContext();
+    
+    const supabase = await createClient();
+    const { data: membership } = await supabase
+      .from('membership')
+      .select('role')
+      .eq('user_id', context.userId)
+      .eq('tenant_id', context.tenantId)
+      .in('role', ['owner', 'admin'])
+      .single();
+
+    if (!membership) {
+      return NextResponse.json(
+        { error: 'Admin privileges required' },
+        { status: 403 }
+      );
+    }
+
     return NextResponse.json(systemSettings);
   } catch (error) {
     console.error('Error fetching settings:', error);
@@ -28,6 +49,25 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY FIX: Verify admin authorization for settings modification
+    const context = await requireTenantContext();
+    
+    const supabase = await createClient();
+    const { data: membership } = await supabase
+      .from('membership')
+      .select('role')
+      .eq('user_id', context.userId)
+      .eq('tenant_id', context.tenantId)
+      .in('role', ['owner', 'admin'])
+      .single();
+
+    if (!membership) {
+      return NextResponse.json(
+        { error: 'Admin privileges required' },
+        { status: 403 }
+      );
+    }
+
     const newSettings = await request.json();
     
     // Validate required fields

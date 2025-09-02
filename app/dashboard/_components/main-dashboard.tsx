@@ -448,7 +448,7 @@ export function MainDashboard() {
                         <div className="absolute top-6 right-6 h-12 w-12 rounded-full bg-gradient-to-br from-purple-400/20 to-blue-400/20 blur-xl group-hover:scale-150 transition-transform duration-700" />
                         <div className="absolute bottom-6 left-6 h-8 w-8 rounded-full bg-gradient-to-br from-blue-400/20 to-indigo-400/20 blur-lg group-hover:scale-125 transition-transform duration-500" />
                         
-                        <div className="relative p-6">
+                        <div className="relative p-4 sm:p-5 md:p-6">
                           {/* Icon with enhanced styling */}
                           <div className={`inline-flex rounded-2xl p-4 mb-4 ${card.bgColor} group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
                             <Icon className={`h-8 w-8 ${card.color} group-hover:scale-110 transition-transform duration-300`} />
@@ -502,7 +502,7 @@ export function MainDashboard() {
                           <div className="absolute top-6 right-6 h-12 w-12 rounded-full bg-gradient-to-br from-purple-400/20 to-blue-400/20 blur-xl group-hover:scale-150 transition-transform duration-700" />
                           <div className="absolute bottom-6 left-6 h-8 w-8 rounded-full bg-gradient-to-br from-blue-400/20 to-indigo-400/20 blur-lg group-hover:scale-125 transition-transform duration-500" />
                           
-                          <div className="relative p-6">
+                          <div className="relative p-4 sm:p-5 md:p-6">
                             {/* Icon with enhanced styling */}
                             <div className={`inline-flex rounded-2xl p-4 mb-4 ${card.bgColor} group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
                               <Icon className={`h-8 w-8 ${card.color} group-hover:scale-110 transition-transform duration-300`} />

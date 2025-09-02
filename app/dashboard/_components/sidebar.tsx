@@ -30,12 +30,13 @@ import {
   FileImage,
   Users,
   RefreshCw,
+  Shield,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "./sidebar-context";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTeamContext } from "@/hooks/use-team-context";
 
 interface NavItem {
@@ -142,9 +143,9 @@ const navSections: NavSection[] = [
         icon: DollarSign,
       },
       {
-        label: "Account",
-        href: "/dashboard/admin",
-        icon: UserCircle,
+        label: "Admin Panel",
+        href: "/dashboard/admin", 
+        icon: Shield,
       },
     ],
   },
@@ -153,7 +154,7 @@ const navSections: NavSection[] = [
 export default function DashboardSideBar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen } = useSidebar();
+  const { isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen, focusReturnRef } = useSidebar();
   // Enable test mode for development to count pending users
   const isDevelopment = process.env.NODE_ENV === 'development';
   const teamContext = useTeamContext(isDevelopment);
@@ -180,6 +181,92 @@ export default function DashboardSideBar() {
   
   const [expandedSections, setExpandedSections] = useState<string[]>(getInitialExpandedSections());
 
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (isMobileOpen) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.paddingRight = '0px'; // Prevent layout shift
+    } else {
+      document.body.style.overflow = 'unset';
+      document.body.style.paddingRight = 'unset';
+    }
+
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = 'unset';
+      document.body.style.paddingRight = 'unset';
+    };
+  }, [isMobileOpen]);
+
+  // Close mobile menu on route changes
+  useEffect(() => {
+    setIsMobileOpen(false);
+  }, [pathname, setIsMobileOpen]);
+
+  // Handle escape key to close mobile menu and focus management
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isMobileOpen) return;
+      
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setIsMobileOpen(false);
+        // Return focus to the button that opened the menu
+        if (focusReturnRef.current) {
+          focusReturnRef.current.focus();
+        }
+        return;
+      }
+      
+      // Focus trapping
+      if (event.key === 'Tab') {
+        const sidebar = document.getElementById('mobile-sidebar');
+        if (!sidebar) return;
+        
+        const focusableElements = sidebar.querySelectorAll(
+          'button, [role="button"], a, input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        ) as NodeListOf<HTMLElement>;
+        
+        const firstFocusable = focusableElements[0];
+        const lastFocusable = focusableElements[focusableElements.length - 1];
+        
+        if (event.shiftKey) {
+          // Shift + Tab
+          if (document.activeElement === firstFocusable) {
+            event.preventDefault();
+            lastFocusable?.focus();
+          }
+        } else {
+          // Tab
+          if (document.activeElement === lastFocusable) {
+            event.preventDefault();
+            firstFocusable?.focus();
+          }
+        }
+      }
+    };
+
+    if (isMobileOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      
+      // Focus the first interactive element in the sidebar when opened
+      setTimeout(() => {
+        const firstFocusableElement = document.querySelector('#mobile-sidebar button, #mobile-sidebar [role="button"], #mobile-sidebar a') as HTMLElement;
+        if (firstFocusableElement) {
+          firstFocusableElement.focus();
+        }
+      }, 100); // Small delay to ensure the sidebar is fully rendered
+      
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    } else {
+      // Return focus when menu is closed
+      if (focusReturnRef.current) {
+        focusReturnRef.current.focus();
+        focusReturnRef.current = null;
+      }
+    }
+  }, [isMobileOpen, setIsMobileOpen, focusReturnRef]);
+
   const toggleSection = (sectionLabel: string) => {
     if (isCollapsed) return;
     setExpandedSections(prev =>
@@ -200,28 +287,47 @@ export default function DashboardSideBar() {
       <Button
         variant="ghost"
         size="icon"
-        className="fixed top-4 left-4 z-50 lg:hidden"
-        onClick={() => setIsMobileOpen(!isMobileOpen)}
+        className="fixed top-2 left-2 sm:top-3 sm:left-3 z-[60] lg:hidden bg-white shadow-lg border border-gray-200 hover:bg-gray-50 transition-all duration-200"
+        onClick={() => {
+          if (!isMobileOpen) {
+            // Store the current focus for return later
+            focusReturnRef.current = document.activeElement as HTMLElement;
+          }
+          setIsMobileOpen(!isMobileOpen);
+        }}
+        aria-label={isMobileOpen ? "Close mobile menu" : "Open mobile menu"}
+        aria-expanded={isMobileOpen}
+        aria-controls="mobile-sidebar"
       >
-        {isMobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        {isMobileOpen ? <X className="h-4 w-4 sm:h-5 sm:w-5" /> : <Menu className="h-4 w-4 sm:h-5 sm:w-5" />}
       </Button>
 
       {/* Mobile backdrop */}
       {isMobileOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[45] lg:hidden transition-opacity duration-300"
           onClick={() => setIsMobileOpen(false)}
+          aria-hidden="true"
         />
       )}
 
       {/* Sidebar */}
-      <div className={clsx(
-        "relative h-full bg-background border-r transition-all duration-300 z-40",
-        isCollapsed ? "w-16" : "w-64",
-        isMobileOpen ? "fixed lg:relative translate-x-0" : "fixed lg:relative -translate-x-full lg:translate-x-0"
-      )}>
+      <div 
+        id="mobile-sidebar"
+        className={clsx(
+          "h-full bg-white border-r border-gray-200 shadow-xl transition-all duration-300 z-50",
+          // Desktop: relative positioning with width
+          "lg:relative lg:shadow-none lg:bg-background",
+          isCollapsed ? "lg:w-16" : "lg:w-[280px]",
+          // Mobile: fixed positioning, hidden by default
+          "fixed left-0 top-0 w-[280px]",
+          isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        )}
+        role="navigation"
+        aria-label="Main navigation"
+      >
         <div className="flex h-full flex-col">
-        <div className="flex h-[3.45rem] items-center border-b px-4">
+        <div className="flex h-[3rem] sm:h-[3.45rem] items-center border-b px-3 sm:px-4">
           <Link
             prefetch={true}
             className={clsx(
@@ -231,37 +337,46 @@ export default function DashboardSideBar() {
             href="/"
           >
             <div className="relative">
-              <Receipt className="h-6 w-6 text-purple-600 group-hover:text-purple-700 transition-colors" />
+              <Receipt className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600 group-hover:text-purple-700 transition-colors" />
               <div className="absolute -inset-1 bg-purple-200/50 rounded-full blur opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
             {!isCollapsed && (
-              <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Flowvya</span>
+              <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Flowvya</span>
             )}
           </Link>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-4">
-          <div className="w-full space-y-1 px-3">
+        <nav className="flex-1 overflow-y-auto py-3 sm:py-4">
+          <div className="w-full space-y-1 px-2 sm:px-3">
             {/* Primary Navigation Items */}
             <div className="space-y-1 mb-4">
               {primaryNavItems.map((item) => (
                 <div
                   key={item.href}
                   onClick={() => router.push(item.href)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      router.push(item.href);
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Navigate to ${item.label}`}
                   className={clsx(
-                    "flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm transition-all duration-200 hover:cursor-pointer group",
+                    "flex items-center gap-2 sm:gap-3 w-full rounded-lg px-2.5 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm transition-all duration-200 hover:cursor-pointer group focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2",
                     isItemActive(item.href)
                       ? "bg-gradient-to-r from-purple-100 to-blue-100 text-purple-900 shadow-sm border-l-4 border-purple-500"
                       : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                   )}
                 >
                   <div className={clsx(
-                    "p-1.5 rounded-lg transition-all duration-200",
+                    "p-1 sm:p-1.5 rounded-lg transition-all duration-200",
                     isItemActive(item.href)
                       ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-md"
                       : "bg-gray-100 text-gray-600 group-hover:bg-gray-200"
                   )}>
-                    <item.icon className="h-4 w-4" />
+                    <item.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </div>
                   {!isCollapsed && (
                     <span className={clsx(
@@ -284,9 +399,9 @@ export default function DashboardSideBar() {
             
             {/* Divider and Section Label */}
             {!isCollapsed && (
-              <div className="px-3 py-2">
-                <div className="h-px bg-gray-200 mb-3" />
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3">
+              <div className="px-2 sm:px-3 py-1.5 sm:py-2">
+                <div className="h-px bg-gray-200 mb-2 sm:mb-3" />
+                <div className="text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 sm:px-3">
                   Manage
                 </div>
               </div>
@@ -302,26 +417,36 @@ export default function DashboardSideBar() {
                   {/* Section Header */}
                   <div
                     onClick={() => toggleSection(section.label)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleSection(section.label);
+                      }
+                    }}
+                    tabIndex={0}
+                    role="button"
+                    aria-expanded={isExpanded}
+                    aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${section.label} section`}
                     className={clsx(
-                      "flex items-center gap-2 w-full rounded-lg px-3 py-2.5 transition-all duration-200 hover:cursor-pointer group",
+                      "flex items-center gap-2 w-full rounded-lg px-2.5 sm:px-3 py-2 sm:py-2.5 transition-all duration-200 hover:cursor-pointer group focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2",
                       isCollapsed ? "justify-center" : "justify-between",
                       sectionActive
                         ? "bg-gradient-to-r from-purple-50 to-blue-50 text-purple-900 shadow-sm"
                         : "text-gray-700 hover:bg-gray-50"
                     )}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3">
                       <div className={clsx(
-                        "p-1.5 rounded-lg transition-all duration-200",
+                        "p-1 sm:p-1.5 rounded-lg transition-all duration-200",
                         sectionActive
                           ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-md"
                           : "bg-gray-100 text-gray-600 group-hover:bg-gray-200"
                       )}>
-                        <section.icon className="h-4 w-4" />
+                        <section.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       </div>
                       {!isCollapsed && (
                         <span className={clsx(
-                          "font-semibold text-sm",
+                          "font-semibold text-xs sm:text-sm",
                           sectionActive && "bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent"
                         )}>
                           {section.label}
@@ -331,7 +456,7 @@ export default function DashboardSideBar() {
                     {!isCollapsed && (
                       <ChevronDown
                         className={clsx(
-                          "h-4 w-4 transition-transform duration-200",
+                          "h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform duration-200",
                           isExpanded ? "rotate-180" : "",
                           sectionActive ? "text-purple-600" : "text-gray-400"
                         )}
@@ -354,15 +479,24 @@ export default function DashboardSideBar() {
                           <div
                             key={item.href}
                             onClick={() => router.push(item.href)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                router.push(item.href);
+                              }
+                            }}
+                            tabIndex={0}
+                            role="button"
+                            aria-label={`Navigate to ${item.label}`}
                             className={clsx(
-                              "flex items-center gap-3 w-full rounded-lg px-3 py-2 text-sm transition-all duration-200 hover:cursor-pointer ml-6 group",
+                              "flex items-center gap-2 sm:gap-3 w-full rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm transition-all duration-200 hover:cursor-pointer ml-4 sm:ml-6 group focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2",
                               itemActive
                                 ? "bg-gradient-to-r from-purple-100 to-blue-100 text-purple-900 shadow-sm border-l-4 border-purple-500"
                                 : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 border-l-4 border-transparent"
                             )}
                           >
                             <item.icon className={clsx(
-                              "h-4 w-4 transition-colors",
+                              "h-3.5 w-3.5 sm:h-4 sm:w-4 transition-colors",
                               itemActive ? "text-purple-600" : "text-gray-400 group-hover:text-gray-600"
                             )} />
                             <span className={clsx(
@@ -423,11 +557,12 @@ export default function DashboardSideBar() {
           variant="secondary"
           size="icon"
           className={clsx(
-            "absolute top-6 h-8 w-8 rounded-full shadow-lg bg-purple-600 text-white hover:bg-purple-700 transition-all duration-300",
+            "absolute top-6 h-8 w-8 rounded-full shadow-lg bg-purple-600 text-white hover:bg-purple-700 transition-all duration-300 z-10",
             isCollapsed ? "-right-4" : "right-3"
           )}
           onClick={() => setIsCollapsed(!isCollapsed)}
           title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {isCollapsed ? (
             <ChevronRight className="h-4 w-4" />

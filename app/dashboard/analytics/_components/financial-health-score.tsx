@@ -105,25 +105,25 @@ export function FinancialHealthScore({ data, loading }: FinancialHealthScoreProp
 
   return (
     <Card className="col-span-full">
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
+      <CardHeader className="p-4 sm:p-6">
+        <CardTitle className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
-            <Target className="h-5 w-5 text-purple-600" />
-            Financial Health Score
+            <Target className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
+            <span className="text-base sm:text-lg">Financial Health Score</span>
           </div>
           {scoreDiff !== 0 && (
-            <Badge variant={scoreDiff > 0 ? "default" : "destructive"} className="flex items-center gap-1">
+            <Badge variant={scoreDiff > 0 ? "default" : "destructive"} className="flex items-center gap-1 w-fit text-xs sm:text-sm">
               {scoreDiff > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
               {scoreDiff > 0 ? '+' : ''}{scoreDiff}
             </Badge>
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="grid gap-6 md:grid-cols-2">
+      <CardContent className="p-4 sm:p-6">
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
           {/* Main Score Display */}
-          <div className="flex flex-col items-center space-y-4">
-            <div className="relative w-40 h-40">
+          <div className="flex flex-col items-center space-y-3 sm:space-y-4">
+            <div className="relative w-32 h-32 sm:w-40 sm:h-40">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                 <circle
                   cx="50"
@@ -145,10 +145,10 @@ export function FinancialHealthScore({ data, loading }: FinancialHealthScoreProp
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className={`text-3xl font-bold ${getScoreColor(mockData.overallScore)}`}>
+                <span className={`text-2xl sm:text-3xl font-bold tabular-nums ${getScoreColor(mockData.overallScore)}`}>
                   {mockData.overallScore}
                 </span>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-xs sm:text-sm text-muted-foreground">
                   {getScoreLabel(mockData.overallScore)}
                 </span>
               </div>
@@ -156,62 +156,62 @@ export function FinancialHealthScore({ data, loading }: FinancialHealthScoreProp
           </div>
 
           {/* Health Metrics Breakdown */}
-          <div className="space-y-4">
-            <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+          <div className="space-y-3 sm:space-y-4">
+            <h4 className="font-semibold text-xs sm:text-sm text-muted-foreground uppercase tracking-wide">
               Health Metrics
             </h4>
             
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Cash Flow Health</span>
-                <span className="text-sm text-muted-foreground">{mockData.metrics.cashFlowHealth}%</span>
+                <span className="text-xs sm:text-sm font-medium">Cash Flow Health</span>
+                <span className="text-xs sm:text-sm text-muted-foreground tabular-nums">{mockData.metrics.cashFlowHealth}%</span>
               </div>
-              <Progress value={mockData.metrics.cashFlowHealth} className="h-2" />
+              <Progress value={mockData.metrics.cashFlowHealth} className="h-1.5 sm:h-2" />
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Expense Efficiency</span>
-                <span className="text-sm text-muted-foreground">{mockData.metrics.expenseEfficiency}%</span>
+                <span className="text-xs sm:text-sm font-medium">Expense Efficiency</span>
+                <span className="text-xs sm:text-sm text-muted-foreground tabular-nums">{mockData.metrics.expenseEfficiency}%</span>
               </div>
-              <Progress value={mockData.metrics.expenseEfficiency} className="h-2" />
+              <Progress value={mockData.metrics.expenseEfficiency} className="h-1.5 sm:h-2" />
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Revenue Growth</span>
-                <span className="text-sm text-muted-foreground">{mockData.metrics.revenueGrowth}%</span>
+                <span className="text-xs sm:text-sm font-medium">Revenue Growth</span>
+                <span className="text-xs sm:text-sm text-muted-foreground tabular-nums">{mockData.metrics.revenueGrowth}%</span>
               </div>
-              <Progress value={mockData.metrics.revenueGrowth} className="h-2" />
+              <Progress value={mockData.metrics.revenueGrowth} className="h-1.5 sm:h-2" />
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Risk Level</span>
-                <span className="text-sm text-muted-foreground">{mockData.metrics.riskFactors}%</span>
+                <span className="text-xs sm:text-sm font-medium">Risk Level</span>
+                <span className="text-xs sm:text-sm text-muted-foreground tabular-nums">{mockData.metrics.riskFactors}%</span>
               </div>
-              <Progress value={100 - mockData.metrics.riskFactors} className="h-2" />
+              <Progress value={100 - mockData.metrics.riskFactors} className="h-1.5 sm:h-2" />
             </div>
           </div>
         </div>
 
         {/* Recommendations */}
-        <div className="mt-6 pt-6 border-t">
-          <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-4">
+        <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t">
+          <h4 className="font-semibold text-xs sm:text-sm text-muted-foreground uppercase tracking-wide mb-3 sm:mb-4">
             Recommended Actions
           </h4>
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
             {mockData.recommendations.map((rec) => (
-              <div key={rec.id} className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+              <div key={rec.id} className="flex items-start gap-2 sm:gap-3 p-3 sm:p-4 bg-muted/50 rounded-lg">
                 {rec.impact === 'high' ? (
-                  <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5" />
+                  <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-red-500 mt-0.5 flex-shrink-0" />
                 ) : (
-                  <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
+                  <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-green-500 mt-0.5 flex-shrink-0" />
                 )}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-sm">{rec.title}</span>
-                    <Badge variant="outline" className="text-xs">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2 mb-1">
+                    <span className="font-medium text-xs sm:text-sm">{rec.title}</span>
+                    <Badge variant="outline" className="text-xs w-fit">
                       {rec.impact} impact
                     </Badge>
                   </div>

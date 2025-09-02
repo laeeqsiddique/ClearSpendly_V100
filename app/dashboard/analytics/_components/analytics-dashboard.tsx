@@ -137,28 +137,31 @@ export function AnalyticsDashboard() {
 
 
   return (
-    <section className="flex flex-col items-start justify-start p-6 w-full bg-gradient-to-br from-purple-50 via-white to-blue-50 min-h-screen">
+    <section className="flex flex-col items-start justify-start p-3 sm:p-6 w-full bg-gradient-to-br from-purple-50 via-white to-blue-50 min-h-screen">
       <div className="w-full">
-        <div className="flex flex-col gap-6">
-          {/* Header */}
-          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-4 sm:gap-6">
+          {/* Header - Mobile Optimized */}
+          <div className="flex flex-col gap-3">
             <div className="flex flex-col items-start justify-center gap-2">
-              <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                 Business Analytics
               </h1>
-              <p className="text-muted-foreground">
+              <p className="text-sm sm:text-base text-muted-foreground">
                 Track your business performance and insights for better decision making.
               </p>
             </div>
           </div>
           
-          {/* Date Range Filter */}
-          <div className="flex items-center justify-end gap-4 bg-white/80 backdrop-blur-sm border-0 shadow-lg rounded-lg p-4">
-            <div className="flex items-center gap-3">
-              <Calendar className="h-5 w-5 text-purple-600" />
-              <span className="text-sm font-medium text-gray-700">Date Range:</span>
+          {/* Date Range Filter - Mobile First */}
+          <div className="bg-white/80 backdrop-blur-sm border-0 shadow-lg rounded-lg p-3 sm:p-4">
+            {/* Mobile: Stack vertically */}
+            <div className="flex flex-col gap-3 sm:hidden">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                <span className="text-sm font-medium text-gray-700">Date Range</span>
+              </div>
               <Select value={datePreset} onValueChange={handleDatePresetChange}>
-                <SelectTrigger className="w-40 border-purple-200 focus:border-purple-500">
+                <SelectTrigger className="w-full border-purple-200 focus:border-purple-500 h-11">
                   <SelectValue placeholder="Select range" />
                 </SelectTrigger>
                 <SelectContent>
@@ -175,24 +178,67 @@ export function AnalyticsDashboard() {
               </Select>
               
               {datePreset === 'custom' && (
-                <>
+                <div className="flex flex-col gap-2">
                   <Input
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="w-auto border-purple-200 focus:border-purple-500"
+                    className="w-full border-purple-200 focus:border-purple-500 h-11"
                     placeholder="Start date"
                   />
-                  <span className="text-muted-foreground">to</span>
                   <Input
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="w-auto border-purple-200 focus:border-purple-500"
+                    className="w-full border-purple-200 focus:border-purple-500 h-11"
                     placeholder="End date"
                   />
-                </>
+                </div>
               )}
+            </div>
+
+            {/* Desktop: Horizontal layout */}
+            <div className="hidden sm:flex items-center justify-end gap-4">
+              <div className="flex items-center gap-3">
+                <Calendar className="h-5 w-5 text-purple-600" />
+                <span className="text-sm font-medium text-gray-700">Date Range:</span>
+                <Select value={datePreset} onValueChange={handleDatePresetChange}>
+                  <SelectTrigger className="w-40 border-purple-200 focus:border-purple-500">
+                    <SelectValue placeholder="Select range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="this-week">This Week</SelectItem>
+                    <SelectItem value="this-month">This Month</SelectItem>
+                    <SelectItem value="last-month">Last Month</SelectItem>
+                    <SelectItem value="this-quarter">This Quarter</SelectItem>
+                    <SelectItem value="this-year">This Year</SelectItem>
+                    <SelectItem value="last-quarter">Last Quarter</SelectItem>
+                    <SelectItem value="last-year">Last Year</SelectItem>
+                    <SelectItem value="custom">Custom Range</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                {datePreset === 'custom' && (
+                  <>
+                    <Input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-auto border-purple-200 focus:border-purple-500"
+                      placeholder="Start date"
+                    />
+                    <span className="text-muted-foreground">to</span>
+                    <Input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-auto border-purple-200 focus:border-purple-500"
+                      placeholder="End date"
+                    />
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -204,16 +250,18 @@ export function AnalyticsDashboard() {
             {/* Quick Actions */}
             <QuickActions data={metricsData?.quickActions} />
 
-            {/* Main Dashboard - Simple Grid Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Main Dashboard - Mobile-First Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               {/* Cash Flow Summary */}
               <SimpleCashFlow data={metricsData?.cashFlowData} loading={loading} />
               
               {/* Expense Breakdown */}
               <SimpleExpenseBreakdown data={metricsData?.expenseBreakdown} loading={loading} />
               
-              {/* Outstanding Invoices */}
-              <UnpaidInvoices data={metricsData?.unpaidInvoices} loading={loading} />
+              {/* Outstanding Invoices - Full width on mobile */}
+              <div className="md:col-span-2 lg:col-span-1">
+                <UnpaidInvoices data={metricsData?.unpaidInvoices} loading={loading} />
+              </div>
               
               {/* Client Performance (simplified) */}
               <ClientPerformance data={metricsData?.topClients} />
@@ -227,38 +275,39 @@ export function AnalyticsDashboard() {
               </div>
               
               <Tabs defaultValue="expenses" className="space-y-6">
+                {/* Mobile: 2x2 grid, Desktop: 1x4 row */}
                 <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto p-1 bg-white shadow-lg border rounded-lg">
                   <TabsTrigger 
                     value="expenses" 
-                    className="flex flex-col items-center gap-2 p-4 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-blue-600 data-[state=active]:text-white font-medium transition-all duration-200 hover:bg-gray-50 data-[state=active]:hover:bg-gradient-to-r data-[state=active]:hover:from-purple-700 data-[state=active]:hover:to-blue-700"
+                    className="flex flex-col items-center gap-1 sm:gap-2 p-2 sm:p-4 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-blue-600 data-[state=active]:text-white font-medium transition-all duration-200 hover:bg-gray-50 data-[state=active]:hover:bg-gradient-to-r data-[state=active]:hover:from-purple-700 data-[state=active]:hover:to-blue-700 min-h-[60px] sm:min-h-[80px]"
                   >
-                    <Receipt className="h-5 w-5" />
-                    <span className="text-sm font-semibold">Expenses</span>
-                    <span className="text-xs opacity-70">Category breakdown</span>
+                    <Receipt className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <span className="text-xs sm:text-sm font-semibold">Expenses</span>
+                    <span className="text-[10px] sm:text-xs opacity-70 hidden sm:block">Category breakdown</span>
                   </TabsTrigger>
                   <TabsTrigger 
                     value="revenue" 
-                    className="flex flex-col items-center gap-2 p-4 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-blue-600 data-[state=active]:text-white font-medium transition-all duration-200 hover:bg-gray-50 data-[state=active]:hover:bg-gradient-to-r data-[state=active]:hover:from-purple-700 data-[state=active]:hover:to-blue-700"
+                    className="flex flex-col items-center gap-1 sm:gap-2 p-2 sm:p-4 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-blue-600 data-[state=active]:text-white font-medium transition-all duration-200 hover:bg-gray-50 data-[state=active]:hover:bg-gradient-to-r data-[state=active]:hover:from-purple-700 data-[state=active]:hover:to-blue-700 min-h-[60px] sm:min-h-[80px]"
                   >
-                    <DollarSign className="h-5 w-5" />
-                    <span className="text-sm font-semibold">Revenue</span>
-                    <span className="text-xs opacity-70">Income trends</span>
+                    <DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <span className="text-xs sm:text-sm font-semibold">Revenue</span>
+                    <span className="text-[10px] sm:text-xs opacity-70 hidden sm:block">Income trends</span>
                   </TabsTrigger>
                   <TabsTrigger 
                     value="clients" 
-                    className="flex flex-col items-center gap-2 p-4 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-blue-600 data-[state=active]:text-white font-medium transition-all duration-200 hover:bg-gray-50 data-[state=active]:hover:bg-gradient-to-r data-[state=active]:hover:from-purple-700 data-[state=active]:hover:to-blue-700"
+                    className="flex flex-col items-center gap-1 sm:gap-2 p-2 sm:p-4 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-blue-600 data-[state=active]:text-white font-medium transition-all duration-200 hover:bg-gray-50 data-[state=active]:hover:bg-gradient-to-r data-[state=active]:hover:from-purple-700 data-[state=active]:hover:to-blue-700 min-h-[60px] sm:min-h-[80px]"
                   >
-                    <Users className="h-5 w-5" />
-                    <span className="text-sm font-semibold">Clients</span>
-                    <span className="text-xs opacity-70">Performance</span>
+                    <Users className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <span className="text-xs sm:text-sm font-semibold">Clients</span>
+                    <span className="text-[10px] sm:text-xs opacity-70 hidden sm:block">Performance</span>
                   </TabsTrigger>
                   <TabsTrigger 
                     value="pnl" 
-                    className="flex flex-col items-center gap-2 p-4 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-blue-600 data-[state=active]:text-white font-medium transition-all duration-200 hover:bg-gray-50 data-[state=active]:hover:bg-gradient-to-r data-[state=active]:hover:from-purple-700 data-[state=active]:hover:to-blue-700"
+                    className="flex flex-col items-center gap-1 sm:gap-2 p-2 sm:p-4 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-blue-600 data-[state=active]:text-white font-medium transition-all duration-200 hover:bg-gray-50 data-[state=active]:hover:bg-gradient-to-r data-[state=active]:hover:from-purple-700 data-[state=active]:hover:to-blue-700 min-h-[60px] sm:min-h-[80px]"
                   >
-                    <FileText className="h-5 w-5" />
-                    <span className="text-sm font-semibold">P&L Statement</span>
-                    <span className="text-xs opacity-70">📊 Tax ready</span>
+                    <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <span className="text-xs sm:text-sm font-semibold text-center leading-tight">P&L Statement</span>
+                    <span className="text-[10px] sm:text-xs opacity-70 hidden sm:block">📊 Tax ready</span>
                   </TabsTrigger>
                 </TabsList>
 

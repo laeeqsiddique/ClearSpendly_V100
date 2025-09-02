@@ -907,134 +907,253 @@ export function InvoiceTemplatesRedesigned() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex justify-end items-center">
-        <Button onClick={handleCreateNew} className="h-10">
+        <Button 
+          onClick={handleCreateNew} 
+          className="h-11 px-4 touch-manipulation w-full sm:w-auto bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+        >
           <Plus className="w-4 h-4 mr-2" />
           New Template
         </Button>
       </div>
 
-      <Card>
-        <CardContent>
+      <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+        <CardContent className="p-4 sm:p-6">
           {templatesLoading ? (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="flex items-center space-x-4 animate-pulse">
-                  <div className="h-10 w-10 bg-gradient-to-r from-purple-200 to-blue-200 rounded-full"></div>
-                  <div className="space-y-2 flex-1">
-                    <div className="h-4 bg-gradient-to-r from-purple-200 to-blue-200 rounded w-48"></div>
-                    <div className="h-3 bg-gradient-to-r from-purple-200 to-blue-200 rounded w-32"></div>
+                <div key={i} className="bg-white border border-gray-200 rounded-lg p-4 space-y-3 animate-pulse">
+                  <div className="flex items-center space-x-3">
+                    <div className="h-8 w-8 bg-gradient-to-r from-purple-200 to-blue-200 rounded-lg flex-shrink-0"></div>
+                    <div className="space-y-2 flex-1 min-w-0">
+                      <div className="h-3 sm:h-4 bg-gradient-to-r from-purple-200 to-blue-200 rounded w-3/4"></div>
+                      <div className="h-2 sm:h-3 bg-gradient-to-r from-purple-200 to-blue-200 rounded w-1/2"></div>
+                    </div>
                   </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="h-2 bg-gradient-to-r from-purple-200 to-blue-200 rounded"></div>
+                    <div className="h-2 bg-gradient-to-r from-purple-200 to-blue-200 rounded"></div>
+                  </div>
+                  <div className="h-2 bg-gradient-to-r from-purple-200 to-blue-200 rounded w-1/3"></div>
                 </div>
               ))}
             </div>
           ) : templates.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <FileText className="w-8 h-8 text-blue-600" />
+            <div className="text-center py-8 sm:py-12">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Create Your First Template</h3>
-              <p className="text-gray-500 mb-6">Templates make it quick and easy to create professional invoices with your branding</p>
-              <Button onClick={handleCreateNew}>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">Create Your First Template</h3>
+              <p className="text-sm sm:text-base text-gray-500 mb-6 px-4">Templates make it quick and easy to create professional invoices with your branding</p>
+              <Button 
+                onClick={handleCreateNew}
+                className="h-11 px-4 touch-manipulation w-full sm:w-auto bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Create Template
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="font-semibold text-gray-700">Template Name</TableHead>
-                    <TableHead className="font-semibold text-gray-700">Style</TableHead>
-                    <TableHead className="font-semibold text-gray-700">Invoice Format</TableHead>
-                    <TableHead className="font-semibold text-gray-700">Payment Terms</TableHead>
-                    <TableHead className="font-semibold text-gray-700">Tax Rate</TableHead>
-                    <TableHead className="font-semibold text-gray-700">Logo</TableHead>
-                    <TableHead className="font-semibold text-gray-700">Status</TableHead>
-                    <TableHead className="w-12"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {templates.map((template) => (
-                    <TableRow key={template.id} className="hover:bg-gray-50 transition-colors">
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div 
-                            className="w-8 h-8 rounded-lg flex items-center justify-center"
-                            style={{ background: `linear-gradient(45deg, ${template.color_scheme}, ${template.color_scheme}dd)` }}
-                          >
-                            <FileText className="w-4 h-4 text-white" />
-                          </div>
-                          <div>
-                            <div className="font-medium">{template.name}</div>
-                            <div className="text-sm text-gray-500">Created: {new Date(template.created_at).toLocaleDateString()}</div>
-                          </div>
+            <>
+              {/* Mobile: Card Layout */}
+              <div className="block lg:hidden space-y-4">
+                {templates.map((template) => (
+                  <div key={template.id} className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
+                    {/* Header Row */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                          style={{ background: `linear-gradient(45deg, ${template.color_scheme}, ${template.color_scheme}dd)` }}
+                        >
+                          <FileText className="w-4 h-4 text-white" />
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="capitalize">
+                        <div className="min-w-0">
+                          <div className="font-medium text-sm truncate">{template.name}</div>
+                          <div className="text-xs text-gray-500">Created: {new Date(template.created_at).toLocaleDateString()}</div>
+                        </div>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="min-h-[44px] min-w-[44px] p-2 touch-manipulation">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent 
+                          align="end" 
+                          className="w-48 max-w-[calc(100vw-2rem)] shadow-lg border-gray-200"
+                          side="bottom"
+                          sideOffset={8}
+                          avoidCollisions={true}
+                          sticky="always"
+                        >
+                          <DropdownMenuItem 
+                            onClick={() => handleEdit(template)}
+                            className="h-11 px-4 py-3 cursor-pointer touch-manipulation hover:bg-gray-100 focus:bg-gray-100"
+                          >
+                            <Edit className="w-4 h-4 mr-3" />
+                            <span className="text-sm font-medium">Edit Template</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteClick(template)}
+                            className="h-11 px-4 py-3 cursor-pointer touch-manipulation hover:bg-red-50 focus:bg-red-50 text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4 mr-3" />
+                            <span className="text-sm font-medium">Delete Template</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    
+                    {/* Template Style and Status */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="capitalize text-xs">
                           {templateStyles.find(t => t.id === template.template_type)?.name || 'Classic'}
                         </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-mono text-sm">{template.invoice_prefix}-{template.next_invoice_number.toString().padStart(4, '0')}</span>
-                      </TableCell>
-                      <TableCell>{template.default_payment_terms}</TableCell>
-                      <TableCell>
-                        {template.show_tax ? `${(template.tax_rate * 100).toFixed(1)}%` : 'None'}
-                      </TableCell>
-                      <TableCell>
-                        {template.logo_url ? (
-                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                            <Check className="w-3 h-3 mr-1" />
-                            Yes
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="bg-gray-50 text-gray-600">
-                            <X className="w-3 h-3 mr-1" />
-                            No
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {template.is_default ? (
-                          <Badge variant="default" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                        {template.is_default && (
+                          <Badge variant="default" className="bg-yellow-100 text-yellow-800 border-yellow-300 text-xs">
                             <Star className="w-3 h-3 mr-1 fill-current" />
                             Default
                           </Badge>
-                        ) : (
-                          <Badge variant="outline">Active</Badge>
                         )}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEdit(template)}>
-                              <Edit className="w-4 h-4 mr-2" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleDeleteClick(template)}
-                              className="text-red-600"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-mono text-xs font-medium">{template.invoice_prefix}-{template.next_invoice_number.toString().padStart(4, '0')}</div>
+                      </div>
+                    </div>
+                    
+                    {/* Details Grid */}
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <span className="text-gray-600 block mb-1">Payment Terms:</span>
+                        <span className="font-medium">{template.default_payment_terms}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600 block mb-1">Tax Rate:</span>
+                        <span className="font-medium">
+                          {template.show_tax ? `${(template.tax_rate * 100).toFixed(1)}%` : 'None'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Logo Status */}
+                    <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-gray-600">Company Logo:</span>
+                        {template.logo_url ? (
+                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
+                            <Check className="w-3 h-3 mr-1" />
+                            Added
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-gray-50 text-gray-600 text-xs">
+                            <X className="w-3 h-3 mr-1" />
+                            None
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Desktop: Table Layout */}
+              <div className="hidden lg:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="font-semibold text-gray-700">Template Name</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Style</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Invoice Format</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Payment Terms</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Tax Rate</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Logo</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Status</TableHead>
+                      <TableHead className="w-12"></TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {templates.map((template) => (
+                      <TableRow key={template.id} className="hover:bg-gray-50 transition-colors">
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div 
+                              className="w-8 h-8 rounded-lg flex items-center justify-center"
+                              style={{ background: `linear-gradient(45deg, ${template.color_scheme}, ${template.color_scheme}dd)` }}
+                            >
+                              <FileText className="w-4 h-4 text-white" />
+                            </div>
+                            <div>
+                              <div className="font-medium">{template.name}</div>
+                              <div className="text-sm text-gray-500">Created: {new Date(template.created_at).toLocaleDateString()}</div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="capitalize">
+                            {templateStyles.find(t => t.id === template.template_type)?.name || 'Classic'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-mono text-sm">{template.invoice_prefix}-{template.next_invoice_number.toString().padStart(4, '0')}</span>
+                        </TableCell>
+                        <TableCell>{template.default_payment_terms}</TableCell>
+                        <TableCell>
+                          {template.show_tax ? `${(template.tax_rate * 100).toFixed(1)}%` : 'None'}
+                        </TableCell>
+                        <TableCell>
+                          {template.logo_url ? (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                              <Check className="w-3 h-3 mr-1" />
+                              Yes
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-gray-50 text-gray-600">
+                              <X className="w-3 h-3 mr-1" />
+                              No
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {template.is_default ? (
+                            <Badge variant="default" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                              <Star className="w-3 h-3 mr-1 fill-current" />
+                              Default
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline">Active</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEdit(template)}>
+                                <Edit className="w-4 h-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteClick(template)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

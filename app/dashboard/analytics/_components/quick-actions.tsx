@@ -75,7 +75,7 @@ export function QuickActions({ data }: QuickActionsProps) {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
       {actions.map((action, index) => {
         const Icon = action.icon;
         const hasAction = (action.title === "Overdue Invoices" && action.value > 0) ||
@@ -86,8 +86,8 @@ export function QuickActions({ data }: QuickActionsProps) {
           <Card
             key={index}
             className={cn(
-              "relative overflow-hidden transition-all",
-              hasAction && "hover:shadow-lg cursor-pointer"
+              "relative overflow-hidden transition-all duration-200 min-h-[120px] sm:min-h-[140px]",
+              hasAction && "hover:shadow-lg cursor-pointer active:scale-[0.98]"
             )}
             onClick={hasAction ? action.action : undefined}
           >
@@ -97,24 +97,24 @@ export function QuickActions({ data }: QuickActionsProps) {
               action.color
             )} />
             
-            <div className="relative p-6">
-              <div className="flex items-center justify-between mb-4">
+            <div className="relative p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <div className={cn("p-2 rounded-lg", action.bgColor)}>
-                  <Icon className={cn("h-5 w-5", action.iconColor)} />
+                  <Icon className={cn("h-4 w-4 sm:h-5 sm:w-5", action.iconColor)} />
                 </div>
                 {hasAction && (
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                  <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                 )}
               </div>
               
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">
+              <div className="space-y-1 sm:space-y-2">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">
                   {action.title}
                 </p>
-                <p className="text-2xl font-bold">
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold tabular-nums leading-tight">
                   {typeof action.value === 'string' ? action.value : action.value}
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {action.description}
                 </p>
               </div>
@@ -123,14 +123,15 @@ export function QuickActions({ data }: QuickActionsProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="mt-4 -ml-2"
+                  className="mt-3 sm:mt-4 -ml-2 text-xs sm:text-sm h-8 sm:h-9"
                   onClick={(e) => {
                     e.stopPropagation();
                     action.action();
                   }}
                 >
-                  {action.buttonText}
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                  <span className="hidden sm:inline">{action.buttonText}</span>
+                  <span className="sm:hidden">View</span>
+                  <ArrowRight className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               )}
             </div>

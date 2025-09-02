@@ -30,8 +30,7 @@ export const env = {
   features: {
     enableGoogleAuth: !!process.env.NEXT_PUBLIC_SUPABASE_URL && 
                      !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-                     !!process.env.GOOGLE_CLIENT_ID &&
-                     !!process.env.GOOGLE_CLIENT_SECRET,
+                     !!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID, // Only check client-side available variables
     enableEmailAuth: true, // Always enabled as fallback
   },
 };
@@ -51,6 +50,11 @@ export function getOAuthRedirectUrl(returnTo?: string): string {
 
 // Helper function to check if Google OAuth is properly configured
 export function isGoogleOAuthConfigured(): boolean {
+  // On client-side, only check for public client ID
+  if (typeof window !== 'undefined') {
+    return !!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  }
+  // On server-side, check for both client ID and secret
   return !!(env.oauth.google.clientId && env.oauth.google.clientSecret);
 }
 

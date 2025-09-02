@@ -158,39 +158,44 @@ export function ProfitLossStatement({ data, dateRange }: ProfitLossStatementProp
   return (
     <Card className="print:shadow-none">
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle className="text-2xl">Profit & Loss Statement</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-xl sm:text-2xl">Profit & Loss Statement</CardTitle>
+            <CardDescription className="text-sm">
               {dateRange?.from && dateRange?.to
                 ? `${format(dateRange.from, 'MMM d, yyyy')} - ${format(dateRange.to, 'MMM d, yyyy')}`
                 : 'Current Period'}
             </CardDescription>
           </div>
-          <div className="flex gap-2 print:hidden">
+          
+          {/* Mobile: Full-width grid, Desktop: Horizontal flex */}
+          <div className="grid grid-cols-3 gap-2 w-full sm:w-auto sm:flex sm:gap-2 print:hidden">
             <Button
               variant="outline"
               size="sm"
               onClick={() => handleExport('pdf')}
+              className="text-xs sm:text-sm"
             >
-              <FileText className="h-4 w-4 mr-2" />
-              PDF
+              <FileText className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+              <span className="hidden sm:inline">PDF</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => handleExport('excel')}
+              className="text-xs sm:text-sm"
             >
-              <FileSpreadsheet className="h-4 w-4 mr-2" />
-              Excel
+              <FileSpreadsheet className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Excel</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={handlePrint}
+              className="text-xs sm:text-sm"
             >
-              <Printer className="h-4 w-4 mr-2" />
-              Print
+              <Printer className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Print</span>
             </Button>
           </div>
         </div>

@@ -44,7 +44,7 @@ function SignInContent() {
           errorMessage = "Access was denied. Please try again or use email sign-in.";
           break;
         case 'config_error':
-          errorMessage = "Google Sign-in is not properly configured. Please use email sign-in.";
+          errorMessage = "Google Sign-in is not properly configured on this server. Please use email sign-in or contact support.";
           break;
         case 'oauth_error':
           errorMessage = "OAuth authentication failed. Please try email sign-in.";
@@ -131,10 +131,18 @@ function SignInContent() {
     
     try {
       setAuthStep('authenticating');
+      // Use the working OAuth callback URL (same as sign-up page)
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.flowvya.com';
+      const redirectUrl = `${baseUrl}/api/oauth-callback?returnTo=${encodeURIComponent(returnTo || '/dashboard')}`;
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: getOAuthRedirectUrl(returnTo || '/dashboard'),
+          redirectTo: redirectUrl,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
 
@@ -144,19 +152,23 @@ function SignInContent() {
         // Provide specific error messages based on error type
         let userMessage = 'Google sign-in failed. ';
         
-        // Check if it's a mock client error (missing environment variables)
-        if (error.code === 'MOCK_CLIENT_ERROR' || error.message.includes('service unavailable')) {
+        // Check for specific OAuth error types and provide helpful messages
+        if (error.message.includes('Unsupported provider') || error.message.includes('missing OAuth secret')) {
+          userMessage = 'Google Sign-in is not configured on this server. Please use email sign-in or contact support.';
+        } else if (error.code === 'MOCK_CLIENT_ERROR' || error.message.includes('service unavailable')) {
           userMessage = 'Authentication service is currently unavailable. Please try email sign-in instead.';
         } else if (error.message.includes('unauthorized_client') || error.message.includes('invalid_client')) {
-          userMessage = 'Google OAuth is not properly configured. Please use email sign-in or contact support.';
+          userMessage = 'Google OAuth configuration error. Please use email sign-in or contact support.';
         } else if (error.message.includes('access_denied')) {
-          userMessage = 'Access was denied. Please try again or use email sign-in.';
+          userMessage = 'Access was denied during Google sign-in. Please try again or use email sign-in.';
         } else if (error.message.includes('popup_blocked')) {
-          userMessage = 'Popup was blocked. Please allow popups for this site and try again.';
+          userMessage = 'Browser blocked the Google sign-in popup. Please allow popups and try again.';
         } else if (error.message.includes('network')) {
-          userMessage = 'Please check your internet connection and try again.';
+          userMessage = 'Network error occurred. Please check your connection and try again.';
         } else if (error.message.includes('redirect_uri_mismatch')) {
-          userMessage = 'OAuth configuration error. Please use email sign-in or contact support.';
+          userMessage = 'OAuth redirect URL mismatch. Please use email sign-in or contact support.';
+        } else if (error.message.includes('invalid_request')) {
+          userMessage = 'Invalid OAuth request. Please try again or use email sign-in.';
         } else {
           userMessage += 'Please try email sign-in instead.';
         }

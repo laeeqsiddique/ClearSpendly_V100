@@ -57,37 +57,39 @@ export function SimpleExpenseBreakdown({ data, loading }: ExpenseBreakdownProps)
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
+      <CardHeader className="p-4 sm:p-6">
+        <CardTitle className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
-            <Receipt className="h-5 w-5 text-purple-600" />
-            <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent font-bold">Expense Categories</span>
+            <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
+            <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent font-bold text-sm sm:text-base">Expense Categories</span>
           </div>
-          <Badge variant="outline" className="border-purple-200 text-purple-700">
+          <Badge variant="outline" className="border-purple-200 text-purple-700 w-fit text-xs sm:text-sm">
             ${data.totalExpenses.toLocaleString()} total
           </Badge>
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-4 sm:p-6">
         <div className="space-y-3">
           {data.categories.map((category, index) => {
             const percentage = data.totalExpenses > 0 ? (category.amount / data.totalExpenses * 100).toFixed(1) : '0';
             return (
-              <div key={index} className="flex items-center justify-between p-3 bg-purple-50/50 rounded-lg border border-purple-100">
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold text-sm text-purple-900">{category.category}</span>
-                    <span className="text-sm font-bold text-purple-700">${category.amount.toLocaleString()}</span>
+              <div key={index} className="p-3 sm:p-4 bg-purple-50/50 rounded-lg border border-purple-100">
+                <div className="space-y-2">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <span className="font-semibold text-sm sm:text-base text-purple-900 truncate">{category.category}</span>
+                    <span className="text-base sm:text-lg font-bold text-purple-700 tabular-nums">${category.amount.toLocaleString()}</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="space-y-2">
                     <div className="flex-1 bg-purple-100 rounded-full h-2">
                       <div 
                         className="bg-gradient-to-r from-purple-600 to-blue-600 h-2 rounded-full transition-all duration-300" 
                         style={{ width: `${percentage}%` }}
                       ></div>
                     </div>
-                    <span className="text-xs font-medium text-purple-600">{percentage}%</span>
-                    <span className="text-xs text-purple-500">({category.count} receipts)</span>
+                    <div className="flex items-center justify-between text-xs sm:text-sm">
+                      <span className="font-medium text-purple-600">{percentage}%</span>
+                      <span className="text-purple-500">({category.count} receipts)</span>
+                    </div>
                   </div>
                 </div>
               </div>

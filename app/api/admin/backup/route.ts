@@ -1,31 +1,36 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
+import { requireTenantContext } from '@/lib/api-tenant';
 
 export async function POST() {
   try {
-    const tenantId = 'default-tenant';
+    // SECURITY FIX: Get current user's tenant and verify authorization
+    const context = await requireTenantContext();
     
-    // Create Supabase client with safe environment variable handling
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    
-    if (!supabaseUrl || !serviceRoleKey) {
+    // Check if user has admin privileges for backup operations
+    const supabase = await createClient();
+    const { data: membership } = await supabase
+      .from('membership')
+      .select('role')
+      .eq('user_id', context.userId)
+      .eq('tenant_id', context.tenantId)
+      .in('role', ['owner', 'admin'])
+      .single();
+
+    if (!membership) {
       return NextResponse.json(
-        { error: 'Supabase configuration missing' },
-        { status: 500 }
+        { error: 'Admin privileges required for backup operations' },
+        { status: 403 }
       );
     }
-    
-    const supabase = createClient(supabaseUrl, serviceRoleKey
-    );
     const backupData: any = {
       exportDate: new Date().toISOString(),
       version: '1.0.0',
-      tenantId,
+      tenantId: context.tenantId, // SECURITY FIX: Use current user's tenant
       data: {}
     };
 
-    // Export receipts with related data
+    // SECURITY FIX: Export receipts for current user's tenant only
     const { data: receipts } = await supabase
       .from('receipt')
       .select(`
@@ -34,28 +39,28 @@ export async function POST() {
         lineItems:receipt_item(*),
         tags:receipt_tag(tag:tag_id(*))
       `)
-      .eq('tenant_id', tenantId);
+      .eq('tenant_id', context.tenantId);
 
     backupData.data.receipts = receipts;
 
-    // Export vendors
+    // Export vendors for current user's tenant only
     const { data: vendors } = await supabase
       .from('vendor')
       .select('*')
-      .eq('tenant_id', tenantId);
+      .eq('tenant_id', context.tenantId);
 
     backupData.data.vendors = vendors;
 
-    // Export tags and categories
+    // Export tags and categories for current user's tenant only
     const { data: tagCategories } = await supabase
       .from('tag_category')
       .select('*')
-      .eq('tenant_id', tenantId);
+      .eq('tenant_id', context.tenantId);
 
     const { data: tags } = await supabase
       .from('tag')
       .select('*')
-      .eq('tenant_id', tenantId);
+      .eq('tenant_id', context.tenantId);
 
     backupData.data.tagCategories = tagCategories;
     backupData.data.tags = tags;

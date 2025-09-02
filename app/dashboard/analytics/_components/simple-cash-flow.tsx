@@ -78,24 +78,28 @@ export function SimpleCashFlow({ data, loading }: SimpleCashFlowProps) {
       </CardHeader>
       <CardContent>
         {/* Current Month Overview */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
-            <p className="text-sm text-green-600">Money In</p>
-            <p className="text-2xl font-bold text-green-700">${data.currentMonth.income.toLocaleString()}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
+          <div className="text-center p-3 sm:p-4 bg-green-50 rounded-lg border border-green-200">
+            <p className="text-xs sm:text-sm text-green-600 font-medium">Money In</p>
+            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-green-700 tabular-nums leading-tight break-all">
+              ${data.currentMonth.income.toLocaleString()}
+            </p>
           </div>
-          <div className="text-center p-3 bg-red-50 rounded-lg border border-red-200">
-            <p className="text-sm text-red-600">Money Out</p>
-            <p className="text-2xl font-bold text-red-700">${data.currentMonth.expenses.toLocaleString()}</p>
+          <div className="text-center p-3 sm:p-4 bg-red-50 rounded-lg border border-red-200">
+            <p className="text-xs sm:text-sm text-red-600 font-medium">Money Out</p>
+            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-red-700 tabular-nums leading-tight break-all">
+              ${data.currentMonth.expenses.toLocaleString()}
+            </p>
           </div>
-          <div className={`text-center p-3 rounded-lg border ${
+          <div className={`text-center p-3 sm:p-4 rounded-lg border ${
             data.currentMonth.profit > 0 
               ? 'bg-muted/30' 
               : 'bg-red-50 border-red-200'
           }`}>
-            <p className={`text-sm ${data.currentMonth.profit > 0 ? 'text-muted-foreground' : 'text-red-600'}`}>
+            <p className={`text-xs sm:text-sm font-medium ${data.currentMonth.profit > 0 ? 'text-muted-foreground' : 'text-red-600'}`}>
               Net Profit
             </p>
-            <p className={`text-2xl font-bold ${data.currentMonth.profit > 0 ? '' : 'text-red-700'}`}>
+            <p className={`text-lg sm:text-xl lg:text-2xl font-bold tabular-nums leading-tight break-all ${data.currentMonth.profit > 0 ? '' : 'text-red-700'}`}>
               ${data.currentMonth.profit.toLocaleString()}
             </p>
           </div>
@@ -103,23 +107,23 @@ export function SimpleCashFlow({ data, loading }: SimpleCashFlowProps) {
 
         {/* Recent Months */}
         <div>
-          <h4 className="font-medium mb-3">Recent Months</h4>
+          <h4 className="font-medium mb-3 text-sm sm:text-base">Recent Months</h4>
           <div className="space-y-2">
             {data.monthlyData.slice(-3).reverse().map((month, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded">
-                <div className="flex items-center gap-3">
-                  <span className="font-medium text-sm w-12">{month.month}</span>
-                  <span className="text-sm text-muted-foreground">
+              <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-muted/50 rounded gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 min-w-0 flex-1">
+                  <span className="font-medium text-sm w-full sm:w-12 flex-shrink-0">{month.month}</span>
+                  <span className="text-xs sm:text-sm text-muted-foreground leading-tight break-words">
                     ${month.income.toLocaleString()} in • ${month.expenses.toLocaleString()} out
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 justify-end flex-shrink-0">
                   {month.profit > 0 ? (
-                    <TrendingUp className="h-4 w-4 text-green-500" />
+                    <TrendingUp className="h-4 w-4 text-green-500 flex-shrink-0" />
                   ) : (
-                    <TrendingDown className="h-4 w-4 text-red-500" />
+                    <TrendingDown className="h-4 w-4 text-red-500 flex-shrink-0" />
                   )}
-                  <span className={`font-semibold ${month.profit > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <span className={`font-semibold text-sm tabular-nums ${month.profit > 0 ? 'text-green-600' : 'text-red-600'}`}>
                     ${Math.abs(month.profit).toLocaleString()}
                   </span>
                 </div>

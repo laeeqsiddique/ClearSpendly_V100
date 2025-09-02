@@ -289,113 +289,226 @@ export function ClientManagement({ refreshTrigger, openFormDirectly }: ClientMan
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-gradient-to-r from-purple-50 to-blue-50">
-                  <TableRow>
-                    <TableHead className="font-semibold text-gray-700">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4" />
-                        Name
-                      </div>
-                    </TableHead>
-                    <TableHead className="font-semibold text-gray-700">
-                      <div className="flex items-center gap-2">
-                        <Building className="h-4 w-4" />
-                        Company
-                      </div>
-                    </TableHead>
-                    <TableHead className="font-semibold text-gray-700">
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4" />
-                        Contact
-                      </div>
-                    </TableHead>
-                    <TableHead className="font-semibold text-gray-700">Payment Terms</TableHead>
-                    <TableHead className="font-semibold text-gray-700">Status</TableHead>
-                    <TableHead className="w-12"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredClients.map((client) => (
-                    <TableRow key={client.id} className="hover:bg-gradient-to-r hover:from-purple-50/50 hover:to-blue-50/50 transition-colors">
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full flex items-center justify-center">
-                            <span className="text-sm font-semibold text-purple-700">
-                              {client.name.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          <div>
-                            <div className="font-medium">{client.name}</div>
-                            <div className="text-sm text-gray-500">{client.email}</div>
-                          </div>
+            <>
+              {/* Mobile: Card Layout */}
+              <div className="block lg:hidden space-y-4">
+                {filteredClients.map((client) => (
+                  <div key={client.id} className="bg-white border border-gray-200 rounded-lg p-4 space-y-4 hover:shadow-md transition-shadow">
+                    {/* Header Row with Avatar and Action */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                          <span className="text-lg font-semibold text-purple-700">
+                            {client.name.charAt(0).toUpperCase()}
+                          </span>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        {client.company_name ? (
-                          <div className="flex items-center gap-2">
-                            <Building className="h-4 w-4 text-gray-400" />
-                            <span>{client.company_name}</span>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400 italic">No company</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <div className="flex items-center text-sm">
-                            <Mail className="w-3 h-3 mr-1 text-gray-400" />
-                            <span className="truncate">{client.email}</span>
-                          </div>
-                          {client.phone && (
-                            <div className="flex items-center text-sm">
-                              <Phone className="w-3 h-3 mr-1 text-gray-400" />
-                              <span>{client.phone}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-lg text-gray-900 truncate">{client.name}</div>
+                          {client.company_name && (
+                            <div className="flex items-center gap-1 text-sm text-gray-600 truncate">
+                              <Building className="h-3 w-3 flex-shrink-0" />
+                              {client.company_name}
                             </div>
                           )}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="border-blue-200 text-blue-700">
-                          {client.payment_terms}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
+                      </div>
+                      
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="min-h-[44px] min-w-[44px] p-2 touch-manipulation hover:bg-purple-50"
+                          >
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent 
+                          align="end" 
+                          className="w-48 max-w-[calc(100vw-2rem)] shadow-lg border-gray-200"
+                          side="bottom"
+                          sideOffset={8}
+                          avoidCollisions={true}
+                          sticky="always"
+                        >
+                          <DropdownMenuItem 
+                            onClick={() => handleEdit(client)}
+                            className="h-11 px-4 py-3 cursor-pointer touch-manipulation hover:bg-gray-100 focus:bg-gray-100"
+                          >
+                            <Edit className="w-4 h-4 mr-3" />
+                            <span className="text-sm font-medium">Edit Client</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleDelete(client.id)}
+                            className="h-11 px-4 py-3 cursor-pointer touch-manipulation hover:bg-red-50 focus:bg-red-50 text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4 mr-3" />
+                            <span className="text-sm font-medium">Delete Client</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    
+                    {/* Contact Information */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <span className="text-sm text-gray-700 truncate">{client.email}</span>
+                      </div>
+                      
+                      {client.phone && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          <span className="text-sm text-gray-700">{client.phone}</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Address Information */}
+                    {(client.address_line1 || client.city || client.state) && (
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <div className="text-xs font-medium text-gray-600 mb-2">Address</div>
+                        <div className="text-sm text-gray-700 space-y-1">
+                          {client.address_line1 && <div>{client.address_line1}</div>}
+                          {(client.city || client.state) && (
+                            <div>{[client.city, client.state].filter(Boolean).join(', ')}</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Status and Payment Terms */}
+                    <div className="flex flex-wrap items-center gap-3 pt-2 border-t">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-gray-600">Status:</span>
                         <Badge 
                           variant={client.is_active ? "default" : "secondary"}
-                          className={client.is_active ? "bg-green-100 text-green-800 border-green-200" : ""}
+                          className={client.is_active ? "bg-green-100 text-green-800 border-green-200 text-xs" : "text-xs"}
                         >
                           {client.is_active ? "Active" : "Inactive"}
                         </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="hover:bg-purple-50">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEdit(client)}>
-                              <Edit className="w-4 h-4 mr-2" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleDelete(client.id)}
-                              className="text-red-600"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-gray-600">Terms:</span>
+                        <Badge variant="outline" className="border-blue-200 text-blue-700 text-xs">
+                          {client.payment_terms}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop: Table Layout */}
+              <div className="hidden lg:block overflow-x-auto">
+                <Table>
+                  <TableHeader className="bg-gradient-to-r from-purple-50 to-blue-50">
+                    <TableRow>
+                      <TableHead className="font-semibold text-gray-700">
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4" />
+                          Name
+                        </div>
+                      </TableHead>
+                      <TableHead className="font-semibold text-gray-700">
+                        <div className="flex items-center gap-2">
+                          <Building className="h-4 w-4" />
+                          Company
+                        </div>
+                      </TableHead>
+                      <TableHead className="font-semibold text-gray-700">
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-4 w-4" />
+                          Contact
+                        </div>
+                      </TableHead>
+                      <TableHead className="font-semibold text-gray-700">Payment Terms</TableHead>
+                      <TableHead className="font-semibold text-gray-700">Status</TableHead>
+                      <TableHead className="w-12"></TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredClients.map((client) => (
+                      <TableRow key={client.id} className="hover:bg-gradient-to-r hover:from-purple-50/50 hover:to-blue-50/50 transition-colors">
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full flex items-center justify-center">
+                              <span className="text-sm font-semibold text-purple-700">
+                                {client.name.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                            <div>
+                              <div className="font-medium">{client.name}</div>
+                              <div className="text-sm text-gray-500">{client.email}</div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {client.company_name ? (
+                            <div className="flex items-center gap-2">
+                              <Building className="h-4 w-4 text-gray-400" />
+                              <span>{client.company_name}</span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 italic">No company</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <div className="flex items-center text-sm">
+                              <Mail className="w-3 h-3 mr-1 text-gray-400" />
+                              <span className="truncate">{client.email}</span>
+                            </div>
+                            {client.phone && (
+                              <div className="flex items-center text-sm">
+                                <Phone className="w-3 h-3 mr-1 text-gray-400" />
+                                <span>{client.phone}</span>
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="border-blue-200 text-blue-700">
+                            {client.payment_terms}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={client.is_active ? "default" : "secondary"}
+                            className={client.is_active ? "bg-green-100 text-green-800 border-green-200" : ""}
+                          >
+                            {client.is_active ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="hover:bg-purple-50">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEdit(client)}>
+                                <Edit className="w-4 h-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleDelete(client.id)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

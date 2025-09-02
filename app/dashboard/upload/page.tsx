@@ -486,36 +486,37 @@ export default function UploadPage() {
       // Initialize tags from extracted data if they exist
       setSelectedTags(receipt.extractedData.tags || []);
       
-      // Scroll the selected receipt into view (with some delay to allow state to update)
-      setTimeout(() => {
-        const receiptElement = document.querySelector(`[data-receipt-id="${receipt.id}"]`);
-        if (receiptElement) {
-          // Calculate the visible area considering the side panel width
-          const sidePanelWidth = 512; // max-w-2xl = 512px
-          const viewportWidth = window.innerWidth;
-          const availableWidth = viewportWidth - sidePanelWidth;
-          
-          // Get the receipt's position
-          const rect = receiptElement.getBoundingClientRect();
-          const receiptCenter = rect.left + rect.width / 2;
-          
-          // If receipt is not visible in the available space, scroll it into view
-          if (receiptCenter > availableWidth) {
-            receiptElement.scrollIntoView({ 
-              behavior: 'smooth', 
-              block: 'center',
-              inline: 'start' 
-            });
-          } else {
-            // Just center it vertically if it's horizontally visible
-            receiptElement.scrollIntoView({ 
-              behavior: 'smooth', 
-              block: 'center',
-              inline: 'nearest' 
-            });
+      // On mobile, prevent body scroll when modal opens
+      if (window.innerWidth < 1024) {
+        document.body.style.overflow = 'hidden';
+      } else {
+        // On desktop, scroll the selected receipt into view
+        setTimeout(() => {
+          const receiptElement = document.querySelector(`[data-receipt-id="${receipt.id}"]`);
+          if (receiptElement) {
+            const sidePanelWidth = 512; // max-w-2xl = 512px
+            const viewportWidth = window.innerWidth;
+            const availableWidth = viewportWidth - sidePanelWidth;
+            
+            const rect = receiptElement.getBoundingClientRect();
+            const receiptCenter = rect.left + rect.width / 2;
+            
+            if (receiptCenter > availableWidth) {
+              receiptElement.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center',
+                inline: 'start' 
+              });
+            } else {
+              receiptElement.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center',
+                inline: 'nearest' 
+              });
+            }
           }
-        }
-      }, 150);
+        }, 150);
+      }
     }
   };
 
@@ -523,6 +524,11 @@ export default function UploadPage() {
     setSelectedReceipt(null);
     setEditingData(null);
     setSelectedTags([]); // Reset tags when closing
+    
+    // Restore body scroll on mobile
+    if (document.body.style.overflow === 'hidden') {
+      document.body.style.overflow = 'unset';
+    }
   };
 
   const addLineItem = () => {
@@ -909,31 +915,28 @@ export default function UploadPage() {
 
   return (
     <>
-      <section className="flex flex-col items-start justify-start p-6 w-full bg-gradient-to-br from-purple-50 via-white to-blue-50 min-h-screen">
-        <div className="w-full">
-          <div className="flex flex-col gap-6">
-            {/* Header */}
-            <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-              <div className="flex flex-col items-start justify-center gap-2">
-                <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                  Add Receipt
-                </h1>
-                <p className="text-muted-foreground">
-                  Upload and scan receipts with AI-powered data extraction
-                </p>
-              </div>
-              
-              {/* AI processing now integrated seamlessly */}
+      {/* Mobile-First Layout */}
+      <div className="min-h-screen bg-gray-50 lg:bg-gradient-to-br lg:from-purple-50 lg:via-white lg:to-blue-50">
+        <div className="w-full lg:max-w-6xl lg:mx-auto">
+          <div className="flex flex-col space-y-6 p-4 lg:p-8">
+            {/* Mobile Header */}
+            <div className="text-center lg:text-left">
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 lg:bg-gradient-to-r lg:from-purple-600 lg:to-blue-600 lg:bg-clip-text lg:text-transparent">
+                Add Receipt
+              </h1>
+              <p className="text-gray-600 lg:text-muted-foreground mt-2">
+                Upload receipts and let AI extract the data
+              </p>
             </div>
             
 
             {/* Upload Area */}
-            <div className="bg-white/80 backdrop-blur-sm border-0 shadow-lg rounded-lg overflow-hidden">
+            <div className="bg-white rounded-lg shadow-sm border">
               <div className="p-6">
                 <div>
                   <div>
                     <div
-                      className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-all duration-300 ${
+                      className={`relative border-2 border-dashed rounded-lg p-6 sm:p-8 text-center transition-all duration-300 ${
                         dragActive
                           ? "border-purple-400 bg-purple-50/50 scale-105"
                           : "border-gray-300 hover:border-purple-400 hover:bg-gray-50"
@@ -952,31 +955,31 @@ export default function UploadPage() {
                       disabled={uploading}
                     />
                     
-                    <div className="space-y-4">
-                      <div className="w-16 h-16 bg-purple-600 rounded-lg flex items-center justify-center mx-auto">
+                    <div className="space-y-6 text-center">
+                      <div className="w-20 h-20 lg:w-24 lg:h-24 bg-purple-600 rounded-full flex items-center justify-center mx-auto">
                         {uploading ? (
-                          <div className="animate-spin rounded-full h-8 w-8 border-4 border-white border-t-transparent"></div>
+                          <div className="animate-spin rounded-full h-10 w-10 lg:h-12 lg:w-12 border-4 border-white border-t-transparent"></div>
                         ) : (
-                          <Upload className="h-8 w-8 text-white" />
+                          <Upload className="h-10 w-10 lg:h-12 lg:w-12 text-white" />
                         )}
                       </div>
                       
-                      <div className="space-y-2">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {dragActive ? "Drop your receipts here" : "Upload your receipts"}
+                      <div className="space-y-3">
+                        <h3 className="text-xl lg:text-2xl font-bold text-gray-900">
+                          {dragActive ? "Drop files here" : "Upload Receipt"}
                         </h3>
-                        <p className="text-muted-foreground">
-                          Drag and drop or click to select files
+                        <p className="text-gray-600">
+                          Tap to select or drag files here
                         </p>
-                        <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
+                        <div className="flex items-center justify-center gap-6 text-sm text-gray-500 bg-gray-50 rounded-lg py-3 px-4">
+                          <div className="flex items-center gap-2">
                             <FileImage className="h-4 w-4" />
-                            <span>PNG, JPG, PDF</span>
+                            <span>JPG, PNG, PDF</span>
                           </div>
                           <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-2">
                             <DollarSign className="h-4 w-4" />
-                            <span>Max 10MB</span>
+                            <span>Up to 10MB</span>
                           </div>
                         </div>
                       </div>
@@ -984,15 +987,16 @@ export default function UploadPage() {
                   </div>
 
                   {uploading && (
-                    <div className="mt-6 bg-gray-50 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <Brain className="h-5 w-5 text-purple-600 animate-pulse" />
-                          <span className="font-medium text-gray-900">Processing with AI...</span>
+                    <div className="mt-8 bg-purple-50 rounded-2xl p-6 border border-purple-100">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <Brain className="h-6 w-6 text-purple-600 animate-pulse" />
+                          <span className="text-lg font-semibold text-gray-900">Processing with AI</span>
                         </div>
-                        <span className="text-sm font-medium text-muted-foreground">{Math.round(uploadProgress)}%</span>
+                        <span className="text-xl font-bold text-purple-600">{Math.round(uploadProgress)}%</span>
                       </div>
-                      <Progress value={uploadProgress} className="h-2" />
+                      <Progress value={uploadProgress} className="h-3 bg-purple-100" />
+                      <p className="text-sm text-purple-700 mt-3 text-center">This usually takes 10-30 seconds</p>
                     </div>
                   )}
                   </div>
@@ -1000,28 +1004,28 @@ export default function UploadPage() {
               </div>
             </div>
 
-          {/* Receipt Grid */}
+          {/* Mobile Receipt Results */}
           {uploadedReceipts.length > 0 && (
-            <div className="bg-white/80 backdrop-blur-sm border-0 shadow-lg rounded-lg overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 lg:bg-white/80 lg:backdrop-blur-sm lg:border-0 lg:shadow-lg lg:rounded-lg">
               <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
-                      <Receipt className="h-5 w-5 text-white" />
+                <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                     </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900">
+                    <div className="min-w-0">
+                      <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900">
                         Processed Receipts
                       </h3>
-                      <p className="text-muted-foreground">
-                        {uploadedReceipts.length} {uploadedReceipts.length === 1 ? 'receipt' : 'receipts'} ready for review
+                      <p className="text-xs sm:text-sm text-muted-foreground">
+                        {uploadedReceipts.length} {uploadedReceipts.length === 1 ? 'receipt' : 'receipts'} ready
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">Total: </span>
-                      <span className="text-lg font-bold text-green-600">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 md:gap-4 w-full sm:w-auto">
+                    <div className="flex items-center justify-center sm:justify-start gap-2 bg-green-50 rounded-lg px-3 py-2 sm:bg-transparent sm:p-0">
+                      <span className="text-xs sm:text-sm text-muted-foreground">Total: </span>
+                      <span className="text-lg sm:text-xl font-bold text-green-600">
                         ${uploadedReceipts.reduce((sum, receipt) => 
                           sum + (receipt.extractedData?.totalAmount || 0), 0
                         ).toFixed(2)}
@@ -1031,9 +1035,9 @@ export default function UploadPage() {
                       <Button
                         onClick={saveAllReceipts}
                         disabled={saving}
-                        className="bg-green-600 hover:bg-green-700"
+                        className="bg-green-600 hover:bg-green-700 w-full sm:w-auto text-sm py-2 sm:py-1.5"
                       >
-                        <Save className="h-4 w-4 mr-2" />
+                        <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2" />
                         {saving ? "Saving..." : "Save All"}
                       </Button>
                     )}
@@ -1042,35 +1046,42 @@ export default function UploadPage() {
                 
                 {/* Recommendation Message */}
                 {uploadedReceipts.some(r => r.ocrStatus === 'completed' && !r.saved) && (
-                  <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-start gap-3">
-                      <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center mt-0.5">
-                        <Sparkles className="h-3 w-3 text-blue-600" />
+                  <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <div className="w-4 h-4 sm:w-5 sm:h-5 bg-blue-100 rounded-full flex items-center justify-center mt-0.5 flex-shrink-0">
+                        <Sparkles className="h-2 w-2 sm:h-3 sm:w-3 text-blue-600" />
                       </div>
                       <div className="flex-1">
-                        <h4 className="text-sm font-medium text-blue-900 mb-1">
+                        <h4 className="text-xs sm:text-sm font-medium text-blue-900 mb-1">
                           💡 Pro Tip: Review Before Saving
                         </h4>
-                        <p className="text-sm text-blue-700">
-                          It's recommended to review and edit line items for accuracy before saving. 
-                          Click "Review" on each receipt to verify extracted data and add tags.
+                        <p className="text-xs sm:text-sm text-blue-700">
+                          Review and edit line items for accuracy before saving. 
+                          Tap "Review" to verify data and add tags.
                         </p>
                       </div>
                     </div>
                   </div>
                 )}
                 
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {/* Mobile: Single column, Desktop: Multiple columns */}
+                <div className="space-y-4 lg:grid lg:gap-4 lg:grid-cols-2 xl:grid-cols-3 lg:space-y-0">
                   {uploadedReceipts.map((receipt) => (
                     <div 
                       key={receipt.id} 
                       data-receipt-id={receipt.id}
-                      className={`group bg-white rounded-lg overflow-hidden hover:shadow-md transition-all duration-300 border ${
+                      className={`group bg-white rounded-xl overflow-hidden transition-all duration-300 border-2 shadow-sm hover:shadow-lg ${
                         selectedReceipt?.id === receipt.id 
-                          ? 'border-purple-500 bg-purple-50 shadow-md ring-1 ring-purple-200 transform scale-105' 
+                          ? 'border-purple-500 bg-purple-50 shadow-xl ring-2 ring-purple-200' 
+                          : receipt.ocrStatus === 'completed' && !receipt.saved
+                          ? 'border-green-400 bg-green-50'
+                          : receipt.ocrStatus === 'completed' && receipt.saved
+                          ? 'border-purple-400 bg-purple-50'
+                          : receipt.ocrStatus === 'processing'
+                          ? 'border-blue-400 bg-blue-50'
                           : 'border-gray-200'
                       }`}>
-                      <div className="aspect-[4/3] relative bg-gray-100">
+                      <div className="aspect-[4/3] sm:aspect-[3/2] relative bg-gray-100">
                         {receipt.type.startsWith('image/') ? (
                           <Image
                             src={receipt.url}
@@ -1088,48 +1099,48 @@ export default function UploadPage() {
                         )}
                         
                         {/* Status Badge */}
-                        <div className="absolute top-2 left-2 flex flex-col gap-1">
+                        <div className="absolute top-1.5 sm:top-2 left-1.5 sm:left-2 flex flex-col gap-1 z-10">
                           {selectedReceipt?.id === receipt.id && (
-                            <div className="bg-purple-500 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1 animate-pulse">
-                              <PenTool className="h-3 w-3" />
-                              Editing
+                            <div className="bg-purple-500 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[10px] sm:text-xs flex items-center gap-1 animate-pulse">
+                              <PenTool className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                              <span className="hidden sm:inline">Editing</span>
                             </div>
                           )}
                           {receipt.ocrStatus === 'processing' && (
-                            <div className="bg-blue-500 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1">
-                              <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
-                              Processing
+                            <div className="bg-blue-500 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[10px] sm:text-xs flex items-center gap-1">
+                              <div className="animate-spin rounded-full h-2.5 w-2.5 sm:h-3 sm:w-3 border-2 border-white border-t-transparent"></div>
+                              <span className="hidden sm:inline">Processing</span>
                             </div>
                           )}
                           {receipt.ocrStatus === 'completed' && selectedReceipt?.id !== receipt.id && (
-                            <div className="bg-green-500 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1">
-                              <Check className="h-3 w-3" />
-                              Ready
+                            <div className="bg-green-500 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[10px] sm:text-xs flex items-center gap-1">
+                              <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                              <span className="hidden sm:inline">Ready</span>
                             </div>
                           )}
                           {receipt.ocrStatus === 'failed' && (
-                            <div className="bg-red-500 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1">
-                              <X className="h-3 w-3" />
-                              Failed
+                            <div className="bg-red-500 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[10px] sm:text-xs flex items-center gap-1">
+                              <X className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                              <span className="hidden sm:inline">Failed</span>
                             </div>
                           )}
                         </div>
 
                         {/* Progress Indicator */}
                         {receipt.ocrStatus === 'processing' && ocrProgress[receipt.id] && (
-                          <div className="absolute bottom-2 left-2 right-2">
-                            <div className="bg-white/95 backdrop-blur-sm rounded-md p-2">
+                          <div className="absolute bottom-1.5 sm:bottom-2 left-1.5 sm:left-2 right-1.5 sm:right-2">
+                            <div className="bg-white/95 backdrop-blur-sm rounded p-1.5 sm:p-2">
                               <div className="flex items-center justify-between mb-1">
-                                <span className="text-xs font-medium text-gray-800">
+                                <span className="text-[10px] sm:text-xs font-medium text-gray-800 truncate">
                                   {ocrProgress[receipt.id].step}
                                 </span>
-                                <span className="text-xs text-gray-600">
+                                <span className="text-[10px] sm:text-xs text-gray-600 ml-1">
                                   {ocrProgress[receipt.id].progress}%
                                 </span>
                               </div>
-                              <div className="w-full bg-gray-200 rounded-full h-1">
+                              <div className="w-full bg-gray-200 rounded-full h-0.5 sm:h-1">
                                 <div 
-                                  className="bg-blue-500 h-1 rounded-full transition-all duration-300 ease-out"
+                                  className="bg-blue-500 h-0.5 sm:h-1 rounded-full transition-all duration-300 ease-out"
                                   style={{ width: `${ocrProgress[receipt.id].progress}%` }}
                                 ></div>
                               </div>
@@ -1138,74 +1149,70 @@ export default function UploadPage() {
                         )}
 
                         <Button
-                          size="sm"
                           variant="secondary"
                           onClick={() => removeFile(receipt.id)}
-                          className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 hover:bg-white"
+                          className="absolute top-2 right-2 h-8 w-8 p-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity bg-white/95 hover:bg-white border border-gray-200 shadow-sm touch-target"
                         >
-                          <X className="h-3 w-3" />
+                          <X className="h-4 w-4" />
                         </Button>
                       </div>
 
-                      <div className="p-4 space-y-3">
+                      <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
                         <div>
-                          <h4 className="font-semibold text-gray-900 truncate" title={receipt.name}>
+                          <h4 className="text-sm sm:text-base font-semibold text-gray-900 truncate" title={receipt.name}>
                             {receipt.name}
                           </h4>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-xs sm:text-sm text-muted-foreground">
                             {formatFileSize(receipt.size)}
                           </p>
                         </div>
                         
                         {receipt.ocrStatus === 'completed' && receipt.extractedData && (
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <Store className="h-4 w-4 text-purple-600" />
-                              <span className="text-sm font-medium text-gray-900 truncate">
+                          <div className="space-y-1.5 sm:space-y-2">
+                            <div className="flex items-center gap-1.5 sm:gap-2">
+                              <Store className="h-3 w-3 sm:h-4 sm:w-4 text-purple-600" />
+                              <span className="text-xs sm:text-sm font-medium text-gray-900 truncate">
                                 {receipt.extractedData.vendor}
                               </span>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <DollarSign className="h-4 w-4 text-green-600" />
-                              <span className="text-base font-medium text-green-600">
+                            <div className="flex items-center gap-1.5 sm:gap-2">
+                              <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
+                              <span className="text-sm sm:text-base font-medium text-green-600">
                                 ${receipt.extractedData.totalAmount.toFixed(2)}
                               </span>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Tag className="h-4 w-4 text-blue-600" />
-                              <span className="text-sm text-muted-foreground">
+                            <div className="flex items-center gap-1.5 sm:gap-2">
+                              <Tag className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
+                              <span className="text-xs sm:text-sm text-muted-foreground">
                                 {receipt.extractedData.tags?.length ? `${receipt.extractedData.tags.length} tags` : 'No tags'}
                               </span>
                             </div>
                           </div>
                         )}
 
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 sm:gap-3">
                           <Button
-                            size="sm"
                             variant="outline"
                             onClick={() => window.open(receipt.url, "_blank")}
-                            className="flex-1"
+                            className="flex-1 h-12 text-sm px-3 font-medium touch-target border-gray-300 hover:border-gray-400 hover:bg-gray-50"
                           >
                             View
                           </Button>
                           {receipt.ocrStatus === 'completed' && (
                             <>
                               <Button
-                                size="sm"
                                 onClick={() => openEditModal(receipt)}
-                                className="flex-1 bg-purple-600 hover:bg-purple-700"
+                                className="flex-1 h-12 bg-purple-600 hover:bg-purple-700 text-sm px-3 font-medium text-white touch-target"
                               >
-                                <Edit className="h-4 w-4 mr-1" />
+                                <Edit className="h-4 w-4 mr-2" />
                                 Review
                               </Button>
                               <Button
-                                size="sm"
                                 onClick={() => saveIndividualReceipt(receipt)}
                                 disabled={saving || receipt.saved}
-                                className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400"
+                                className="flex-1 h-12 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-sm px-3 font-medium text-white touch-target"
                               >
-                                <Save className="h-4 w-4 mr-1" />
+                                <Save className="h-4 w-4 mr-2" />
                                 {receipt.saved ? "Saved" : "Save"}
                               </Button>
                             </>
@@ -1220,290 +1227,278 @@ export default function UploadPage() {
           )}
           </div>
         </div>
-      </section>
-
-    {/* Side Panel */}
-    {selectedReceipt && (
-        <div className="fixed inset-0 z-50 flex">
-          {/* Backdrop - only covers the left side */}
-          <div className="flex-1 bg-black/30 backdrop-blur-sm" onClick={closeEditModal} />
-          
-          {/* Side Panel */}
-          <div className="w-full max-w-2xl bg-gradient-to-br from-purple-50 via-white to-blue-50 shadow-2xl flex flex-col">
-            {/* Header */}
-            <div className="px-6 py-6 border-b border-purple-100 bg-gradient-to-r from-purple-600 to-blue-600">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
-                    <Receipt className="h-6 w-6 text-white" />
+        
+        {selectedReceipt && (
+          <div className="fixed inset-0 z-50 bg-white lg:bg-black/50 lg:backdrop-blur-sm mobile-modal">
+            {/* True Mobile-First Edit Panel */}
+            <div className="w-full h-full bg-white flex flex-col lg:max-w-3xl lg:mx-auto lg:mt-4 lg:mb-4 lg:rounded-2xl lg:shadow-2xl lg:border lg:border-gray-200 lg:h-auto lg:max-h-[calc(100vh-2rem)] lg:overflow-hidden safe-area-inset">
+              {/* Mobile-First Header with Proper Safe Area */}
+              <div className="px-4 py-3 safe-area-inset-top border-b border-gray-200 bg-gradient-to-r from-purple-600 to-blue-600 lg:bg-white lg:border-purple-100 flex-shrink-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <Button 
+                      variant="ghost" 
+                      onClick={closeEditModal} 
+                      className="text-white hover:bg-white/20 lg:text-gray-600 lg:hover:bg-gray-100 h-10 w-10 p-0 touch-target-large rounded-full"
+                    >
+                      <X className="h-5 w-5" />
+                    </Button>
+                    <div className="flex-1 min-w-0 text-center lg:text-left">
+                      <h2 className="text-lg lg:text-xl font-bold text-white lg:text-gray-900">Edit Receipt</h2>
+                      <p className="text-sm text-purple-100 lg:text-gray-600 truncate">
+                        {editingData?.vendor || 'Unknown Vendor'}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-white">Edit Receipt</h2>
-                    <p className="text-purple-100">
-                      {editingData?.vendor || 'Unknown Vendor'} • {editingData?.date ? new Date(editingData.date + 'T00:00:00').toLocaleDateString() : 'No Date'}
-                    </p>
+                  <div className="w-10 h-10 lg:w-12 lg:h-12 bg-white/20 lg:bg-purple-100 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Receipt className="h-5 w-5 lg:h-6 lg:w-6 text-white lg:text-purple-600" />
                   </div>
                 </div>
-                <Button variant="ghost" size="sm" onClick={closeEditModal} className="text-white hover:bg-white/20">
-                  <X className="h-5 w-5" />
+              </div>
+
+              {/* Content - Mobile Optimized with Better Spacing */}
+              <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6 bg-gray-50 lg:bg-transparent">
+                {editingData && (
+                  <>
+                    {/* Basic Info Card - Mobile-First */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 space-y-4">
+                      <div className="flex items-center gap-3 pb-2 border-b border-gray-100">
+                        <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl flex items-center justify-center">
+                          <Store className="h-4 w-4 text-white" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900">Receipt Details</h3>
+                      </div>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="vendor" className="text-sm font-medium text-gray-700">Vendor Name</Label>
+                          <Input
+                            id="vendor"
+                            value={editingData.vendor}
+                            onChange={(e) => setEditingData({...editingData, vendor: e.target.value})}
+                            className="h-12 text-base border-gray-300 focus:border-purple-500 focus:ring-purple-500 mobile-input"
+                            placeholder="Enter vendor name"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <Label htmlFor="date" className="text-sm font-medium text-gray-700">Date</Label>
+                            <Input
+                              id="date"
+                              type="date"
+                              value={editingData.date}
+                              onChange={(e) => setEditingData({...editingData, date: e.target.value})}
+                              className="h-12 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="total" className="text-sm font-medium text-gray-700">Total Amount</Label>
+                            <Input
+                              id="total"
+                              type="number"
+                              step="0.01"
+                              value={editingData.totalAmount}
+                              onChange={(e) => setEditingData({...editingData, totalAmount: parseFloat(e.target.value) || 0})}
+                              className="h-12 text-base border-gray-300 focus:border-purple-500 focus:ring-purple-500 mobile-input"
+                              placeholder="0.00"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="tax" className="text-sm font-medium text-gray-700">Tax Amount</Label>
+                          <Input
+                            id="tax"
+                            type="number"
+                            step="0.01"
+                            value={editingData.tax}
+                            onChange={(e) => setEditingData({...editingData, tax: parseFloat(e.target.value) || 0})}
+                            className="h-12 text-base border-gray-300 focus:border-purple-500 focus:ring-purple-500 mobile-input"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tags Card - Mobile Optimized */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 space-y-4">
+                      <div className="flex items-center gap-3 pb-2 border-b border-gray-100">
+                        <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl flex items-center justify-center">
+                          <Tag className="h-4 w-4 text-white" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900">Tags</h3>
+                      </div>
+                      <div className="space-y-3">
+                        <p className="text-sm text-gray-600">
+                          Add tags to organize and categorize this receipt
+                        </p>
+                        <TagInput
+                          selectedTags={selectedTags}
+                          onTagsChange={(tags) => {
+                            const prevTagIds = selectedTags.map(tag => typeof tag === 'string' ? tag : tag.id);
+                            const newTagIds = tags.map(tag => typeof tag === 'string' ? tag : tag.id);
+                            
+                            const addedTags = newTagIds.filter(id => !prevTagIds.includes(id));
+                            const removedTags = prevTagIds.filter(id => !newTagIds.includes(id));
+                            
+                            setSelectedTags(tags);
+                            
+                            if (editingData) {
+                              setEditingData({ ...editingData, tags });
+                              
+                              if (addedTags.length > 0) {
+                                const firstAddedTag = addedTags[0];
+                                const updatedLineItems = editingData.lineItems.map(item => {
+                                  if (!item.tag || removedTags.includes(item.tag)) {
+                                    return { ...item, tag: firstAddedTag };
+                                  }
+                                  return item;
+                                });
+                                
+                                setEditingData(prev => ({ ...prev, lineItems: updatedLineItems }));
+                              } else if (removedTags.length > 0) {
+                                const updatedLineItems = editingData.lineItems.map(item => {
+                                  if (item.tag && removedTags.includes(item.tag)) {
+                                    return { ...item, tag: undefined };
+                                  }
+                                  return item;
+                                });
+                                
+                                setEditingData(prev => ({ ...prev, lineItems: updatedLineItems }));
+                              }
+                            }
+                          }}
+                          categories={tagCategories}
+                          placeholder="Search or create tags..."
+                        />
+                      </div>
+                    </div>
+
+                    {/* Line Items Card */}
+                    <div className="bg-white/80 backdrop-blur-sm border border-purple-200 rounded-xl shadow-lg p-4 sm:p-6 space-y-4">
+                      <div className="flex items-center justify-between mb-3 sm:mb-4">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
+                            <Receipt className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
+                          </div>
+                          <h3 className="text-base sm:text-lg font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Line Items</h3>
+                        </div>
+                        <Button onClick={addLineItem} className="h-10 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0 text-sm px-4 font-medium touch-target">
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Item
+                        </Button>
+                      </div>
+                      <div className="space-y-3 sm:space-y-4">
+                        {editingData.lineItems.map((item) => (
+                          <div key={item.id} className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-xl p-3 sm:p-4 space-y-2 sm:space-y-3 hover:shadow-md transition-all duration-200">
+                            <div className="flex items-center justify-between gap-2">
+                              <Input
+                                value={item.description}
+                                onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
+                                placeholder="Item description"
+                                className="flex-1 text-sm"
+                              />
+                              <Button
+                                variant="ghost"
+                                onClick={() => removeLineItem(item.id)}
+                                className="text-red-500 hover:text-red-700 hover:bg-red-50 h-10 w-10 p-0 touch-target"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                              <div>
+                                <Label className="text-xs font-medium text-purple-700">Quantity</Label>
+                                <Input
+                                  type="number"
+                                  value={item.quantity}
+                                  onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 1)}
+                                  className="text-sm"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs font-medium text-purple-700">Unit Price</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={item.unitPrice}
+                                  onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                                  className="text-sm"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs font-medium text-purple-700">Total</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={item.totalPrice}
+                                  onChange={(e) => updateLineItem(item.id, 'totalPrice', parseFloat(e.target.value) || 0)}
+                                  className="text-sm"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <Label className="text-xs font-medium text-purple-700">Tag (Choose one)</Label>
+                              <Select
+                                value={item.tag || "none"}
+                                onValueChange={(value) => updateLineItemTag(item.id, value === "none" ? undefined : value)}
+                              >
+                                <SelectTrigger className="text-sm">
+                                  <SelectValue placeholder="Select a tag..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">No tag</SelectItem>
+                                  {tagCategories.map((category) => (
+                                    <div key={category.id}>
+                                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                                        {category.name}
+                                      </div>
+                                      {allTags
+                                        .filter(tag => tag.category.id === category.id)
+                                        .map((tag) => (
+                                          <SelectItem key={tag.id} value={tag.id}>
+                                            <div className="flex items-center gap-2">
+                                              <div 
+                                                className="w-3 h-3 rounded-full" 
+                                                style={{ backgroundColor: tag.color || category.color }}
+                                              />
+                                              {tag.name}
+                                            </div>
+                                          </SelectItem>
+                                        ))}
+                                    </div>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Mobile-First Footer with Perfect Touch Targets */}
+              <div className="px-4 py-4 lg:px-6 lg:py-5 border-t border-gray-200 bg-white lg:bg-gray-50 flex gap-3 flex-shrink-0 safe-area-inset-bottom">
+                <Button 
+                  variant="outline" 
+                  onClick={closeEditModal}
+                  className="flex-1 lg:flex-none h-12 lg:h-10 text-base lg:text-sm border-2 border-gray-300 lg:border-gray-400 text-gray-700 hover:bg-gray-50 font-medium touch-target-large"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={saveReceipt} 
+                  disabled={saving}
+                  className="flex-[2] lg:flex-1 h-12 lg:h-10 text-base lg:text-sm bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 text-white border-0 font-medium shadow-lg touch-target-large"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {saving ? "Saving..." : "Save Receipt"}
                 </Button>
               </div>
             </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {editingData && (
-                <>
-                  {/* Basic Info Card */}
-                  <div className="bg-white/80 backdrop-blur-sm border border-purple-200 rounded-xl shadow-lg p-6 space-y-4">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
-                        <Store className="h-4 w-4 text-white" />
-                      </div>
-                      <h3 className="text-lg font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Receipt Details</h3>
-                    </div>
-                    <div className="grid grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="vendor" className="text-sm font-medium text-purple-700 flex items-center gap-2">
-                          <Store className="h-4 w-4" />
-                          Vendor
-                        </Label>
-                        <Input
-                          id="vendor"
-                          value={editingData.vendor}
-                          onChange={(e) => setEditingData({...editingData, vendor: e.target.value})}
-                          className="border-purple-200 focus:border-purple-500 focus:ring-purple-500"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="date" className="text-sm font-medium text-purple-700 flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
-                          Date
-                        </Label>
-                        <Input
-                          id="date"
-                          type="date"
-                          value={editingData.date}
-                          onChange={(e) => setEditingData({...editingData, date: e.target.value})}
-                          className="border-purple-200 focus:border-purple-500 focus:ring-purple-500"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="total" className="text-sm font-medium text-purple-700 flex items-center gap-2">
-                          <DollarSign className="h-4 w-4" />
-                          Total Amount
-                        </Label>
-                        <Input
-                          id="total"
-                          type="number"
-                          step="0.01"
-                          value={editingData.totalAmount}
-                          onChange={(e) => setEditingData({...editingData, totalAmount: parseFloat(e.target.value) || 0})}
-                          className="border-purple-200 focus:border-purple-500 focus:ring-purple-500"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="tax" className="text-sm font-medium text-purple-700 flex items-center gap-2">
-                          <Receipt className="h-4 w-4" />
-                          Tax
-                        </Label>
-                        <Input
-                          id="tax"
-                          type="number"
-                          step="0.01"
-                          value={editingData.tax}
-                          onChange={(e) => setEditingData({...editingData, tax: parseFloat(e.target.value) || 0})}
-                          className="border-purple-200 focus:border-purple-500 focus:ring-purple-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Tags Card */}
-                  <div className="bg-white/80 backdrop-blur-sm border border-purple-200 rounded-xl shadow-lg p-6 space-y-4">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
-                        <Tag className="h-4 w-4 text-white" />
-                      </div>
-                      <h3 className="text-lg font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Tags</h3>
-                    </div>
-                    <TagInput
-                      selectedTags={selectedTags}
-                      onTagsChange={(tags) => {
-                        // Get previous and new tag IDs
-                        const prevTagIds = selectedTags.map(tag => typeof tag === 'string' ? tag : tag.id);
-                        const newTagIds = tags.map(tag => typeof tag === 'string' ? tag : tag.id);
-                        
-                        // Find added and removed tags
-                        const addedTags = newTagIds.filter(id => !prevTagIds.includes(id));
-                        const removedTags = prevTagIds.filter(id => !newTagIds.includes(id));
-                        
-                        setSelectedTags(tags);
-                        
-                        // Also update the editing data
-                        if (editingData) {
-                          setEditingData({ ...editingData, tags });
-                          
-                          // Update line items based on header tag changes
-                          // For single tag per item, apply the first added tag to items without tags
-                          if (addedTags.length > 0) {
-                            const firstAddedTag = addedTags[0]; // Use only the first tag for line items
-                            const updatedLineItems = editingData.lineItems.map(item => {
-                              // Only update items that don't have a tag yet
-                              if (!item.tag || removedTags.includes(item.tag)) {
-                                return { ...item, tag: firstAddedTag };
-                              }
-                              return item;
-                            });
-                            
-                            setEditingData(prev => ({ ...prev, lineItems: updatedLineItems }));
-                          } else if (removedTags.length > 0) {
-                            // Remove tags from items that have any of the removed tags
-                            const updatedLineItems = editingData.lineItems.map(item => {
-                              if (item.tag && removedTags.includes(item.tag)) {
-                                return { ...item, tag: undefined };
-                              }
-                              return item;
-                            });
-                            
-                            setEditingData(prev => ({ ...prev, lineItems: updatedLineItems }));
-                          }
-                        }
-                      }}
-                      categories={tagCategories}
-                      placeholder="Add tags to this receipt..."
-                    />
-                  </div>
-
-                  {/* Line Items Card */}
-                  <div className="bg-white/80 backdrop-blur-sm border border-purple-200 rounded-xl shadow-lg p-6 space-y-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
-                          <Receipt className="h-4 w-4 text-white" />
-                        </div>
-                        <h3 className="text-lg font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Line Items</h3>
-                      </div>
-                      <Button onClick={addLineItem} size="sm" className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Item
-                      </Button>
-                    </div>
-                    <div className="space-y-4">
-                      {editingData.lineItems.map((item) => (
-                        <div key={item.id} className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-xl p-4 space-y-3 hover:shadow-md transition-all duration-200">
-                          <div className="flex items-center justify-between">
-                            <Input
-                              value={item.description}
-                              onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
-                              placeholder="Item description"
-                              className="flex-1 mr-2"
-                            />
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeLineItem(item.id)}
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          <div className="grid grid-cols-3 gap-3">
-                            <div>
-                              <Label className="text-xs font-medium text-purple-700">Quantity</Label>
-                              <Input
-                                type="number"
-                                value={item.quantity}
-                                onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 1)}
-                                className="text-sm"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-xs font-medium text-purple-700">Unit Price</Label>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={item.unitPrice}
-                                onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
-                                className="text-sm"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-xs font-medium text-purple-700">Total</Label>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={item.totalPrice}
-                                onChange={(e) => updateLineItem(item.id, 'totalPrice', parseFloat(e.target.value) || 0)}
-                                className="text-sm"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <Label className="text-xs font-medium text-purple-700">Tag (Choose one)</Label>
-                            <Select
-                              value={item.tag || "none"}
-                              onValueChange={(value) => updateLineItemTag(item.id, value === "none" ? undefined : value)}
-                            >
-                              <SelectTrigger className="text-sm">
-                                <SelectValue placeholder="Select a tag..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">No tag</SelectItem>
-                                {tagCategories.map((category) => (
-                                  <div key={category.id}>
-                                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                                      {category.name}
-                                    </div>
-                                    {allTags
-                                      .filter(tag => tag.category.id === category.id)
-                                      .map((tag) => (
-                                        <SelectItem key={tag.id} value={tag.id}>
-                                          <div className="flex items-center gap-2">
-                                            <div 
-                                              className="w-3 h-3 rounded-full" 
-                                              style={{ backgroundColor: tag.color || category.color }}
-                                            />
-                                            {tag.name}
-                                          </div>
-                                        </SelectItem>
-                                      ))}
-                                  </div>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="px-6 py-6 border-t border-purple-100 bg-gradient-to-r from-purple-50 to-blue-50 flex justify-between items-center">
-              <Button 
-                variant="outline" 
-                onClick={closeEditModal}
-                className="border-purple-300 text-purple-700 hover:bg-purple-50"
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={saveReceipt} 
-                disabled={saving}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0 px-8"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {saving ? "Saving..." : "Save Receipt"}
-              </Button>
-            </div>
           </div>
-        </div>
-    )}
-    
-{/* AI Chat Agent - Temporarily disabled for build */}
+        )}
+      </div>
     </>
   );
 }

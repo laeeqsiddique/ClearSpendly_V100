@@ -98,6 +98,21 @@ function SignUpContent() {
         toast.error(error.message);
       } else if (data.user) {
         toast.success("Check your email for confirmation link!");
+        
+        // Send welcome email in the background (don't block the user)
+        fetch('/api/auth/send-welcome-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            fullName: email.split('@')[0], // Use email prefix as name for now
+            organizationName: organizationName.trim()
+          })
+        }).catch(err => {
+          console.error('Failed to send welcome email:', err);
+          // Don't show error to user - welcome email is not critical
+        });
+        
         // Don't redirect immediately, wait for email confirmation
       }
     } catch (error) {
@@ -123,7 +138,8 @@ function SignUpContent() {
       // The OAuth callback will create a default organization name and redirect to onboarding
       
       // Use API route for OAuth callback to avoid page routing issues
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://flowvya.com';
+      // Use www subdomain since that's where API routes work on Railway
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.flowvya.com';
       const actualRedirectUrl = `${baseUrl}/api/oauth-callback`;
 
       // Detailed debug logging

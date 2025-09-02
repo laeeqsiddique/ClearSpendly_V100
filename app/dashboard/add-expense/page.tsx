@@ -230,16 +230,16 @@ export default function AddExpensePage() {
   };
 
   return (
-    <section className="flex flex-col items-start justify-start p-6 w-full bg-gradient-to-br from-purple-50 via-white to-blue-50 min-h-screen">
+    <section className="flex flex-col items-start justify-start p-3 sm:p-4 md:p-6 w-full bg-gradient-to-br from-purple-50 via-white to-blue-50 min-h-screen">
       <div className="w-full max-w-7xl mx-auto">
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4 sm:gap-6">
           {/* Header */}
-          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-            <div className="flex flex-col items-start justify-center gap-2">
-              <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+          <div className="flex flex-col items-start justify-between gap-3 sm:gap-4 sm:flex-row sm:items-center">
+            <div className="flex flex-col items-start justify-center gap-1 sm:gap-2">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                 Add Manual Expense
               </h1>
-              <p className="text-muted-foreground">
+              <p className="text-sm sm:text-base text-muted-foreground">
                 Record business expenses when you don't have a receipt
               </p>
             </div>
@@ -248,41 +248,41 @@ export default function AddExpensePage() {
           {/* Documentation Tip */}
           <Alert className="bg-white/80 backdrop-blur-sm border-purple-200">
             <AlertCircle className="h-4 w-4 text-purple-600" />
-            <AlertDescription>
-              <strong>Pro Tip:</strong> Consider keeping supporting documentation like bank statements or emails for manual entries. 
-              This helps maintain accurate records for your business expenses.
+            <AlertDescription className="text-sm">
+              <strong>Pro Tip:</strong> Keep supporting documentation like bank statements or emails for manual entries. 
+              This helps maintain accurate business records.
             </AlertDescription>
           </Alert>
 
           {/* Quick Templates */}
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle>Quick Templates</CardTitle>
-              <CardDescription>Select a common expense type to pre-fill the form</CardDescription>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg sm:text-xl">Quick Templates</CardTitle>
+              <CardDescription className="text-sm">Select a common expense type to pre-fill the form</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                 {EXPENSE_TEMPLATES.map((template) => (
                   <Button
                     key={template.id}
                     variant={selectedTemplate === template.id ? "default" : "outline"}
-                    className={`flex flex-col items-center gap-3 h-auto py-6 transition-all duration-300 group ${
+                    className={`flex flex-col items-center gap-2 sm:gap-3 h-auto py-4 sm:py-6 transition-all duration-300 group ${
                       selectedTemplate === template.id 
                         ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg scale-105 border-0"
                         : "border-2 border-purple-200 hover:bg-gradient-to-r hover:from-purple-50 hover:to-blue-50 hover:border-purple-400 hover:scale-105 hover:shadow-md"
                     }`}
                     onClick={() => applyTemplate(template.id)}
                   >
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                    <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all ${
                       selectedTemplate === template.id
                         ? "bg-white/20"
                         : "bg-gradient-to-r from-purple-100 to-blue-100 group-hover:from-purple-200 group-hover:to-blue-200"
                     }`}>
-                      <template.icon className={`h-5 w-5 ${
+                      <template.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${
                         selectedTemplate === template.id ? "text-white" : "text-purple-600"
                       }`} />
                     </div>
-                    <span className="text-sm font-medium">{template.name}</span>
+                    <span className="text-xs sm:text-sm font-medium text-center">{template.name}</span>
                   </Button>
                 ))}
               </div>
@@ -292,17 +292,17 @@ export default function AddExpensePage() {
           {/* Main Form */}
           <form onSubmit={handleSubmit}>
             <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle>Expense Details</CardTitle>
-                <CardDescription>All fields marked with * are required for IRS compliance</CardDescription>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg sm:text-xl">Expense Details</CardTitle>
+                <CardDescription className="text-sm">All fields marked with * are required for IRS compliance</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-4 sm:space-y-6">
                 {/* Date and Amount Row */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <Label htmlFor="date" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                      <div className="w-5 h-5 rounded bg-purple-100 flex items-center justify-center">
-                        <Calendar className="h-3 w-3 text-purple-600" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                  <div className="space-y-2 sm:space-y-3">
+                    <Label htmlFor="date" className="text-xs sm:text-sm font-semibold text-gray-700 flex items-center gap-1.5 sm:gap-2">
+                      <div className="w-4 h-4 sm:w-5 sm:h-5 rounded bg-purple-100 flex items-center justify-center">
+                        <Calendar className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-purple-600" />
                       </div>
                       Date *
                     </Label>
@@ -312,14 +312,14 @@ export default function AddExpensePage() {
                       value={date}
                       onChange={(e) => setDate(e.target.value)}
                       max={new Date().toISOString().split('T')[0]}
-                      className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 rounded-lg h-12 text-base"
+                      className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 rounded-lg h-10 sm:h-12 text-sm sm:text-base"
                       required
                     />
                   </div>
-                  <div className="space-y-3">
-                    <Label htmlFor="amount" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                      <div className="w-5 h-5 rounded bg-green-100 flex items-center justify-center">
-                        <DollarSign className="h-3 w-3 text-green-600" />
+                  <div className="space-y-2 sm:space-y-3">
+                    <Label htmlFor="amount" className="text-xs sm:text-sm font-semibold text-gray-700 flex items-center gap-1.5 sm:gap-2">
+                      <div className="w-4 h-4 sm:w-5 sm:h-5 rounded bg-green-100 flex items-center justify-center">
+                        <DollarSign className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-green-600" />
                       </div>
                       Amount *
                     </Label>

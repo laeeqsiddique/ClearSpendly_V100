@@ -328,7 +328,7 @@ export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListP
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm">
+          <Button variant="ghost" size="sm" className="min-h-[44px] min-w-[44px] p-2 touch-manipulation">
             <MoreHorizontal className="w-4 h-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -423,14 +423,14 @@ export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListP
   if (loading) {
     return (
       <Card>
-        <CardContent className="p-6">
-          <div className="space-y-4">
+        <CardContent className="p-4 sm:p-6">
+          <div className="space-y-3 sm:space-y-4">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex items-center space-x-4 animate-pulse">
-                <div className="h-4 bg-gradient-to-r from-purple-200 to-blue-200 rounded w-24"></div>
-                <div className="h-4 bg-gradient-to-r from-purple-200 to-blue-200 rounded w-32"></div>
-                <div className="h-4 bg-gradient-to-r from-purple-200 to-blue-200 rounded w-20"></div>
-                <div className="h-4 bg-gradient-to-r from-purple-200 to-blue-200 rounded w-16"></div>
+              <div key={i} className="flex items-center space-x-3 sm:space-x-4 animate-pulse">
+                <div className="h-3 sm:h-4 bg-gradient-to-r from-purple-200 to-blue-200 rounded w-20 sm:w-24"></div>
+                <div className="h-3 sm:h-4 bg-gradient-to-r from-purple-200 to-blue-200 rounded w-24 sm:w-32"></div>
+                <div className="h-3 sm:h-4 bg-gradient-to-r from-purple-200 to-blue-200 rounded w-16 sm:w-20"></div>
+                <div className="h-3 sm:h-4 bg-gradient-to-r from-purple-200 to-blue-200 rounded w-12 sm:w-16"></div>
               </div>
             ))}
           </div>
@@ -441,14 +441,14 @@ export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListP
 
   return (
     <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-      <CardHeader>
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <CardTitle>Invoice List</CardTitle>
+      <CardHeader className="p-4 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:gap-4 items-start sm:items-center justify-between">
+          <CardTitle className="text-base sm:text-lg">Invoice List</CardTitle>
           
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-40">
-                <Filter className="w-4 h-4 mr-2" />
+              <SelectTrigger className="w-full sm:w-40 h-10 sm:h-9 text-sm">
+                <Filter className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -463,14 +463,14 @@ export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListP
         </div>
       </CardHeader>
       
-      <CardContent>
+      <CardContent className="p-4 sm:p-6">
         {paginatedInvoices.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <DollarSign className="w-8 h-8 text-gray-400" />
+          <div className="text-center py-6 sm:py-8">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+              <DollarSign className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No invoices found</h3>
-            <p className="text-gray-500 mb-4">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">No invoices found</h3>
+            <p className="text-sm sm:text-base text-gray-500 mb-4">
               {statusFilter !== "all" 
                 ? "Try adjusting your filter criteria"
                 : "Create your first invoice to get started"
@@ -479,7 +479,78 @@ export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListP
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Mobile: Card Layout */}
+            <div className="block lg:hidden space-y-3">
+              {paginatedInvoices.map((invoice) => (
+                <div key={invoice.id} className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+                  {/* Header Row */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <span className="font-medium text-sm">{invoice.invoice_number}</span>
+                      <InvoiceStatusSelector invoice={invoice} />
+                      {isOverdue(invoice) && (
+                        <Badge variant="secondary" className="bg-red-100 text-red-800 text-xs">
+                          Overdue
+                        </Badge>
+                      )}
+                    </div>
+                    {getActionButtons(invoice)}
+                  </div>
+                  
+                  {/* Client Info */}
+                  <div className="flex items-center space-x-2">
+                    <User className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm truncate">{invoice.client.name}</div>
+                      {invoice.client.company_name && (
+                        <div className="text-xs text-gray-500 truncate">{invoice.client.company_name}</div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Dates Row */}
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div className="flex items-center space-x-1">
+                      <Calendar className="w-3 h-3 text-gray-400" />
+                      <span className="text-gray-600">Issued:</span>
+                      <span>{format(parseLocalDate(invoice.issue_date), 'MMM dd')}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Clock className="w-3 h-3 text-gray-400" />
+                      <span className="text-gray-600">Due:</span>
+                      <span className={isOverdue(invoice) ? 'text-red-600 font-medium' : ''}>
+                        {format(parseLocalDate(invoice.due_date), 'MMM dd')}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Amount Info */}
+                  <div className="grid grid-cols-3 gap-3 text-xs border-t pt-3">
+                    <div className="text-center">
+                      <div className="text-gray-600">Total</div>
+                      <div className="font-medium">${getDisplayAmount(invoice).toFixed(0)}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-gray-600">Paid</div>
+                      <div className={`font-medium ${invoice.amount_paid > 0 ? 'text-green-600' : ''}`}>
+                        ${invoice.amount_paid.toFixed(0)}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-gray-600">Balance</div>
+                      <div className={`font-medium ${
+                        getDisplayBalanceDue(invoice) > 0 ? 'text-red-600' : 'text-green-600'
+                      }`}>
+                        ${getDisplayBalanceDue(invoice).toFixed(0)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {/* Desktop: Table Layout */}
+            <div className="hidden lg:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -580,11 +651,11 @@ export function InvoiceList({ refreshTrigger, startDate, endDate }: InvoiceListP
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-4">
-                <div className="text-sm text-gray-500">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-4">
+                <div className="text-xs sm:text-sm text-gray-500 text-center sm:text-left">
                   Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredInvoices.length)} of {filteredInvoices.length} invoices
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center justify-center sm:justify-end space-x-2">
                   <Button
                     variant="outline"
                     size="sm"

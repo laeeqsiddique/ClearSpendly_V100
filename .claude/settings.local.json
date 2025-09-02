@@ -62,7 +62,24 @@
       "Bash(psql:*)",
       "Bash(if exist .next rmdir /s /q .next)",
       "Bash(timeout 90 npm run build)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(mv:*)",
+      "Bash(timeout 120 npm run build:*)",
+      "Bash(npx next lint:*)",
+      "Bash(timeout 30 npm run build)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_resize",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_close",
+      "WebFetch(domain:docs.mistral.ai)",
+      "WebFetch(domain:mistral.ai)",
+      "WebSearch",
+      "WebFetch(domain:www.datacamp.com)",
+      "WebFetch(domain:www.cohorte.co)"
     ],
     "deny": []
   }

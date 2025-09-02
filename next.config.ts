@@ -30,8 +30,8 @@ const nextConfig: NextConfig = {
   // Externalize server components packages
   serverExternalPackages: ['@polar-sh/sdk', 'tesseract.js', 'pdfjs-dist', 'canvas'],
   
-  // Railway deployment configuration
-  output: 'standalone', // Required for Railway deployments
+  // Railway deployment configuration - disabled standalone to fix API routing
+  // output: 'standalone', // Causes API routes to return 404 on Railway
   
   
   // Optimize images for bandwidth savings

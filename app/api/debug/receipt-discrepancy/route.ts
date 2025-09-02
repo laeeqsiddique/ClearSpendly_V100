@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getTenantIdWithFallback } from '@/lib/api-tenant';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const supabase = createClient(
@@ -9,7 +11,9 @@ export async function GET(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY || ''
     );
 
-    const tenantId = await getTenantIdWithFallback();
+    // Use a default tenant ID for this debug endpoint to avoid cookies issues
+    // This is a debug endpoint anyway
+    const tenantId = '00000000-0000-0000-0000-000000000001';
 
     // Get all receipts with their items
     const { data: receipts, error } = await supabase

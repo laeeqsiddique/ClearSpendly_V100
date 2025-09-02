@@ -384,11 +384,20 @@ export default function CreateInvoicePage() {
               </p>
             </div>
             
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => router.push('/dashboard/invoices')} className="border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+              <Button 
+                variant="outline" 
+                onClick={() => router.push('/dashboard/invoices')} 
+                className="border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300 min-h-[44px]"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
                 Cancel
               </Button>
-              <Button onClick={handleSubmit} disabled={loading} className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+              <Button 
+                onClick={handleSubmit} 
+                disabled={loading} 
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 min-h-[44px]"
+              >
                 {loading ? (
                   <>
                     <Save className="w-4 h-4 mr-2 animate-spin" />
@@ -404,9 +413,9 @@ export default function CreateInvoicePage() {
             </div>
           </div>
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             {/* Left Side - Form */}
-            <div className="space-y-6">
+            <div className="space-y-6 order-1 xl:order-1">
               {/* Client & Template Selection */}
               <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
               <CardHeader>
@@ -416,7 +425,7 @@ export default function CreateInvoicePage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Select Client</Label>
                     <Select 
@@ -492,7 +501,7 @@ export default function CreateInvoicePage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="issue-date">Issue Date</Label>
                     <Input
@@ -548,55 +557,117 @@ export default function CreateInvoicePage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {lineItems.map((item) => (
-                  <div key={item.id} className="grid grid-cols-12 gap-2 items-end">
-                    <div className="col-span-6">
-                      <Label className="text-xs">Description</Label>
-                      <Input
-                        value={item.description}
-                        onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
-                        placeholder="Service or product"
-                        className="h-9 border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
-                      />
+                  <div key={item.id}>
+                    {/* Mobile layout - stack vertically */}
+                    <div className="block sm:hidden">
+                      <div className="border rounded-lg p-4 space-y-3 bg-white/50">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-purple-600">Item #{item.id}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeLineItem(item.id)}
+                            disabled={lineItems.length === 1}
+                            className="h-8 w-8 p-0 hover:bg-purple-50 hover:text-purple-600"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label className="text-xs font-medium">Description</Label>
+                          <Input
+                            value={item.description}
+                            onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
+                            placeholder="Service or product"
+                            className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 text-base"
+                          />
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs font-medium">Quantity</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={item.quantity}
+                              onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                              className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 text-base"
+                            />
+                          </div>
+                          
+                          <div>
+                            <Label className="text-xs font-medium">Rate ($)</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={item.rate}
+                              onChange={(e) => updateLineItem(item.id, 'rate', parseFloat(e.target.value) || 0)}
+                              className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 text-base"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-between items-center pt-2 border-t border-purple-100">
+                          <span className="text-sm text-gray-600">Amount:</span>
+                          <span className="text-lg font-semibold text-purple-600">${item.amount.toFixed(2)}</span>
+                        </div>
+                      </div>
                     </div>
                     
-                    <div className="col-span-2">
-                      <Label className="text-xs">Qty</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.quantity}
-                        onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                        className="h-9 border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
-                      />
-                    </div>
-                    
-                    <div className="col-span-2">
-                      <Label className="text-xs">Rate</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.rate}
-                        onChange={(e) => updateLineItem(item.id, 'rate', parseFloat(e.target.value) || 0)}
-                        className="h-9 border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
-                      />
-                    </div>
-                    
-                    <div className="col-span-1 text-right font-medium pt-5">
-                      ${item.amount.toFixed(2)}
-                    </div>
-                    
-                    <div className="col-span-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeLineItem(item.id)}
-                        disabled={lineItems.length === 1}
-                        className="h-9 w-9 p-0 hover:bg-purple-50 hover:text-purple-600"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                    {/* Desktop layout - grid */}
+                    <div className="hidden sm:grid grid-cols-12 gap-2 items-end">
+                      <div className="col-span-6">
+                        <Label className="text-xs">Description</Label>
+                        <Input
+                          value={item.description}
+                          onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
+                          placeholder="Service or product"
+                          className="h-9 border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                        />
+                      </div>
+                      
+                      <div className="col-span-2">
+                        <Label className="text-xs">Qty</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.quantity}
+                          onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                          className="h-9 border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                        />
+                      </div>
+                      
+                      <div className="col-span-2">
+                        <Label className="text-xs">Rate</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.rate}
+                          onChange={(e) => updateLineItem(item.id, 'rate', parseFloat(e.target.value) || 0)}
+                          className="h-9 border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                        />
+                      </div>
+                      
+                      <div className="col-span-1 text-right font-medium pt-5">
+                        ${item.amount.toFixed(2)}
+                      </div>
+                      
+                      <div className="col-span-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeLineItem(item.id)}
+                          disabled={lineItems.length === 1}
+                          className="h-9 w-9 p-0 hover:bg-purple-50 hover:text-purple-600"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -637,10 +708,17 @@ export default function CreateInvoicePage() {
             </div>
 
             {/* Right Side - Preview */}
-            <div className="space-y-4">
-            <InvoicePreviewWrapper showEmpty={!selectedClient || !selectedTemplate}>
-              {selectedClient && selectedTemplate && renderInvoicePreview()}
-            </InvoicePreviewWrapper>
+            <div className="space-y-4 order-2 xl:order-2">
+              <InvoicePreviewWrapper 
+                showEmpty={!selectedClient || !selectedTemplate}
+                previewSummary={{
+                  client: selectedClient?.name,
+                  total: `$${total.toFixed(2)}`,
+                  status: 'Draft'
+                }}
+              >
+                {selectedClient && selectedTemplate && renderInvoicePreview()}
+              </InvoicePreviewWrapper>
             </div>
           </div>
         </div>

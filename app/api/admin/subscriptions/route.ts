@@ -17,12 +17,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check if user has admin role (you might want to implement proper role checking)
+    // Check if user has admin role and get their tenant_id for proper isolation
     const { data: adminCheck } = await supabase
-      .from('tenant_membership')
-      .select('role')
+      .from('membership')
+      .select('tenant_id, role')
       .eq('user_id', user.id)
-      .eq('role', 'admin')
+      .in('role', ['admin', 'owner'])
       .single();
 
     if (!adminCheck) {
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get all tenant subscriptions with related data
+    // SECURITY FIX: Only get subscriptions for the current user's tenant
     const { data: subscriptions, error: subscriptionsError } = await supabase
       .from('tenant_subscription')
       .select(`
@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
           limits
         )
       `)
+      .eq('tenant_id', adminCheck.tenant_id) // CRITICAL: Filter by current user's tenant only
       .order('created_at', { ascending: false });
 
     if (subscriptionsError) {

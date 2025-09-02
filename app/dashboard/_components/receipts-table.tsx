@@ -63,7 +63,8 @@ import {
   Save,
   Image as ImageIcon,
   ExternalLink,
-  Repeat
+  Repeat,
+  FileText
 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -764,7 +765,7 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
               if (exportConfig.includeReceiptDetails) rowData[columnName] = receipt.id;
               break;
             case 'Receipt Date':
-              if (exportConfig.includeReceiptDetails) rowData[columnName] = format(new Date(receipt.receipt_date), 'yyyy-MM-dd');
+              if (exportConfig.includeReceiptDetails) rowData[columnName] = receipt.receipt_date ? format(new Date(receipt.receipt_date), 'yyyy-MM-dd') : '';
               break;
             case 'Vendor Name':
               if (exportConfig.includeReceiptDetails) rowData[columnName] = receipt.vendor.name;
@@ -785,7 +786,7 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
               if (exportConfig.includeReceiptDetails) rowData[columnName] = receipt.notes || '';
               break;
             case 'Created Date':
-              if (exportConfig.includeReceiptDetails) rowData[columnName] = format(new Date(receipt.created_at), 'yyyy-MM-dd HH:mm:ss');
+              if (exportConfig.includeReceiptDetails) rowData[columnName] = receipt.created_at ? format(new Date(receipt.created_at), 'yyyy-MM-dd HH:mm:ss') : '';
               break;
             case 'OCR Status':
               if (exportConfig.includeOCRData) rowData[columnName] = receipt.ocr_status;
@@ -887,7 +888,7 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                 if (exportConfig.includeReceiptDetails) summaryRow[columnName] = receipt.id;
                 break;
               case 'Receipt Date':
-                if (exportConfig.includeReceiptDetails) summaryRow[columnName] = format(new Date(receipt.receipt_date), 'yyyy-MM-dd');
+                if (exportConfig.includeReceiptDetails) summaryRow[columnName] = receipt.receipt_date ? format(new Date(receipt.receipt_date), 'yyyy-MM-dd') : '';
                 break;
               case 'Vendor Name':
                 if (exportConfig.includeReceiptDetails) summaryRow[columnName] = receipt.vendor.name;
@@ -908,7 +909,7 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                 if (exportConfig.includeReceiptDetails) summaryRow[columnName] = receipt.notes || '';
                 break;
               case 'Created Date':
-                if (exportConfig.includeReceiptDetails) summaryRow[columnName] = format(new Date(receipt.created_at), 'yyyy-MM-dd HH:mm:ss');
+                if (exportConfig.includeReceiptDetails) summaryRow[columnName] = receipt.created_at ? format(new Date(receipt.created_at), 'yyyy-MM-dd HH:mm:ss') : '';
                 break;
               case 'OCR Status':
                 if (exportConfig.includeOCRData) summaryRow[columnName] = receipt.ocr_status;
@@ -980,13 +981,13 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
               Expenses & Receipts
             </CardTitle>
             <CardDescription>
-              {stats.totalReceipts} entries • ${stats.totalAmount.toFixed(2)} total
+              {stats.totalReceipts} entries • ${(stats.totalAmount || 0).toFixed(2)} total
               {(searchQuery || selectedTagIds.length > 0 || globalStartDate || globalEndDate) && (
                 <span className="text-purple-600 ml-2">(filtered)</span>
               )}
             </CardDescription>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
             <Button 
               variant="outline" 
               size="sm"
@@ -1577,7 +1578,133 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
         
         {!loading && !error && receipts.length > 0 && (
           <>
-            <div className="rounded-md border">
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-3">
+              {receipts.map((receipt) => (
+                <div key={receipt.id} className={cn(
+                  "bg-white rounded-lg border shadow-sm p-4 hover:shadow-md transition-shadow",
+                  receipt.receipt_type === 'manual' && "bg-gradient-to-r from-purple-50 to-blue-50 border-l-4 border-l-purple-400",
+                  receipt.source_subscription_id && "bg-gradient-to-r from-green-50 to-teal-50 border-l-4 border-l-green-400"
+                )}>
+                  {/* Header with vendor and amount */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className={cn(
+                        "w-8 h-8 rounded-full flex items-center justify-center shadow-sm",
+                        receipt.source_subscription_id
+                          ? "bg-gradient-to-r from-green-500 to-teal-500"
+                          : receipt.receipt_type === 'manual' 
+                            ? "bg-gradient-to-r from-purple-500 to-blue-500" 
+                            : "bg-gradient-to-r from-purple-100 to-blue-100"
+                      )}>
+                        {receipt.source_subscription_id ? (
+                          <Repeat className="h-4 w-4 text-white" />
+                        ) : receipt.receipt_type === 'manual' ? (
+                          <PenTool className="h-4 w-4 text-white" />
+                        ) : (
+                          <Store className="h-3.5 w-3.5 text-purple-600" />
+                        )}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-medium text-sm">{receipt.vendor}</span>
+                        {receipt.source_subscription_id && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-200 w-fit">
+                            Subscription
+                          </span>
+                        )}
+                        {receipt.receipt_type === 'manual' && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200 w-fit">
+                            Manual Entry
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-lg font-bold text-green-600">
+                      ${(receipt.total_amount || 0).toFixed(2)}
+                    </div>
+                  </div>
+                  
+                  {/* Details */}
+                  <div className="space-y-2 mb-3">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Calendar className="h-3.5 w-3.5" />
+                      <span>{receipt.receipt_date ? format(new Date(receipt.receipt_date), 'MMM d, yyyy') : 'No date'}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <FileText className="h-3.5 w-3.5" />
+                      <span>{(receipt.lineItems || []).length} item{(receipt.lineItems || []).length !== 1 ? 's' : ''}</span>
+                    </div>
+                    {teamContext.showCreatedBy && receipt.created_by_user && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <User className="h-3.5 w-3.5" />
+                        <span>{receipt.created_by_user.full_name || receipt.created_by_user.email}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Tags */}
+                  {receipt.tags && receipt.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      {receipt.tags.slice(0, 3).map((tag, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border"
+                          style={{ backgroundColor: `${tag.color}20`, borderColor: tag.color, color: tag.color }}
+                        >
+                          {tag.name}
+                        </span>
+                      ))}
+                      {receipt.tags.length > 3 && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                          +{receipt.tags.length - 3} more
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Actions */}
+                  <div className="flex items-center justify-between pt-3 border-t">
+                    <div className={cn(
+                      "text-xs font-medium px-2 py-1 rounded",
+                      (receipt.ocr_status && statusColors[receipt.ocr_status as keyof typeof statusColors]) || "bg-gray-100 text-gray-800"
+                    )}>
+                      {receipt.ocr_status ? receipt.ocr_status.charAt(0).toUpperCase() + receipt.ocr_status.slice(1) : 'Unknown'}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openEditModal(receipt)}
+                        className="text-xs px-2 py-1 h-auto"
+                      >
+                        <Edit3 className="h-3 w-3 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewImage(receipt.id)}
+                        className="text-xs px-2 py-1 h-auto"
+                      >
+                        <ImageIcon className="h-3 w-3 mr-1" />
+                        View
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteReceipt(receipt.id)}
+                        className="text-xs px-2 py-1 h-auto text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {/* Desktop Table View */}
+            <div className="hidden md:block rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -1680,7 +1807,7 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                         {(() => {
                           // Fix timezone issue: parse date correctly to avoid day shift
                           const dateStr = receipt.date;
-                          if (!dateStr) return "Invalid Date";
+                          if (!dateStr) return "No date";
                           
                           // If it's in YYYY-MM-DD format, parse it as local date
                           if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
@@ -1714,7 +1841,7 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                         })()}
                       </TableCell>
                       <TableCell className="font-mono font-medium">
-                        ${receipt.amount.toFixed(2)}
+                        ${(receipt.amount || 0).toFixed(2)}
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1 max-w-[200px]">
@@ -2201,6 +2328,7 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                     <div className="text-sm text-gray-500">
                       {(() => {
                         const dateStr = receipt.date;
+                        if (!dateStr) return "No date";
                         if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
                           const [year, month, day] = dateStr.split('-').map(Number);
                           const localDate = new Date(year, month - 1, day);
@@ -2212,7 +2340,11 @@ export function ReceiptsTable({ startDate: globalStartDate, endDate: globalEndDa
                           const localDate = new Date(year, month - 1, day);
                           return localDate.toLocaleDateString();
                         }
-                        return new Date(dateStr).toLocaleDateString();
+                        try {
+                          return new Date(dateStr).toLocaleDateString();
+                        } catch {
+                          return "Invalid date";
+                        }
                       })()} • ${receipt.amount.toFixed(2)}
                     </div>
                     {receipt.source_subscription_id && (

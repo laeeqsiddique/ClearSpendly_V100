@@ -171,7 +171,7 @@ const colorOptions = [
   { value: '#0f172a', label: 'Midnight', sample: 'bg-slate-900' },
   { value: '#4b5563', label: 'Charcoal Gray', sample: 'bg-gray-600' },
   { value: '#6b7280', label: 'Storm Gray', sample: 'bg-gray-500' },
-  { value: '#374151', label: 'Graphite', sample: 'bg-gray-700' },
+  { value: '#475569', label: 'Graphite', sample: 'bg-slate-600' },
   { value: '#1f2937', label: 'Dark Charcoal', sample: 'bg-gray-800' },
   
   // Teals & Aquas
@@ -985,14 +985,14 @@ function CreateTemplateContent() {
           {/* Header */}
           <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
             <div className="flex flex-col items-start justify-center gap-2">
-              <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                 {isEditing ? 'Edit Template' : 'Create New Template'}
               </h1>
-              <p className="text-muted-foreground">
+              <p className="text-sm sm:text-base text-muted-foreground">
                 Create and customize professional invoice templates for your business.
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-2 w-full sm:w-auto">
               <Button 
                 variant="ghost" 
                 onClick={() => {
@@ -1003,22 +1003,26 @@ function CreateTemplateContent() {
                     router.push('/dashboard/invoices?tab=templates');
                   }
                 }} 
-                className="group flex items-center gap-2 px-4 py-2 rounded-lg bg-white/80 backdrop-blur-sm border border-gray-200/50 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:border-gray-300 transition-all duration-200 shadow-sm hover:shadow-md"
+                className="group flex items-center justify-center gap-2 px-4 py-3 sm:py-2 min-h-[44px] rounded-lg bg-white/80 backdrop-blur-sm border border-gray-200/50 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:border-gray-300 transition-all duration-200 shadow-sm hover:shadow-md touch-manipulation w-full sm:w-auto"
               >
                 <span className="font-medium text-gray-600 group-hover:text-gray-700 transition-colors">
                   Cancel
                 </span>
               </Button>
-              <Button onClick={handleSave} disabled={loading} className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800">
+              <Button 
+                onClick={handleSave} 
+                disabled={loading} 
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 min-h-[44px] py-3 sm:py-2 touch-manipulation w-full sm:w-auto"
+              >
                 {loading ? (
                   <>
                     <Save className="w-4 h-4 mr-2 animate-spin" />
-                    {isEditing ? 'Updating...' : 'Creating...'}
+                    <span className="text-sm sm:text-base">{isEditing ? 'Updating...' : 'Creating...'}</span>
                   </>
                 ) : (
                   <>
                     <Save className="w-4 h-4 mr-2" />
-                    {isEditing ? 'Update Template' : 'Create Template'}
+                    <span className="text-sm sm:text-base">{isEditing ? 'Update Template' : 'Create Template'}</span>
                   </>
                 )}
               </Button>
@@ -1028,9 +1032,9 @@ function CreateTemplateContent() {
         
         <div className="@container/main flex flex-1 flex-col gap-2">
           <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
         {/* Settings Panel */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -1041,37 +1045,37 @@ function CreateTemplateContent() {
             <CardContent className="space-y-4">
               {/* Template Name */}
               <div className="space-y-2">
-                <Label htmlFor="template-name">Template Name</Label>
+                <Label htmlFor="template-name" className="text-sm font-medium">Template Name</Label>
                 <Input
                   id="template-name"
                   value={settings.name}
                   onChange={(e) => setSettings(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="Enter template name"
-                  className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                  className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 h-10 sm:h-9 text-base sm:text-sm"
                 />
               </div>
 
               {/* Style Selection */}
               <div className="space-y-2">
-                <Label>Template Style</Label>
-                <div className="grid grid-cols-1 gap-2">
+                <Label className="text-sm font-medium">Template Style</Label>
+                <div className="grid grid-cols-1 gap-3">
                   {templateStyles.map((style) => (
                     <div
                       key={style.id}
-                      className={`border rounded-lg p-3 cursor-pointer transition-colors ${
-                        selectedStyle === style.id ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-purple-300'
+                      className={`border rounded-lg p-3 sm:p-4 cursor-pointer transition-colors touch-manipulation min-h-[44px] flex items-center ${
+                        selectedStyle === style.id ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-purple-300 active:bg-gray-50'
                       }`}
                       onClick={() => {
                         setSelectedStyle(style.id);
                         setSettings(prev => ({ ...prev, template_type: style.id as any }));
                       }}
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between w-full">
                         <div>
-                          <div className="font-medium">{style.name}</div>
-                          <div className="text-sm text-gray-500">{style.description}</div>
+                          <div className="font-medium text-sm sm:text-base">{style.name}</div>
+                          <div className="text-xs sm:text-sm text-gray-500 mt-1">{style.description}</div>
                         </div>
-                        {selectedStyle === style.id && <Check className="h-4 w-4 text-blue-500" />}
+                        {selectedStyle === style.id && <Check className="h-4 w-4 text-blue-500 flex-shrink-0 ml-2" />}
                       </div>
                     </div>
                   ))}
@@ -1080,15 +1084,15 @@ function CreateTemplateContent() {
 
               {/* Color Selection */}
               <div className="space-y-2">
-                <Label htmlFor="color-scheme">Primary Color</Label>
+                <Label htmlFor="color-scheme" className="text-sm font-medium">Primary Color</Label>
                 <Select 
                   value={settings.color_scheme} 
                   onValueChange={(value) => setSettings(prev => ({ ...prev, color_scheme: value }))}
                 >
-                  <SelectTrigger id="color-scheme" className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200">
+                  <SelectTrigger id="color-scheme" className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 h-10 sm:h-9">
                     <div className="flex items-center gap-2">
                       <div className={`w-4 h-4 rounded ${colorOptions.find(c => c.value === settings.color_scheme)?.sample || 'bg-blue-700'}`}></div>
-                      <span>{colorOptions.find(c => c.value === settings.color_scheme)?.label || "Select a color"}</span>
+                      <span className="text-sm sm:text-base">{colorOptions.find(c => c.value === settings.color_scheme)?.label || "Select a color"}</span>
                     </div>
                   </SelectTrigger>
                   <SelectContent className="max-h-80">
@@ -1128,8 +1132,8 @@ function CreateTemplateContent() {
                       
                       {/* Warm Colors */}
                       <div className="text-xs font-semibold text-gray-500 px-2 pt-2">Warm Colors</div>
-                      {colorOptions.filter(c => c.label.includes('Red') || c.label.includes('Orange') || c.label.includes('Amber') || c.label.includes('Yellow') || c.label.includes('Brown') || c.label.includes('Crimson') || c.label.includes('Rust') || c.label.includes('Bronze') || c.label.includes('Copper')).map((color) => (
-                        <SelectItem key={color.value} value={color.value}>
+                      {colorOptions.filter(c => c.label.includes('Red') || c.label.includes('Orange') || c.label.includes('Amber') || c.label.includes('Yellow') || c.label.includes('Brown') || c.label.includes('Crimson') || c.label.includes('Rust') || c.label.includes('Bronze') || c.label.includes('Copper')).map((color, idx) => (
+                        <SelectItem key={`warm-${color.value}-${idx}`} value={color.value}>
                           <div className="flex items-center gap-2">
                             <div className={`w-4 h-4 rounded ${color.sample}`}></div>
                             <span>{color.label}</span>
@@ -1139,8 +1143,8 @@ function CreateTemplateContent() {
                       
                       {/* Neutrals */}
                       <div className="text-xs font-semibold text-gray-500 px-2 pt-2">Neutrals</div>
-                      {colorOptions.filter(c => c.label.includes('Gray') || c.label.includes('Black') || c.label.includes('Slate') || c.label.includes('Midnight') || c.label.includes('Charcoal') || c.label.includes('Storm') || c.label.includes('Graphite')).map((color) => (
-                        <SelectItem key={color.value} value={color.value}>
+                      {colorOptions.filter(c => c.label.includes('Gray') || c.label.includes('Black') || c.label.includes('Slate') || c.label.includes('Midnight') || c.label.includes('Charcoal') || c.label.includes('Storm') || c.label.includes('Graphite')).map((color, idx) => (
+                        <SelectItem key={`neutral-${color.value}-${idx}`} value={color.value}>
                           <div className="flex items-center gap-2">
                             <div className={`w-4 h-4 rounded ${color.sample}`}></div>
                             <span>{color.label}</span>
@@ -1176,13 +1180,13 @@ function CreateTemplateContent() {
 
               {/* Font Selection */}
               <div className="space-y-2">
-                <Label htmlFor="font-family">Font Family</Label>
+                <Label htmlFor="font-family" className="text-sm font-medium">Font Family</Label>
                 <Select 
                   value={settings.font_family || 'font-sans'} 
                   onValueChange={(value) => setSettings(prev => ({ ...prev, font_family: value }))}
                 >
-                  <SelectTrigger id="font-family" className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200">
-                    <SelectValue />
+                  <SelectTrigger id="font-family" className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 h-10 sm:h-9">
+                    <SelectValue className="text-sm sm:text-base" />
                   </SelectTrigger>
                   <SelectContent className="max-h-80">
                     {/* Sans Serif */}
@@ -1224,14 +1228,14 @@ function CreateTemplateContent() {
 
               {/* Logo Settings */}
               <div className="space-y-4">
-                <h4 className="font-medium">Company Logo</h4>
+                <h4 className="font-medium text-sm sm:text-base">Company Logo</h4>
                 
                 {/* Logo Upload */}
                 <div className="space-y-2">
-                  <Label>Upload Logo</Label>
+                  <Label className="text-sm font-medium">Upload Logo</Label>
                   <div className="space-y-3">
                     {settings.logo_url ? (
-                      <div className="flex items-center gap-3 p-3 border rounded-lg bg-gray-50">
+                      <div className="flex items-center gap-3 p-3 sm:p-4 border rounded-lg bg-gray-50">
                         <div className="flex-shrink-0">
                           <img 
                             src={settings.logo_url} 
@@ -1248,14 +1252,14 @@ function CreateTemplateContent() {
                           variant="ghost"
                           size="sm"
                           onClick={handleRemoveLogo}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[44px] min-w-[44px] p-2 touch-manipulation"
                         >
                           <X className="h-4 w-4" />
                         </Button>
                       </div>
                     ) : (
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-                        <Image className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center hover:border-gray-400 transition-colors">
+                        <Image className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400 mx-auto mb-2" />
                         <p className="text-sm text-gray-600 mb-2">Upload your company logo</p>
                         <p className="text-xs text-gray-500">PNG, JPG up to 2MB</p>
                       </div>
@@ -1273,10 +1277,10 @@ function CreateTemplateContent() {
                         type="button" 
                         variant="outline" 
                         disabled={uploadingLogo}
-                        className="w-full border-2 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300"
+                        className="w-full border-2 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300 min-h-[44px] py-3 sm:py-2 touch-manipulation"
                       >
                         <Upload className="h-4 w-4 mr-2" />
-                        {uploadingLogo ? "Uploading..." : settings.logo_url ? "Replace Logo" : "Choose File"}
+                        <span className="text-sm sm:text-base">{uploadingLogo ? "Uploading..." : settings.logo_url ? "Replace Logo" : "Choose File"}</span>
                       </Button>
                     </div>
                   </div>
@@ -1285,7 +1289,7 @@ function CreateTemplateContent() {
                 {/* Logo Position & Size */}
                 {settings.logo_url && (
                   <>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Logo Position</Label>
                         <Select 
@@ -1294,8 +1298,8 @@ function CreateTemplateContent() {
                             setSettings(prev => ({ ...prev, logo_position: value }))
                           }
                         >
-                          <SelectTrigger className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200">
-                            <SelectValue />
+                          <SelectTrigger className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 h-10 sm:h-9">
+                            <SelectValue className="text-sm sm:text-base" />
                           </SelectTrigger>
                           <SelectContent>
                             {logoPositions.map((position) => (
@@ -1315,8 +1319,8 @@ function CreateTemplateContent() {
                             setSettings(prev => ({ ...prev, logo_size: value }))
                           }
                         >
-                          <SelectTrigger className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200">
-                            <SelectValue />
+                          <SelectTrigger className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 h-10 sm:h-9">
+                            <SelectValue className="text-sm sm:text-base" />
                           </SelectTrigger>
                           <SelectContent>
                             {logoSizes.map((size) => (
@@ -1336,46 +1340,46 @@ function CreateTemplateContent() {
 
               {/* Company Information */}
               <div className="space-y-4">
-                <h4 className="font-medium">Company Information</h4>
+                <h4 className="font-medium text-sm sm:text-base">Company Information</h4>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="company-name">Company Name</Label>
+                  <Label htmlFor="company-name" className="text-sm font-medium">Company Name</Label>
                   <Input
                     id="company-name"
                     value={settings.company_name}
                     onChange={(e) => setSettings(prev => ({ ...prev, company_name: e.target.value }))}
-                    className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                    className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 h-10 sm:h-9 text-base sm:text-sm"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="company-address">Company Address</Label>
+                  <Label htmlFor="company-address" className="text-sm font-medium">Company Address</Label>
                   <textarea
                     id="company-address"
                     value={settings.company_address}
                     onChange={(e) => setSettings(prev => ({ ...prev, company_address: e.target.value }))}
-                    className="flex min-h-[80px] w-full rounded-md border-2 border-purple-200 bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex min-h-[80px] sm:min-h-[70px] w-full rounded-md border-2 border-purple-200 bg-transparent px-3 py-2 text-base sm:text-sm ring-offset-background placeholder:text-muted-foreground focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                     placeholder="Enter company address..."
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="company-phone">Phone</Label>
+                    <Label htmlFor="company-phone" className="text-sm font-medium">Phone</Label>
                     <Input
                       id="company-phone"
                       value={settings.company_phone}
                       onChange={(e) => setSettings(prev => ({ ...prev, company_phone: e.target.value }))}
-                      className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                      className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 h-10 sm:h-9 text-base sm:text-sm"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="company-email">Email</Label>
+                    <Label htmlFor="company-email" className="text-sm font-medium">Email</Label>
                     <Input
                       id="company-email"
                       value={settings.company_email}
                       onChange={(e) => setSettings(prev => ({ ...prev, company_email: e.target.value }))}
-                      className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                      className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 h-10 sm:h-9 text-base sm:text-sm"
                     />
                   </div>
                 </div>
@@ -1385,35 +1389,35 @@ function CreateTemplateContent() {
 
               {/* Invoice Settings */}
               <div className="space-y-4">
-                <h4 className="font-medium">Invoice Settings</h4>
+                <h4 className="font-medium text-sm sm:text-base">Invoice Settings</h4>
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="invoice-prefix">Invoice Prefix</Label>
+                    <Label htmlFor="invoice-prefix" className="text-sm font-medium">Invoice Prefix</Label>
                     <Input
                       id="invoice-prefix"
                       value={settings.invoice_prefix}
                       onChange={(e) => setSettings(prev => ({ ...prev, invoice_prefix: e.target.value }))}
-                      className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                      className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 h-10 sm:h-9 text-base sm:text-sm"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="next-number">Next Number</Label>
+                    <Label htmlFor="next-number" className="text-sm font-medium">Next Number</Label>
                     <Input
                       id="next-number"
                       type="number"
                       value={settings.next_invoice_number}
                       onChange={(e) => setSettings(prev => ({ ...prev, next_invoice_number: parseInt(e.target.value) || 1 }))}
-                      className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                      className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 h-10 sm:h-9 text-base sm:text-sm"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="payment-terms">Payment Terms</Label>
+                  <Label htmlFor="payment-terms" className="text-sm font-medium">Payment Terms</Label>
                   <Select value={settings.default_payment_terms} onValueChange={(value) => setSettings(prev => ({ ...prev, default_payment_terms: value }))}>
-                    <SelectTrigger className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200">
-                      <SelectValue />
+                    <SelectTrigger className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 h-10 sm:h-9">
+                      <SelectValue className="text-sm sm:text-base" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Due on Receipt">Due on Receipt</SelectItem>
@@ -1426,13 +1430,13 @@ function CreateTemplateContent() {
 
                 {/* Default Notes */}
                 <div className="space-y-2">
-                  <Label htmlFor="default-notes">Default Notes</Label>
+                  <Label htmlFor="default-notes" className="text-sm font-medium">Default Notes</Label>
                   <Input
                     id="default-notes"
                     value={settings.default_notes}
                     onChange={(e) => setSettings(prev => ({ ...prev, default_notes: e.target.value }))}
                     placeholder="Thank you for your business!"
-                    className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                    className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 h-10 sm:h-9 text-base sm:text-sm"
                   />
                 </div>
               </div>
@@ -1441,28 +1445,29 @@ function CreateTemplateContent() {
 
               {/* Tax Settings */}
               <div className="space-y-4">
-                <h4 className="font-medium">Tax Settings</h4>
+                <h4 className="font-medium text-sm sm:text-base">Tax Settings</h4>
                 
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
                   <div className="space-y-1">
-                    <Label>Enable Tax</Label>
-                    <p className="text-sm text-muted-foreground">Show tax calculations on invoices</p>
+                    <Label className="text-sm font-medium">Enable Tax</Label>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Show tax calculations on invoices</p>
                   </div>
                   <Button
                     type="button"
                     variant={settings.show_tax ? "default" : "outline"}
                     size="sm"
                     onClick={() => setSettings(prev => ({ ...prev, show_tax: !prev.show_tax }))}
+                    className="min-h-[44px] px-4 py-2 touch-manipulation w-full sm:w-auto"
                   >
-                    {settings.show_tax ? "Enabled" : "Disabled"}
+                    <span className="text-sm">{settings.show_tax ? "Enabled" : "Disabled"}</span>
                   </Button>
                 </div>
                 
                 {settings.show_tax && (
                   <div className="space-y-4 pl-4 border-l-2 border-purple-100">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="tax-rate">Tax Rate (%)</Label>
+                        <Label htmlFor="tax-rate" className="text-sm font-medium">Tax Rate (%)</Label>
                         <Input
                           id="tax-rate"
                           type="number"
@@ -1478,17 +1483,17 @@ function CreateTemplateContent() {
                             }));
                           }}
                           placeholder="8.5"
-                          className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                          className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 h-10 sm:h-9 text-base sm:text-sm"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="tax-label">Tax Label</Label>
+                        <Label htmlFor="tax-label" className="text-sm font-medium">Tax Label</Label>
                         <Input
                           id="tax-label"
                           value={settings.tax_label}
                           onChange={(e) => setSettings(prev => ({ ...prev, tax_label: e.target.value }))}
                           placeholder="Tax"
-                          className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                          className="border-2 border-purple-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 h-10 sm:h-9 text-base sm:text-sm"
                         />
                       </div>
                     </div>
@@ -1503,7 +1508,7 @@ function CreateTemplateContent() {
         </div>
 
         {/* Live Preview */}
-        <div className="space-y-4">
+        <div className="space-y-4 sm:space-y-6">
           <InvoicePreviewWrapper title="Template Preview">
             {renderInvoicePreview()}
           </InvoicePreviewWrapper>

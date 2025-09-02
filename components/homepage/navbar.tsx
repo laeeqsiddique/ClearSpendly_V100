@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Receipt, Menu, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const navigation = [
@@ -16,9 +16,27 @@ const navigation = [
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Prevent body scroll when menu is open
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (mobileMenuOpen) {
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.style.overflow = 'unset';
+      }
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (typeof window !== 'undefined') {
+        document.body.style.overflow = 'unset';
+      }
+    };
+  }, [mobileMenuOpen]);
+
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200/20 dark:border-gray-800/20">
-      <nav className="mx-auto flex max-w-7xl items-center p-6 lg:px-8">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+      <nav className="mx-auto flex max-w-7xl items-center justify-between p-6 lg:px-8">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
           <div className="relative">
@@ -58,11 +76,13 @@ export default function Navbar() {
         </div>
 
         {/* Mobile menu button */}
-        <div className="flex lg:hidden">
+        <div className="flex lg:hidden ml-auto">
           <Button
             variant="ghost"
-            size="sm"
+            size="lg"
+            className="h-11 w-11 p-0 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             onClick={() => setMobileMenuOpen(true)}
+            aria-label="Open navigation menu"
           >
             <Menu className="h-6 w-6" />
           </Button>
@@ -72,65 +92,121 @@ export default function Navbar() {
       {/* Mobile menu */}
       <AnimatePresence>
         {mobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="lg:hidden"
-          >
-            <div className="fixed inset-0 z-10" />
+          <>
+            {/* Solid white/dark backdrop - completely opaque, no transparency */}
+            <motion.div 
+              className="fixed inset-0 z-[100] bg-white dark:bg-gray-900 lg:hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              aria-hidden="true"
+            />
+            
+            {/* Mobile menu panel - full screen, completely solid background */}
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 right-0 z-10 w-full overflow-y-auto bg-white dark:bg-gray-900 px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10"
+              transition={{ type: "spring", damping: 25, stiffness: 250 }}
+              className="fixed inset-0 z-[101] w-full bg-white dark:bg-gray-900 lg:hidden overflow-y-auto"
             >
-              <div className="flex items-center justify-between">
-                <Link href="/" className="flex items-center gap-2">
-                  <Receipt className="h-8 w-8 text-purple-600" />
-                  <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                    Flowvya
-                  </span>
-                </Link>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <X className="h-6 w-6" />
-                </Button>
-              </div>
-              <div className="mt-6 flow-root">
-                <div className="-my-6 divide-y divide-gray-500/10">
-                  <div className="space-y-2 py-6">
-                    {navigation.map((item) => (
-                      <Link
-                        key={item.name}
-                        href={item.href}
-                        className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        {item.name}
-                      </Link>
-                    ))}
+              <div className="flex flex-col h-full px-6 py-6 sm:px-6 sm:py-6">
+                {/* Header with logo and close button */}
+                <div className="flex items-center justify-between mb-8">
+                  <Link href="/" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
+                    <Receipt className="h-8 w-8 text-purple-600" />
+                    <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                      Flowvya
+                    </span>
+                  </Link>
+                  <Button
+                    variant="ghost"
+                    size="lg"
+                    className="h-11 w-11 p-0 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    onClick={() => setMobileMenuOpen(false)}
+                    aria-label="Close navigation menu"
+                  >
+                    <X className="h-6 w-6" />
+                  </Button>
+                </div>
+
+                {/* Navigation content */}
+                <div className="flex flex-col flex-1">
+                  {/* Navigation links section */}
+                  <nav className="flex-1">
+                    <div className="space-y-1">
+                      {navigation.map((item, index) => (
+                        <Link
+                          key={item.name}
+                          href={item.href}
+                          className="group flex items-center rounded-xl px-6 py-4 text-base font-medium text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-200 ease-in-out"
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          <span className="flex-1">{item.name}</span>
+                          <svg
+                            className="ml-3 h-5 w-5 text-gray-400 group-hover:text-purple-500 transition-colors duration-200"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            strokeWidth="2"
+                            stroke="currentColor"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                          </svg>
+                        </Link>
+                      ))}
+                    </div>
+                  </nav>
+
+                  {/* Divider */}
+                  <div className="my-8">
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-gray-200 dark:border-gray-700" />
+                      </div>
+                      <div className="relative flex justify-center">
+                        <span className="bg-white dark:bg-gray-900 px-4 text-sm text-gray-500 dark:text-gray-400 font-medium">
+                          Get started
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="py-6 space-y-2">
-                    <Button asChild variant="ghost" className="w-full">
+
+                  {/* Action buttons section */}
+                  <div className="space-y-3">
+                    <Button 
+                      asChild 
+                      variant="ghost" 
+                      size="lg" 
+                      className="w-full h-14 text-base font-semibold text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 border border-gray-200 dark:border-gray-700 hover:border-purple-200 dark:hover:border-purple-800 transition-all duration-200"
+                    >
                       <Link href="/sign-in" onClick={() => setMobileMenuOpen(false)}>
-                        Sign in
+                        <span className="flex items-center justify-center gap-2">
+                          <span>Sign in</span>
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                          </svg>
+                        </span>
                       </Link>
                     </Button>
-                    <Button asChild className="w-full">
+                    <Button 
+                      asChild 
+                      size="lg" 
+                      className="w-full h-14 text-base font-semibold bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
+                    >
                       <Link href="/sign-up" onClick={() => setMobileMenuOpen(false)}>
-                        Start free trial
+                        <span className="flex items-center justify-center gap-2">
+                          <span>Start free trial</span>
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                          </svg>
+                        </span>
                       </Link>
                     </Button>
                   </div>
                 </div>
               </div>
             </motion.div>
-          </motion.div>
+          </>
         )}
       </AnimatePresence>
     </header>

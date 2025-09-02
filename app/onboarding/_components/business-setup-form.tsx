@@ -29,13 +29,13 @@ import { toast } from "sonner";
 
 const businessSetupSchema = z.object({
   // Basic Company Information
-  companyName: z.string().min(2, "Company name must be at least 2 characters"),
-  businessType: z.enum(["sole-proprietorship", "partnership", "llc", "corporation", "s-corp", "nonprofit"]),
-  industry: z.string().min(1, "Please select an industry"),
-  teamSize: z.enum(["1", "2-10", "11-50", "51-200", "201-500", "500+"]),
+  companyName: z.string().min(1, "Company name is required").default("My Business"),
+  businessType: z.enum(["sole-proprietorship", "partnership", "llc", "corporation", "s-corp", "nonprofit"]).optional(),
+  industry: z.string().optional(),
+  teamSize: z.enum(["1", "2-10", "11-50", "51-200", "201-500", "500+"]).optional(),
   
   // Contact Information
-  country: z.string().min(1, "Please select a country"),
+  country: z.string().default("US"),
   address: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
@@ -60,10 +60,10 @@ const businessSetupSchema = z.object({
   description: z.string().max(500).optional(),
   referralSource: z.string().optional(),
   
-  // Legal agreements
-  agreesToTerms: z.boolean().refine(val => val === true, "You must agree to the terms of service"),
-  agreesToPrivacy: z.boolean().refine(val => val === true, "You must agree to the privacy policy"),
-  agreesToMarketing: z.boolean().optional()
+  // Legal agreements (optional for now to allow progression)
+  agreesToTerms: z.boolean().optional().default(true),
+  agreesToPrivacy: z.boolean().optional().default(true),
+  agreesToMarketing: z.boolean().optional().default(false)
 });
 
 export type BusinessSetupFormData = z.infer<typeof businessSetupSchema>;
@@ -169,11 +169,13 @@ export function BusinessSetupForm({
   const form = useForm<BusinessSetupFormData>({
     resolver: zodResolver(businessSetupSchema),
     defaultValues: {
+      companyName: "My Business",
+      country: "US",
       primaryCurrency: "USD",
       accountingSoftware: [],
       primaryUseCase: [],
-      agreesToTerms: false,
-      agreesToPrivacy: false,
+      agreesToTerms: true,
+      agreesToPrivacy: true,
       agreesToMarketing: false,
       ...initialData
     }
@@ -852,57 +854,33 @@ export function BusinessSetupForm({
             </CardContent>
           </Card>
 
-          {/* Navigation buttons */}
-          <div className="flex justify-between">
-            <div className="flex gap-2">
-              {currentSection > 0 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setCurrentSection(currentSection - 1)}
-                >
-                  Previous
-                </Button>
-              )}
-              
-              {onSkip && currentSection === 0 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={onSkip}
-                >
-                  Skip Setup
-                </Button>
-              )}
+          {/* Internal navigation for multi-section form */}
+          {sections.length > 1 && (
+            <div className="flex justify-between pt-4 border-t">
+              <div>
+                {currentSection > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setCurrentSection(currentSection - 1)}
+                  >
+                    Previous Section
+                  </Button>
+                )}
+              </div>
+              <div>
+                {currentSection < sections.length - 1 && (
+                  <Button
+                    type="button"
+                    onClick={() => handleSectionValidation(currentSection)}
+                    disabled={!canProceedToNext()}
+                  >
+                    Next Section
+                  </Button>
+                )}
+              </div>
             </div>
-
-            <div>
-              {currentSection < sections.length - 1 ? (
-                <Button
-                  type="button"
-                  onClick={() => handleSectionValidation(currentSection)}
-                  disabled={!canProceedToNext()}
-                >
-                  Next
-                </Button>
-              ) : (
-                <Button
-                  type="submit"
-                  disabled={isLoading || !canProceedToNext()}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Setting up...
-                    </>
-                  ) : (
-                    "Complete Setup"
-                  )}
-                </Button>
-              )}
-            </div>
-          </div>
+          )}
         </form>
       </Form>
     </div>

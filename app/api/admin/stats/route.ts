@@ -1,41 +1,54 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
+import { requireTenantContext } from '@/lib/api-tenant';
 
 export async function GET() {
   try {
-    const tenantId = 'default-tenant';
+    // SECURITY FIX: Get current user's tenant and verify authorization
+    const context = await requireTenantContext();
     
-    // Create Supabase client
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-      process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-    );
+    // Check if user has admin privileges
+    const supabase = await createClient();
+    const { data: membership } = await supabase
+      .from('membership')
+      .select('role')
+      .eq('user_id', context.userId)
+      .eq('tenant_id', context.tenantId)
+      .in('role', ['owner', 'admin'])
+      .single();
 
-    // Get total receipts
+    if (!membership) {
+      return NextResponse.json(
+        { error: 'Admin privileges required' },
+        { status: 403 }
+      );
+    }
+
+    // SECURITY FIX: Get total receipts for current user's tenant only
     const { count: totalReceipts } = await supabase
       .from('receipt')
       .select('*', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId);
+      .eq('tenant_id', context.tenantId);
 
-    // Get total amount
+    // Get total amount for current user's tenant only
     const { data: receiptAmounts } = await supabase
       .from('receipt')
       .select('total_amount')
-      .eq('tenant_id', tenantId);
+      .eq('tenant_id', context.tenantId);
 
     const totalAmount = receiptAmounts?.reduce((sum, receipt) => sum + receipt.total_amount, 0) || 0;
 
-    // Get total tags
+    // Get total tags for current user's tenant only
     const { count: totalTags } = await supabase
       .from('tag')
       .select('*', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId);
+      .eq('tenant_id', context.tenantId);
 
-    // Get total vendors
+    // Get total vendors for current user's tenant only
     const { count: totalVendors } = await supabase
       .from('vendor')
       .select('*', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId);
+      .eq('tenant_id', context.tenantId);
 
     // Calculate storage usage (simplified)
     const storageUsed = Math.round((totalReceipts || 0) * 0.5) + " MB";

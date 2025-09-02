@@ -76,8 +76,8 @@ export function UnpaidInvoices({ data, loading }: UnpaidInvoicesProps) {
 
   const getUrgencyColor = (daysOverdue: number) => {
     if (daysOverdue > 30) return 'border-l-red-500 bg-red-50';
-    if (daysOverdue > 0) return 'border-l-yellow-500 bg-yellow-50';
-    return 'border-l-purple-500 bg-purple-50'; // Purple theme for non-overdue
+    if (daysOverdue > 0) return 'border-l-purple-500 bg-purple-50/50';
+    return 'border-l-purple-300 bg-purple-50/30'; // Light purple for non-overdue
   };
 
   return (

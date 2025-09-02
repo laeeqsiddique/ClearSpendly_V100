@@ -1,25 +1,47 @@
-import { NextResponse } from 'next/server';
-import { subscriptionService } from '@/lib/subscription-service';
-import { createClient } from '@/lib/supabase/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { polarSubscriptionService } from '@/lib/services/polar-subscription-service';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/subscriptions/plans
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const plans = await subscriptionService.getAvailablePlans();
+    // Get plans from Polar and database
+    const plans = await polarSubscriptionService.getPlans();
     
     return NextResponse.json({
       success: true,
-      data: plans
+      plans,
+      count: plans.length
     });
-
   } catch (error) {
     console.error('Error fetching subscription plans:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error occurred' 
+      {
+        success: false,
+        error: 'Failed to fetch subscription plans',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    // Sync plans from Polar to database
+    await polarSubscriptionService.syncPlansFromPolar();
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Plans synced successfully'
+    });
+  } catch (error) {
+    console.error('Error syncing subscription plans:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Failed to sync subscription plans',
+        details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     );

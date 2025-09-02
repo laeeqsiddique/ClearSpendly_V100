@@ -25,6 +25,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -45,7 +51,8 @@ import {
   Search,
   RefreshCw,
   Palette,
-  BookOpen
+  BookOpen,
+  MoreHorizontal
 } from "lucide-react";
 import AIChatAgent from '@/components/ai-chat-agent';
 
@@ -432,7 +439,7 @@ export default function TagsManagementPage() {
   return (
     <div className="flex-1 space-y-6 p-6 bg-gradient-to-br from-purple-50 via-white to-blue-50 min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div className="space-y-1">
           <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
             Tag Management
@@ -442,10 +449,10 @@ export default function TagsManagementPage() {
             Organize your expense categories and tags
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col w-full sm:w-auto sm:flex-row items-stretch sm:items-center gap-3">
           <Dialog open={categoryDialogOpen} onOpenChange={handleCategoryDialogChange}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="border-purple-200 hover:bg-purple-50">
+              <Button variant="outline" className="border-purple-200 hover:bg-purple-50 w-full sm:w-auto h-11 touch-manipulation">
                 <BookOpen className="h-4 w-4 mr-2" />
                 Add Category
               </Button>
@@ -533,7 +540,7 @@ export default function TagsManagementPage() {
 
           <Dialog open={tagDialogOpen} onOpenChange={handleTagDialogChange}>
             <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+              <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 w-full sm:w-auto h-11 touch-manipulation">
                 <Tag className="h-4 w-4 mr-2" />
                 Add Tag
               </Button>
@@ -700,7 +707,7 @@ export default function TagsManagementPage() {
       </div>
 
       {/* Categories Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
         {categories.map((category) => {
           const categoryTags = tags.filter(tag => tag.category.id === category.id);
           const totalUsage = categoryTags.reduce((sum, tag) => sum + tag.usage_count, 0);
@@ -720,21 +727,21 @@ export default function TagsManagementPage() {
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 sm:opacity-100 transition-opacity touch-manipulation"
                       onClick={() => handleEditCategory(category)}
                       title="Edit category"
                     >
-                      <Edit className="h-3 w-3" />
+                      <Edit className="h-4 w-4" />
                     </Button>
                     {!category.system && (
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="h-6 w-6 p-0 text-red-600 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700 opacity-0 group-hover:opacity-100 sm:opacity-100 transition-opacity touch-manipulation"
                         onClick={() => handleDeleteCategory(category)}
                         title="Delete category"
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     )}
                   </div>
@@ -768,27 +775,35 @@ export default function TagsManagementPage() {
 
       {/* Tags Table */}
       <Card className="shadow-lg border-0 bg-white/90 backdrop-blur-sm">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-3">
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex flex-col gap-4">
+            <CardTitle className="flex items-center gap-3 text-lg sm:text-xl">
               <Tag className="h-5 w-5 text-purple-600" />
               All Tags ({filteredTags.length})
             </CardTitle>
-            <div className="flex items-center gap-3">
+            
+            <div className="flex flex-col gap-3 w-full">
               <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search tags..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 w-64"
+                  className="pl-9 w-full h-11 touch-manipulation"
                 />
               </div>
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="w-full sm:w-48 h-11 touch-manipulation">
                   <SelectValue placeholder="Filter by category" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent
+                  className="max-h-[60vh] w-full sm:w-[var(--radix-select-trigger-width)] min-w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-2rem)]"
+                  position="popper"
+                  side="bottom"
+                  align="start"
+                  avoidCollisions={true}
+                  sticky="always"
+                >
                   <SelectItem value="all">All Categories</SelectItem>
                   {categories.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
@@ -803,79 +818,183 @@ export default function TagsManagementPage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-gray-50/80">
-                <TableHead>Tag</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-center">Usage</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="w-12"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredTags.map((tag) => (
-                <TableRow key={tag.id} className="hover:bg-purple-50/50">
-                  <TableCell>
+        <CardContent className="p-4 sm:p-6">
+          {filteredTags.length === 0 ? (
+            <div className="text-center py-6 sm:py-8">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                <Tag className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" />
+              </div>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">No tags found</h3>
+              <p className="text-sm sm:text-base text-gray-500 mb-4">
+                {searchQuery || selectedCategory !== "all" 
+                  ? "Try adjusting your search or filter criteria"
+                  : "Create your first tag to get started"
+                }
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Mobile: Card Layout */}
+              <div className="block lg:hidden space-y-3">
+                {filteredTags.map((tag) => (
+                  <div key={tag.id} className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+                    {/* Header Row */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <div 
+                          className="w-4 h-4 rounded-full flex-shrink-0" 
+                          style={{ backgroundColor: tag.color }}
+                        />
+                        <span className="font-semibold text-sm truncate">{tag.name}</span>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 touch-manipulation">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent 
+                          align="end" 
+                          className="w-48 max-w-[calc(100vw-2rem)] shadow-lg border-gray-200"
+                          side="bottom"
+                          sideOffset={8}
+                          avoidCollisions={true}
+                          sticky="always"
+                        >
+                          <DropdownMenuItem 
+                            onClick={() => handleEditTag(tag)}
+                            className="h-11 px-4 py-3 cursor-pointer touch-manipulation hover:bg-gray-100 focus:bg-gray-100"
+                          >
+                            <Edit className="w-4 h-4 mr-3" />
+                            <span className="text-sm font-medium">Edit Tag</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteTag(tag)}
+                            className="h-11 px-4 py-3 cursor-pointer touch-manipulation hover:bg-red-50 focus:bg-red-50 text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4 mr-3" />
+                            <span className="text-sm font-medium">Delete Tag</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    
+                    {/* Category Badge */}
                     <div className="flex items-center gap-2">
-                      <div 
-                        className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: tag.color }}
-                      />
-                      <span className="font-medium">{tag.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant="outline" 
-                      className="text-xs"
-                      style={{ 
-                        borderColor: tag.category.color,
-                        color: tag.category.color 
-                      }}
-                    >
-                      {tag.category.name}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {tag.description || "—"}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant="secondary" className="text-xs">
-                      {tag.usage_count}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {new Date(tag.created_at).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-8 w-8 p-0"
-                        onClick={() => handleEditTag(tag)}
-                        title="Edit tag"
+                      <span className="text-xs text-gray-600">Category:</span>
+                      <Badge 
+                        variant="outline" 
+                        className="text-xs"
+                        style={{ 
+                          borderColor: tag.category.color,
+                          color: tag.category.color 
+                        }}
                       >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                        onClick={() => handleDeleteTag(tag)}
-                        title="Delete tag"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                        {tag.category.name}
+                      </Badge>
                     </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                    
+                    {/* Description */}
+                    {tag.description && (
+                      <div className="space-y-1">
+                        <span className="text-xs text-gray-600">Description:</span>
+                        <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded">{tag.description}</p>
+                      </div>
+                    )}
+                    
+                    {/* Usage and Date */}
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-600">Usage:</span>
+                        <Badge variant="secondary" className="text-xs">
+                          {tag.usage_count} times
+                        </Badge>
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        Created {new Date(tag.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Desktop: Table Layout */}
+              <div className="hidden lg:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gray-50/80">
+                      <TableHead>Tag</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead className="text-center">Usage</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead className="w-12"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredTags.map((tag) => (
+                      <TableRow key={tag.id} className="hover:bg-purple-50/50">
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: tag.color }}
+                            />
+                            <span className="font-medium">{tag.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant="outline" 
+                            className="text-xs"
+                            style={{ 
+                              borderColor: tag.category.color,
+                              color: tag.category.color 
+                            }}
+                          >
+                            {tag.category.name}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {tag.description || "—"}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="secondary" className="text-xs">
+                            {tag.usage_count}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {new Date(tag.created_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0"
+                              onClick={() => handleEditTag(tag)}
+                              title="Edit tag"
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                              onClick={() => handleDeleteTag(tag)}
+                              title="Delete tag"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
       

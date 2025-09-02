@@ -8,11 +8,22 @@ import clsx from "clsx";
 
 function DashboardContent({ children }: { children: ReactNode }) {
   return (
-    <div className="flex h-screen overflow-hidden w-full">
-      <DashboardSideBar />
-      <main className="flex-1 overflow-y-auto">
-        <DashboardTopNav>{children}</DashboardTopNav>
-      </main>
+    <div className="relative h-screen overflow-hidden w-full">
+      {/* Mobile: Sidebar as overlay, Desktop: Sidebar in flex layout */}
+      <div className="hidden lg:flex h-full">
+        <DashboardSideBar />
+        <main className="flex-1 overflow-y-auto min-w-0">
+          <DashboardTopNav>{children}</DashboardTopNav>
+        </main>
+      </div>
+      
+      {/* Mobile Layout: Full width main content */}
+      <div className="lg:hidden h-full">
+        <DashboardSideBar />
+        <main className="h-full overflow-y-auto">
+          <DashboardTopNav>{children}</DashboardTopNav>
+        </main>
+      </div>
     </div>
   );
 }
