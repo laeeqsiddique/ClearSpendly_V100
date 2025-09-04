@@ -39,6 +39,71 @@ import Image from "next/image";
 import { useCallback, useState, useEffect } from "react";
 import { toast } from "sonner";
 
+// PDF.js dynamic import for client-side PDF to image conversion
+let pdfjsLib: any = null;
+
+// Client-side PDF to image conversion (same as original working version)
+async function convertPdfToImage(pdfFile: File): Promise<string> {
+  // Only run on client side
+  if (typeof window === 'undefined') {
+    throw new Error('PDF conversion only available in browser');
+  }
+
+  // Lazy load PDF.js only when needed
+  if (!pdfjsLib) {
+    try {
+      const module = await import('pdfjs-dist');
+      pdfjsLib = module;
+      // Set up worker
+      module.GlobalWorkerOptions.workerSrc = '/pdf.worker.mjs';
+    } catch (error) {
+      console.error('Failed to load PDF.js:', error);
+      throw new Error('PDF processing library not available');
+    }
+  }
+
+  try {
+    console.log('🔄 Converting PDF to image...');
+    const arrayBuffer = await pdfFile.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    
+    // Get the first page (most receipts are single page)
+    const page = await pdf.getPage(1);
+    
+    // Set up canvas with high DPI for better OCR
+    const scale = 2.0; // Higher scale for better OCR accuracy
+    const viewport = page.getViewport({ scale });
+    
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    
+    if (!context) {
+      throw new Error('Could not get canvas context for PDF conversion');
+    }
+    
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    
+    // Render the page
+    const renderContext = {
+      canvasContext: context,
+      viewport: viewport,
+    };
+    
+    await page.render(renderContext).promise;
+    
+    // Convert to high-quality data URL
+    const dataUrl = canvas.toDataURL('image/png', 1.0);
+    
+    console.log('✅ PDF converted to image successfully');
+    return dataUrl;
+    
+  } catch (error) {
+    console.error('❌ PDF conversion failed:', error);
+    throw new Error(`Failed to convert PDF to image: ${(error as Error).message}`);
+  }
+}
+
 // Types for extracted receipt data
 
 interface ExtractedLineItem {
@@ -237,162 +302,90 @@ export default function UploadPage() {
         )
       );
 
-      let result: any = null;
-      let processingMethod = '';
+      updateProgress('Preparing image data...', 20);
       
-      // Try client-side OCR first (privacy-first approach)
-      try {
-        updateProgress('Initializing browser OCR...', 10);
-        const isPdf = file.type === 'application/pdf';
-        // Starting processing silently
-        
-        // Railway-specific: Dynamic import with error handling to avoid server-side issues
-        const module = await import('@/lib/ai-ocr/enhanced-processor').catch(err => {
-          console.warn('Failed to load OCR processor, falling back to server processing:', err);
-          throw new Error('Client OCR unavailable');
-        });
-        const { SimplifiedOCRProcessor } = module;
-        const ocrProcessor = new SimplifiedOCRProcessor(); // Uses OpenAI for AI enhancement
-        
-        if (isPdf) {
-          updateProgress('Converting PDF to image...', 20);
-          await new Promise(resolve => setTimeout(resolve, 500)); // Allow UI update
-          updateProgress('Extracting text from PDF...', 40);
-        } else {
-          updateProgress('Preprocessing image...', 30);
-          await new Promise(resolve => setTimeout(resolve, 500)); // Allow UI update
-          updateProgress('Extracting text...', 40);
-        }
-        
-        // Smart processing with automatic AI enhancement
-        updateProgress('🧠 Processing with smart AI enhancement...', 50);
-        
-        result = await ocrProcessor.processImage(file);
-        processingMethod = ocrProcessor.isAIEnabled() ? 'ai-enhanced' : 'browser';
-        
-        updateProgress('Analyzing results...', 90);
-        
-        // Update progress with confidence level
-        const confidenceEmoji = result.confidence > 85 ? '🎯' : result.confidence > 70 ? '✓' : '⚠️';
-        updateProgress(`${confidenceEmoji} Processing complete (${result.confidence}% confidence)`, 95);
-        
-        // Special handling for PDFs - always use Vision API since OCR struggles with PDFs
-        if (file.type === 'application/pdf') {
-          console.log(`📄 PDF detected - forcing Vision API for better accuracy`);
-          updateProgress('PDF detected, using OpenAI Vision API...', 95);
-          throw new Error('PDF requires Vision API processing');
-        }
-        
-        // If confidence is too low OR few items detected, try server-side processing
-        const itemCount = result.lineItems?.length || 0;
-        const avgItemPrice = result.totalAmount / Math.max(itemCount, 1);
-        const shouldUseFallback = result.confidence < 75 || (itemCount <= 5 && avgItemPrice > 6);
-        
-        if (shouldUseFallback) {
-          const reason = result.confidence < 75 ? 'low confidence' : 'suspicious item count/pricing detected';
-          console.log(`🔍 Fallback trigger: ${itemCount} items, $${result.totalAmount} total, avg $${avgItemPrice.toFixed(2)} per item`);
-          updateProgress(`${reason.charAt(0).toUpperCase() + reason.slice(1)}, trying OpenAI Vision API...`, 95);
-          throw new Error(`${reason}, attempting server-side processing`);
-        }
-        
-        updateProgress('Processing complete!', 100);
-      } catch (clientError) {
-        console.warn('Client-side OCR failed or low confidence, trying server-side:', clientError);
-        
+      // Convert file to base64 for server processing
+      let imageData: string;
+      
+      // Handle both images and PDFs
+      if (file.type === 'application/pdf') {
+        updateProgress('Converting PDF to image...', 30);
         try {
-          updateProgress('🔥 Upgrading to OpenAI Vision API...', 20);
-          
-          // Convert file to base64 for server processing
-          updateProgress('Preparing image data...', 40);
-          
-          let imageData: string;
-          
-          // If it's a PDF, we need to convert it to image first
-          if (file.type === 'application/pdf') {
-            console.log('📄 Converting PDF to image for Vision API...');
-            updateProgress('Converting PDF to image...', 45);
-            
-            try {
-              // Railway-specific: Use the same PDF conversion as the OCR processor with error handling
-              const module = await import('@/lib/ai-ocr/enhanced-processor').catch(err => {
-                console.error('Failed to load OCR processor for PDF conversion:', err);
-                throw new Error('PDF processor unavailable');
-              });
-              const { SimplifiedOCRProcessor } = module;
-              const tempProcessor = new SimplifiedOCRProcessor();
-              await tempProcessor.initialize();
-              
-              // Convert PDF to image (this returns a data URL)
-              imageData = await tempProcessor.convertPdfToImage(file);
-              console.log('✅ PDF converted to image for Vision API');
-              console.log('🔍 Converted image type:', imageData.substring(0, 50) + '...');
-              
-              // Verify it's actually an image now
-              if (!imageData.startsWith('data:image/')) {
-                throw new Error('PDF conversion did not produce a valid image');
-              }
-            } catch (pdfError) {
-              console.error('❌ PDF conversion failed:', pdfError);
-              throw new Error(`PDF conversion failed: ${pdfError.message}`);
-            }
-          } else {
-            // For regular images, just convert to base64
-            const reader = new FileReader();
-            const base64Promise = new Promise<string>((resolve, reject) => {
-              reader.onload = () => {
-                const result = reader.result as string;
-                resolve(result);
-              };
-              reader.onerror = reject;
-            });
-            reader.readAsDataURL(file);
-            imageData = await base64Promise;
-          }
-          
-          updateProgress('Sending to AI processor...', 60);
-          
-          // Call unified OCR API (v2)
-          const response = await fetch('/api/process-receipt-v2', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ 
-              imageData, 
-              imageUrl,
-              saveToDatabase: false // We'll save after user reviews
-            }),
-          });
-          
-          if (!response.ok) {
-            throw new Error(`Server processing failed: ${response.status}`);
-          }
-          
-          updateProgress('Receiving AI results...', 80);
-          
-          const serverResult = await response.json();
-          if (serverResult.success) {
-            result = serverResult.data;
-            processingMethod = 'openai-vision';
-            updateProgress('🔥 OpenAI Vision API processing complete!', 100);
-          } else {
-            throw new Error('Server processing returned unsuccessful result');
-          }
-        } catch (serverError) {
-          console.error('Server-side OCR also failed:', serverError);
-          updateProgress('Processing failed', 0);
-          throw new Error('Both client-side and server-side OCR processing failed. Please try with a clearer image.');
+          // Convert PDF to image on client-side for better OCR processing
+          imageData = await convertPdfToImage(file);
+          updateProgress('PDF converted successfully...', 40);
+        } catch (pdfError) {
+          console.error('PDF conversion failed:', pdfError);
+          updateProgress('PDF conversion failed, using server fallback...', 35);
+          // Fall back to sending PDF URL to server
+          imageData = ''; // Will use imageUrl instead
         }
+      } else {
+        updateProgress('Converting image to base64...', 30);
+        
+        // Convert image to base64
+        const reader = new FileReader();
+        const base64Promise = new Promise<string>((resolve, reject) => {
+          reader.onload = () => {
+            const result = reader.result as string;
+            resolve(result);
+          };
+          reader.onerror = reject;
+        });
+        reader.readAsDataURL(file);
+        imageData = await base64Promise;
       }
+      
+      updateProgress('Processing with AI...', 40);
+      
+      // Call unified OCR API (v2)
+      const response = await fetch('/api/process-receipt-v2', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          imageData: imageData || null, // Send converted PDF image data or regular image data
+          imageUrl: imageData ? null : imageUrl, // Only send URL if no image data (PDF conversion failed)
+          fileType: file.type,
+          saveToDatabase: false // We'll save after user reviews
+        }),
+      });
+      
+      updateProgress('Analyzing receipt...', 60);
+      
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Processing failed: ${error}`);
+      }
+      
+      updateProgress('Extracting data...', 80);
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Processing failed');
+      }
+      
+      const { data, metadata } = result;
+      
+      // Show provider info
+      const provider = metadata?.provider || 'unknown';
+      const confidence = metadata?.confidence || data?.confidence || 0;
+      const cost = metadata?.cost || 0;
+      
+      console.log(`✅ Receipt processed by ${provider} (${confidence}% confidence, cost: $${cost.toFixed(4)})`);
+      
+      updateProgress(`✅ Processing complete (${provider})`, 100);
 
       const extractedData: ExtractedData = {
-        vendor: result.vendor,
-        date: result.date,
-        totalAmount: result.totalAmount,
-        subtotal: result.subtotal,
-        tax: result.tax,
-        notes: result.notes || '',
-        lineItems: result.lineItems || [],
+        vendor: data.vendor,
+        date: data.date,
+        totalAmount: data.totalAmount,
+        subtotal: data.subtotal,
+        tax: data.tax,
+        notes: data.notes || '',
+        lineItems: data.lineItems || [],
         tags: [], // Initialize with empty tags array
       };
 
@@ -408,26 +401,9 @@ export default function UploadPage() {
         )
       );
       
-      const confidenceMsg = result.confidence < 50 
-        ? ' (Low confidence - please review carefully)'
-        : result.confidence > 80 
-        ? ' (High confidence)'
-        : '';
-      
-      const methodMsg = processingMethod === 'browser' 
-        ? ' (Smart OCR)'
-        : processingMethod === 'ai-enhanced'
-        ? ' (AI Enhanced)'
-        : processingMethod === 'openai-vision'
-        ? ' 🔥 (Vision AI)'
-        : ' (AI Processed)';
-      
-      // Final success notification
-      updateProgress('✅ Receipt processed successfully!', 100);
-      
-      // Clean, concise success message
-      const shortMethodMsg = processingMethod === 'openai-vision' ? ' 🔥' : '';
-      toast.success(`Receipt processed${shortMethodMsg} - ${Math.round(result.confidence)}% confidence. Click "Review & Edit" to verify.`);
+      // Success notification
+      const providerEmoji = provider === 'mistral' ? '⚡' : provider === 'openai' ? '🔥' : '🤖';
+      toast.success(`Receipt processed ${providerEmoji} ${Math.round(confidence)}% confidence. Click "Review & Edit" to verify.`);
       
       // Clean up progress tracking
       setOcrProgress(prev => {
@@ -1007,9 +983,9 @@ export default function UploadPage() {
               </div>
             </div>
 
-          {/* Mobile Receipt Results */}
-          {uploadedReceipts.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 lg:bg-white/80 lg:backdrop-blur-sm lg:border-0 lg:shadow-lg lg:rounded-lg">
+          {/* Receipt Results Section */}
+          {console.log('uploadedReceipts.length:', uploadedReceipts.length) || (uploadedReceipts.length > 0 || true) && (
+            <div className="block bg-white rounded-2xl shadow-sm border border-gray-100 lg:bg-white lg:backdrop-blur-sm lg:border lg:shadow-lg lg:rounded-lg">
               <div className="p-6">
                 <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
                   <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -1068,7 +1044,7 @@ export default function UploadPage() {
                 )}
                 
                 {/* Mobile: Single column, Desktop: Multiple columns */}
-                <div className="space-y-4 lg:grid lg:gap-4 lg:grid-cols-2 xl:grid-cols-3 lg:space-y-0">
+                <div className="space-y-4 md:grid md:gap-4 md:grid-cols-2 lg:grid-cols-3 md:space-y-0">
                   {uploadedReceipts.map((receipt) => (
                     <div 
                       key={receipt.id} 
@@ -1084,14 +1060,14 @@ export default function UploadPage() {
                           ? 'border-blue-400 bg-blue-50'
                           : 'border-gray-200'
                       }`}>
-                      <div className="aspect-[4/3] sm:aspect-[3/2] relative bg-gray-100">
+                      <div className="aspect-[4/3] md:aspect-[3/2] lg:aspect-[4/3] relative bg-gray-100">
                         {receipt.type.startsWith('image/') ? (
                           <Image
                             src={receipt.url}
                             alt={receipt.name}
                             fill
                             className="object-cover"
-                            sizes="(max-width: 768px) 50vw, 33vw"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                           />
                         ) : (
                           <div className="flex items-center justify-center h-full">

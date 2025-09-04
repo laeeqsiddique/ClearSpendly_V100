@@ -1,6 +1,7 @@
 import { MistralOCRProvider } from './providers/mistral-provider';
 import { OpenAIProvider } from './providers/openai-provider';
 import { OCRProvider, OCRResult, OCRConfig } from './types';
+import { convertPdfToImage, PDFConversionResult } from '../pdf-converter';
 
 export class OCRService {
   private providers: OCRProvider[] = [];
@@ -15,7 +16,7 @@ export class OCRService {
       costThreshold: config?.costThreshold || 0.01,
       accuracyThreshold: config?.accuracyThreshold || 70,
       maxRetries: config?.maxRetries || 2,
-      timeout: config?.timeout || 30000
+      timeout: config?.timeout || 60000
     };
 
     this.initializeProviders();
@@ -37,7 +38,50 @@ export class OCRService {
   }
 
   async processReceipt(imageBase64: string): Promise<OCRResult> {
-    // Check cache first
+    // Check if this is a PDF (either URL or base64 data)
+    const isPdf = imageBase64.includes('.pdf') || imageBase64.startsWith('JVBERi0x') || imageBase64.includes('application/pdf');
+    
+    if (isPdf) {
+      console.log('📄 PDF detected - converting to image for OCR processing');
+      
+      try {
+        // Add timeout for PDF conversion to prevent hanging
+        const conversionPromise = convertPdfToImage(imageBase64);
+        const timeoutPromise = new Promise<PDFConversionResult>((_, reject) => {
+          setTimeout(() => reject(new Error('PDF conversion timeout')), 10000); // 10 second timeout
+        });
+        
+        const conversionResult = await Promise.race([conversionPromise, timeoutPromise]);
+        
+        if (!conversionResult.success) {
+          return {
+            success: false,
+            error: conversionResult.error || 'PDF conversion failed',
+            provider: 'pdf-converter',
+            processingTime: 100,
+            cost: 0,
+            confidence: 0
+          };
+        }
+        
+        // Use the converted image for OCR processing
+        console.log(`✅ PDF converted successfully using ${conversionResult.method}`);
+        imageBase64 = conversionResult.imageBase64!;
+        
+      } catch (error) {
+        console.error('PDF conversion error:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'PDF conversion failed',
+          provider: 'pdf-converter',
+          processingTime: 100,
+          cost: 0,
+          confidence: 0
+        };
+      }
+    }
+
+    // Check cache first (for non-PDFs)
     if (this.config.enableCaching) {
       const cacheKey = this.generateCacheKey(imageBase64);
       const cached = this.cache.get(cacheKey);

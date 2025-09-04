@@ -94,25 +94,31 @@ export async function POST(req: NextRequest) {
   return withPermission('receipts:create')(req, async (request) => {
     try {
       const startTime = Date.now();
-      const { imageUrl, imageData, saveToDatabase = false } = await request.json();
+      const { imageUrl, imageData, fileType, saveToDatabase = false } = await request.json();
 
       if (!imageUrl && !imageData) {
         return NextResponse.json({ error: "No image provided" }, { status: 400 });
       }
 
-      // Use the unified OCR service
+      // Use the unified OCR service with extended timeout for PDF processing
       const ocrService = getOCRService({
         primaryProvider: process.env.OCR_PRIMARY_PROVIDER as any || 'mistral',
         enableCaching: true,
         costThreshold: 0.01,
-        accuracyThreshold: 70
+        accuracyThreshold: 70,
+        timeout: 120000 // 2 minutes for complex PDFs
       });
 
       // Process the receipt
       const finalImageData = imageData || imageUrl;
       console.log(`🔄 Processing receipt with OCR service...`);
+      console.log(`📄 Input type: ${finalImageData ? (finalImageData.startsWith('http') ? 'URL' : 'base64 data') : 'unknown'}`);
       
+      const ocrStartTime = Date.now();
       const result = await ocrService.processReceipt(finalImageData);
+      const ocrEndTime = Date.now();
+      
+      console.log(`⏱️ OCR processing completed in ${(ocrEndTime - ocrStartTime) / 1000}s`);
 
       if (!result.success) {
         return NextResponse.json(
