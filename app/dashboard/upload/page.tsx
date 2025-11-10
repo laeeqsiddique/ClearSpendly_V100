@@ -36,7 +36,7 @@ import {
   PenTool
 } from "lucide-react";
 import Image from "next/image";
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 // PDF.js dynamic import for client-side PDF to image conversion
@@ -214,7 +214,7 @@ export default function UploadPage() {
     loadTagData();
   }, []);
 
-  const handleFileUpload = async (files: FileList | File[]) => {
+  const handleFileUpload = useCallback(async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
 
     for (const file of fileArray) {
@@ -272,7 +272,7 @@ export default function UploadPage() {
 
         setUploadedReceipts((prev) => [uploadedReceipt, ...prev]);
         toast.success(`${file.name} uploaded successfully`);
-        
+
         // Process OCR with the original file for better quality and pass image URL
         processReceiptOCR(uploadedReceipt.id, file, url);
       } catch (error) {
@@ -283,9 +283,10 @@ export default function UploadPage() {
         setUploadProgress(0);
       }
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // processReceiptOCR is stable (defined below with empty deps)
 
-  const processReceiptOCR = async (receiptId: string, file: File, imageUrl?: string) => {
+  const processReceiptOCR = useCallback(async (receiptId: string, file: File, imageUrl?: string) => {
     const updateProgress = (step: string, progress: number) => {
       setOcrProgress(prev => ({
         ...prev,
@@ -427,10 +428,10 @@ export default function UploadPage() {
         delete newProgress[receiptId];
         return newProgress;
       });
-      
+
       toast.error('Failed to process receipt: ' + (error as Error).message);
     }
-  };
+  }, []);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -450,13 +451,17 @@ export default function UploadPage() {
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFileUpload(e.dataTransfer.files);
     }
-  }, []);
+  }, [handleFileUpload]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('🎯 File input changed!', e.target.files?.length, 'files selected');
     if (e.target.files && e.target.files[0]) {
       handleFileUpload(e.target.files);
     }
-  };
+  }, [handleFileUpload]);
+
+  // Ref for the file input element
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const openEditModal = (receipt: UploadedReceipt) => {
     if (receipt.extractedData) {
@@ -914,8 +919,18 @@ export default function UploadPage() {
               <div className="p-6">
                 <div>
                   <div>
+                    <input
+                      id="receipt-file-input"
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*,application/pdf"
+                      multiple
+                      onChange={handleInputChange}
+                      disabled={uploading}
+                      style={{ display: 'none' }}
+                    />
                     <div
-                      className={`relative border-2 border-dashed rounded-lg p-6 sm:p-8 text-center transition-all duration-300 ${
+                      className={`border-2 border-dashed rounded-lg p-6 sm:p-8 text-center transition-all duration-300 ${
                         dragActive
                           ? "border-purple-400 bg-purple-50/50 scale-105"
                           : "border-gray-300 hover:border-purple-400 hover:bg-gray-50"
@@ -925,15 +940,6 @@ export default function UploadPage() {
                       onDragOver={handleDrag}
                       onDrop={handleDrop}
                     >
-                    <Input
-                      type="file"
-                      accept="image/*,application/pdf"
-                      multiple
-                      onChange={handleInputChange}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      disabled={uploading}
-                    />
-                    
                     <div className="space-y-6 text-center">
                       <div className="w-20 h-20 lg:w-24 lg:h-24 bg-purple-600 rounded-full flex items-center justify-center mx-auto">
                         {uploading ? (
@@ -948,8 +954,16 @@ export default function UploadPage() {
                           {dragActive ? "Drop files here" : "Upload Receipt"}
                         </h3>
                         <p className="text-gray-600">
-                          Tap to select or drag files here
+                          Click the button below or drag files here
                         </p>
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploading}
+                          className="mx-auto px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Select Files
+                        </button>
                         <div className="flex items-center justify-center gap-6 text-sm text-gray-500 bg-gray-50 rounded-lg py-3 px-4">
                           <div className="flex items-center gap-2">
                             <FileImage className="h-4 w-4" />
@@ -963,7 +977,7 @@ export default function UploadPage() {
                         </div>
                       </div>
                     </div>
-                  </div>
+                    </div>
 
                   {uploading && (
                     <div className="mt-8 bg-purple-50 rounded-2xl p-6 border border-purple-100">
