@@ -1,0 +1,46 @@
+[build]
+builder = "nixpacks"
+buildCommand = "npm run build"
+watchPatterns = ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"]
+
+[deploy]
+numReplicas = 1
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[[deploy.envGroups]]
+name = "production"
+
+[deploy.healthcheck]
+httpPath = "/api/health"
+httpTimeout = 10
+httpInterval = 30
+
+[[services]]
+name = "flowvya-web"
+
+[services.source]
+repo = "your-repo/flowvya"
+branch = "main"
+
+# Environment variables for Railway deployment
+[environments.production]
+NODE_ENV = "production"
+NEXT_TELEMETRY_DISABLED = "1"
+
+# Database configuration
+# Railway will automatically provide DATABASE_URL for PostgreSQL service
+# SUPABASE_URL and SUPABASE_ANON_KEY should be set via Railway environment variables
+
+# CMS Configuration
+# NEXT_PUBLIC_BLOG_TENANT_ID should be set to your blog tenant ID
+# REDIS_URL will be provided by Railway Redis service if added
+
+# Security
+# NEXTAUTH_SECRET should be set via Railway environment variables
+
+[volumes]
+# No volumes needed for stateless deployment
+
+[networking]
+# Use Railway's automatic HTTPS and domain assignment
