@@ -6,6 +6,7 @@
 export interface InvoiceLineItem {
   description: string;
   quantity: number;
+  unitOfMeasure: string; // Unit of Measure (EA, BOX, HR, etc.) - defaults to "EA"
   unitPrice: number;
   totalPrice: number;
   poNumber?: string; // Purchase Order Number

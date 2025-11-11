@@ -58,6 +58,7 @@ async function processInvoiceWithOpenAI(imageBase64: string): Promise<InvoiceOCR
     {
       "description": "string - item/service description",
       "quantity": number,
+      "unitOfMeasure": "string - unit of measure (EA, BOX, HR, LB, etc.) - default to 'EA' if not specified",
       "unitPrice": number,
       "totalPrice": number,
       "poNumber": "string - PO number for this line if present",
@@ -78,7 +79,14 @@ CRITICAL EXTRACTION RULES:
    - Use exact prices shown - unitPrice × quantity should equal totalPrice
    - If only total is shown, calculate unit price: totalPrice / quantity
 
-3. **PO Numbers (CRITICAL - Multiple Label Variations)**:
+3. **Unit of Measure (UOM) - CRITICAL**:
+   - LOOK FOR: "UOM", "U/M", "Unit", "Units", "Each", "EA", "BOX", "HR", "LB", "KG", "GAL", "FT", etc.
+   - Common UOMs: EA (Each), BOX, CASE, HR (Hour), LB (Pound), KG, GAL (Gallon), FT (Foot), YD (Yard), SQ FT, METER
+   - May appear in column header or next to quantity
+   - DEFAULT to "EA" (Each) if no UOM is explicitly shown
+   - Extract exactly as shown on invoice (preserve case and format)
+
+4. **PO Numbers (CRITICAL - Multiple Label Variations)**:
    - LOOK FOR THESE LABELS: "PO Number", "P.O.", "PO#", "Purchase Order", "Customer PO",
      "Cust PO", "Order Number", "Order #", "Ref Number", "Reference", "Your PO"
    - Check header/top section first for overall PO number
@@ -87,22 +95,22 @@ CRITICAL EXTRACTION RULES:
    - IMPORTANT: If you see ANY variation of these labels, extract that value to poNumber field
    - Do NOT leave poNumber empty if ANY PO-related field exists on the invoice
 
-4. **Item Codes/Material Numbers (Multiple Label Variations)**:
+5. **Item Codes/Material Numbers (Multiple Label Variations)**:
    - LOOK FOR: "Item Code", "Item #", "Material Number", "Mat #", "SKU", "Product Code",
      "Part Number", "Part #", "Catalog #"
    - Often shown before description or in separate column
    - May be alphanumeric (e.g., "MAT-12345", "SKU789", "P/N: ABC-123")
 
-5. **Dates**:
+6. **Dates**:
    - Invoice date (required) - may be labeled "Invoice Date", "Date", "Dated", "Bill Date"
    - Due date (payment terms) - may be "Due Date", "Payment Due", "Terms"
    - Service/delivery dates per line item - may be "Service Date", "Delivery Date", "Date Performed"
 
-6. **Vendor Information**:
+7. **Vendor Information**:
    - Extract vendor name from header/top of invoice
    - Look for vendor ID/number (may be "Vendor #", "Vendor ID", "Supplier Number", "Account #")
 
-7. **Table Recognition**:
+8. **Table Recognition**:
    - Identify ALL table headers regardless of naming variations
    - Common header patterns: Description, Desc, Item, Qty, Quantity, Unit Price, Price,
      Total, Amount, PO#, Item Code, Date
@@ -110,13 +118,13 @@ CRITICAL EXTRACTION RULES:
    - Handle multi-line descriptions carefully
    - Don't skip rows even if some cells are blank
 
-8. **Field Variation Strategy**:
+9. **Field Variation Strategy**:
    - ALWAYS look for semantic meaning, not exact label matches
    - If a field looks like a PO number (alphanumeric, often has dashes or slashes), extract it
    - If a field looks like an item code (short alphanumeric), extract it
    - Use context clues from nearby labels and field positions
 
-9. **Accuracy**: Be precise with numbers, dates, and codes. If unclear, mark lower confidence.
+10. **Accuracy**: Be precise with numbers, dates, and codes. If unclear, mark lower confidence.
    If field exists but you're unsure which type it is, include it anyway - it's better to extract
    data that can be reviewed than to miss it entirely.
 
@@ -170,6 +178,12 @@ Return ONLY the JSON object, no additional text.`;
         provider: 'openai'
       };
     }
+
+    // Ensure all line items have UOM (default to "EA" if missing)
+    extractedData.lineItems = extractedData.lineItems.map(item => ({
+      ...item,
+      unitOfMeasure: item.unitOfMeasure || 'EA'
+    }));
 
     // Validate required fields
     console.log("🔍 Validating fields:", {

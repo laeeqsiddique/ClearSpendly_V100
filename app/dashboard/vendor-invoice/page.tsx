@@ -636,6 +636,9 @@ export default function VendorInvoicePage() {
                             Qty
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                            UOM
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                             Unit Price
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
@@ -690,6 +693,19 @@ export default function VendorInvoicePage() {
                                 />
                               ) : (
                                 item.quantity
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+                              {editMode ? (
+                                <input
+                                  type="text"
+                                  value={item.unitOfMeasure}
+                                  onChange={(e) => handleLineItemChange(index, "unitOfMeasure", e.target.value.toUpperCase())}
+                                  placeholder="EA"
+                                  className="w-20 px-3 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm transition-all duration-200 uppercase"
+                                />
+                              ) : (
+                                item.unitOfMeasure
                               )}
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-900">
